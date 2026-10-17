@@ -738,6 +738,36 @@ abstract class AppLocalizations {
   /// **'Show the whole text of each entry instead of a short preview'**
   String get settingsTimelineShowFullEntriesHint;
 
+  /// No description provided for @timelineNewestFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Newest first'**
+  String get timelineNewestFirst;
+
+  /// No description provided for @timelineOldestFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Oldest first'**
+  String get timelineOldestFirst;
+
+  /// No description provided for @timelineShowFullEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'Show full entries'**
+  String get timelineShowFullEntries;
+
+  /// No description provided for @timelineShowPreviews.
+  ///
+  /// In en, this message translates to:
+  /// **'Show previews'**
+  String get timelineShowPreviews;
+
+  /// No description provided for @timelineAddEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Add entry for this day'**
+  String get timelineAddEntry;
+
   /// No description provided for @pageCalendarTitle.
   ///
   /// In en, this message translates to:

@@ -3,7 +3,9 @@
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
 import 'package:daily_you/config_provider.dart';
+import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
+import 'package:daily_you/pages/edit_entry_page.dart';
 import 'package:daily_you/pages/entries_list_page.dart';
 import 'package:daily_you/providers/entries_provider.dart';
 import 'package:daily_you/providers/entry_attachments_provider.dart';
@@ -18,14 +20,19 @@ class EntryTimelinePage extends StatefulWidget {
     required this.header,
     required this.getEntries,
     required this.labelBuilder,
+    this.addEntryDate,
   });
 
   final String header;
   final List<Entry> Function() getEntries;
   final String Function(BuildContext, Entry) labelBuilder;
 
-  /// Pushes a timeline listing every entry created on [date], ordered
-  /// newest first, with each entry labeled by its time of day.
+  /// When set, an add button creates a new entry on this day. Left null for
+  /// timelines that span several days, such as "On this day".
+  final DateTime? addEntryDate;
+
+  /// Pushes a timeline listing every entry created on [date], with each
+  /// entry labeled by its time of day and an add button for that day.
   static Future<void> pushForDay(BuildContext context, DateTime date) {
     final title = TimeManager.formatDate(date, context);
     return Navigator.of(context).push(MaterialPageRoute(
@@ -34,9 +41,8 @@ class EntryTimelinePage extends StatefulWidget {
         header: title,
         getEntries: () => EntriesProvider.instance.entries
             .where((entry) => TimeManager.isSameDay(entry.timeCreate, date))
-            .toList()
-            .reversed
             .toList(),
+        addEntryDate: date,
         labelBuilder: (context, entry) => TimeManager.localizedTimeFormat(
                 context, TimeManager.currentLocale(context))
             .format(entry.timeCreate),
@@ -49,16 +55,42 @@ class EntryTimelinePage extends StatefulWidget {
 }
 
 class _EntryTimelinePageState extends State<EntryTimelinePage> {
+  void _showStatus(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(milliseconds: 1500),
+      ));
+  }
+
+  Future<void> _addEntry(DateTime date) async {
+    await Navigator.of(context).push(MaterialPageRoute(
+      allowSnapshotting: false,
+      builder: (context) => AddEditEntryPage(
+        overrideCreateDate:
+            TimeManager.currentTimeOnDifferentDate(date).copyWith(isUtc: false),
+      ),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     Provider.of<EntriesProvider>(context);
     final entryAttachmentsProvider =
         Provider.of<EntryAttachmentsProvider>(context);
 
-    final showFullEntries = Provider.of<ConfigProvider>(context)
-        .get(Settings.timelineShowFullEntries);
+    final configProvider = Provider.of<ConfigProvider>(context);
+    final localizations = AppLocalizations.of(context)!;
+    final showFullEntries = configProvider.get(Settings.timelineShowFullEntries);
+    final oldestFirst = configProvider.get(Settings.timelineOldestFirst);
+    final addEntryDate = widget.addEntryDate;
 
-    final entries = widget.getEntries();
+    final entries = List<Entry>.from(widget.getEntries())
+      ..sort((a, b) => oldestFirst
+          ? a.timeCreate.compareTo(b.timeCreate)
+          : b.timeCreate.compareTo(a.timeCreate));
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (entries.isEmpty && mounted) {
@@ -67,7 +99,51 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
     });
 
     return Scaffold(
-      appBar: AppBar(title: Text(widget.header)),
+      appBar: AppBar(
+        title: Text(widget.header),
+        actions: [
+          IconButton(
+            tooltip: oldestFirst
+                ? localizations.timelineOldestFirst
+                : localizations.timelineNewestFirst,
+            icon: Transform.flip(
+              flipY: oldestFirst,
+              child: const Icon(Icons.sort_rounded),
+            ),
+            onPressed: () async {
+              await configProvider.set(
+                  Settings.timelineOldestFirst, !oldestFirst);
+              if (!mounted) return;
+              _showStatus(!oldestFirst
+                  ? localizations.timelineOldestFirst
+                  : localizations.timelineNewestFirst);
+            },
+          ),
+          IconButton(
+            tooltip: showFullEntries
+                ? localizations.timelineShowPreviews
+                : localizations.timelineShowFullEntries,
+            isSelected: showFullEntries,
+            icon: const Icon(Icons.open_in_full_rounded),
+            selectedIcon: const Icon(Icons.close_fullscreen_rounded),
+            onPressed: () async {
+              await configProvider.set(
+                  Settings.timelineShowFullEntries, !showFullEntries);
+              if (!mounted) return;
+              _showStatus(!showFullEntries
+                  ? localizations.timelineShowFullEntries
+                  : localizations.timelineShowPreviews);
+            },
+          ),
+          if (addEntryDate != null)
+            IconButton(
+              tooltip: localizations.timelineAddEntry,
+              icon: const Icon(Icons.add_rounded),
+              onPressed: () => _addEntry(addEntryDate),
+            ),
+          const SizedBox(width: 4),
+        ],
+      ),
       body: ListView.builder(
         padding: const EdgeInsets.only(top: 8, bottom: 16),
         itemCount: entries.length,

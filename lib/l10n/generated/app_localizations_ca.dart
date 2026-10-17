@@ -391,6 +391,21 @@ class AppLocalizationsCa extends AppLocalizations {
       'Show the whole text of each entry instead of a short preview';
 
   @override
+  String get timelineNewestFirst => 'Newest first';
+
+  @override
+  String get timelineOldestFirst => 'Oldest first';
+
+  @override
+  String get timelineShowFullEntries => 'Show full entries';
+
+  @override
+  String get timelineShowPreviews => 'Show previews';
+
+  @override
+  String get timelineAddEntry => 'Add entry for this day';
+
+  @override
   String get pageCalendarTitle => 'Calendari';
 
   @override

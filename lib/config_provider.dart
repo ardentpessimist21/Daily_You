@@ -103,6 +103,8 @@ class Settings {
       Setting<bool>("hideImagesInFlashbacks", false);
   static const timelineShowFullEntries =
       Setting<bool>("timelineShowFullEntries", false);
+  static const timelineOldestFirst =
+      Setting<bool>("timelineOldestFirst", false);
   static const lastDismissedSupportBannerDate =
       Setting<String?>("lastDismissedSupportBannerDate", null);
   static const calendarShowMood = Setting<bool>("calendarShowMood", true);
@@ -191,6 +193,7 @@ class Settings {
     hideImagesInCalendar,
     hideImagesInFlashbacks,
     timelineShowFullEntries,
+    timelineOldestFirst,
     lastDismissedSupportBannerDate,
     calendarShowMood,
     calendarTagOverlay,
