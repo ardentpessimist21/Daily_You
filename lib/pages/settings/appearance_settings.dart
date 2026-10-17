@@ -349,6 +349,15 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
             icon: const Icon(Icons.chevron_right_rounded),
             onPressed: () => _showHideImagesDialog(context, configProvider),
           ),
+          SettingsToggle(
+            title: AppLocalizations.of(context)!
+                .settingsTimelineShowFullEntries,
+            hint: AppLocalizations.of(context)!
+                .settingsTimelineShowFullEntriesHint,
+            setting: Settings.timelineShowFullEntries,
+            onChanged: (value) =>
+                configProvider.set(Settings.timelineShowFullEntries, value),
+          ),
           Padding(
             padding: const EdgeInsets.only(top: 16.0, left: 16.0, right: 16.0),
             child: Text(

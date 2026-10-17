@@ -381,6 +381,14 @@ class AppLocalizationsPt extends AppLocalizations {
   String get settingsHideImages => 'Hide Images';
 
   @override
+  String get settingsTimelineShowFullEntries =>
+      'Show Full Entries In Timeline';
+
+  @override
+  String get settingsTimelineShowFullEntriesHint =>
+      'Show the whole text of each entry instead of a short preview';
+
+  @override
   String get pageCalendarTitle => 'Calendar';
 
   @override

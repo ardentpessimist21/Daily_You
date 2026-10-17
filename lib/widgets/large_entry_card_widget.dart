@@ -88,6 +88,71 @@ class LargeCard extends StatelessWidget {
       );
 }
 
+/// Shows an entry's whole text, with any photos above it, instead of the
+/// clipped preview drawn by [LargeEntryCardWidget]. The card grows to fit.
+class FullEntryCardWidget extends StatelessWidget {
+  const FullEntryCardWidget({
+    super.key,
+    this.title,
+    required this.entry,
+    required this.attachments,
+  });
+
+  final Entry entry;
+  final List<EntryAttachment> attachments;
+  final String? title;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final time = TimeManager.formatDate(entry.timeCreate, context);
+    return Card.filled(
+      color: theme.colorScheme.surfaceContainer,
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(2.0),
+            child: EntryCardHeaderRow(
+              entry: entry,
+              title: title == null ? time : title!,
+              titlePadding: const EdgeInsets.only(left: 4.0),
+              titleStyle: TextStyle(
+                color: theme.textTheme.labelSmall?.color,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          if (attachments.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: AttachmentGrid(attachments: attachments),
+                ),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8.0, 4.0, 8.0, 12.0),
+            child: entry.text.isNotEmpty
+                ? IgnorePointer(
+                    child: ScaledMarkdown(data: entry.text, scaleFactor: 0.95),
+                  )
+                : Text(
+                    AppLocalizations.of(context)!.writeSomethingHint,
+                    style: TextStyle(color: theme.disabledColor, fontSize: 16),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class LargeEntryCardWidget extends StatelessWidget {
   const LargeEntryCardWidget({
     super.key,

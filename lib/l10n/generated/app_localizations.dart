@@ -726,6 +726,18 @@ abstract class AppLocalizations {
   /// **'Hide Images'**
   String get settingsHideImages;
 
+  /// No description provided for @settingsTimelineShowFullEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Full Entries In Timeline'**
+  String get settingsTimelineShowFullEntries;
+
+  /// No description provided for @settingsTimelineShowFullEntriesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the whole text of each entry instead of a short preview'**
+  String get settingsTimelineShowFullEntriesHint;
+
   /// No description provided for @pageCalendarTitle.
   ///
   /// In en, this message translates to:

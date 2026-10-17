@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/pages/entries_list_page.dart';
 import 'package:daily_you/providers/entries_provider.dart';
@@ -54,6 +55,9 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
     final entryAttachmentsProvider =
         Provider.of<EntryAttachmentsProvider>(context);
 
+    final showFullEntries = Provider.of<ConfigProvider>(context)
+        .get(Settings.timelineShowFullEntries);
+
     final entries = widget.getEntries();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -74,6 +78,31 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
               .where((attachment) => attachment.type.isVisual)
               .toList();
           final label = widget.labelBuilder(context, entry);
+          void openEntry() {
+            final id = entry.id;
+            if (id == null) return;
+            Navigator.of(context).push(MaterialPageRoute(
+              allowSnapshotting: false,
+              builder: (context) => EntriesListPage(
+                index: EntriesProvider.instance.getIndexOfEntry(id),
+                getEntries: () => EntriesProvider.instance.entries,
+              ),
+            ));
+          }
+
+          if (showFullEntries) {
+            return _FullEntryTimelineRow(
+              isFirst: index == 0,
+              isLast: index == entries.length - 1,
+              onTap: openEntry,
+              child: FullEntryCardWidget(
+                title: label,
+                entry: entry,
+                attachments: entryAttachments,
+              ),
+            );
+          }
+
           return AspectRatio(
             aspectRatio: 2.2,
             child: Row(
@@ -113,17 +142,7 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
                   child: Padding(
                     padding: const EdgeInsets.only(right: 8, bottom: 8),
                     child: GestureDetector(
-                      onTap: () {
-                        final id = entry.id;
-                        if (id == null) return;
-                        Navigator.of(context).push(MaterialPageRoute(
-                          allowSnapshotting: false,
-                          builder: (context) => EntriesListPage(
-                            index: EntriesProvider.instance.getIndexOfEntry(id),
-                            getEntries: () => EntriesProvider.instance.entries,
-                          ),
-                        ));
-                      },
+                      onTap: openEntry,
                       child: LargeEntryCardWidget(
                         title: label,
                         entry: entry,
@@ -137,6 +156,67 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
           );
         },
       ),
+    );
+  }
+}
+
+/// A timeline row that grows to fit its card, drawing the rail (line and
+/// dot) down the left side to match whatever height the card ends up.
+class _FullEntryTimelineRow extends StatelessWidget {
+  const _FullEntryTimelineRow({
+    required this.isFirst,
+    required this.isLast,
+    required this.onTap,
+    required this.child,
+  });
+
+  static const double _railWidth = 36;
+  static const double _lineWidth = 3;
+  static const double _dotSize = 14;
+  static const double _dotTop = 12;
+
+  final bool isFirst;
+  final bool isLast;
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final railColor = Theme.of(context).colorScheme.outlineVariant;
+    const lineLeft = (_railWidth - _lineWidth) / 2;
+    const dotCenter = _dotTop + _dotSize / 2;
+    return Stack(
+      children: [
+        if (!isFirst)
+          Positioned(
+            left: lineLeft,
+            top: 0,
+            width: _lineWidth,
+            height: dotCenter,
+            child: ColoredBox(color: railColor),
+          ),
+        if (!isLast)
+          Positioned(
+            left: lineLeft,
+            top: dotCenter,
+            bottom: 0,
+            width: _lineWidth,
+            child: ColoredBox(color: railColor),
+          ),
+        Positioned(
+          left: (_railWidth - _dotSize) / 2,
+          top: _dotTop,
+          width: _dotSize,
+          height: _dotSize,
+          child: DecoratedBox(
+            decoration: BoxDecoration(shape: BoxShape.circle, color: railColor),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: _railWidth, right: 8, bottom: 8),
+          child: GestureDetector(onTap: onTap, child: child),
+        ),
+      ],
     );
   }
 }

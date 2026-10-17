@@ -383,6 +383,14 @@ class AppLocalizationsCa extends AppLocalizations {
   String get settingsHideImages => 'Amaga les imatges';
 
   @override
+  String get settingsTimelineShowFullEntries =>
+      'Show Full Entries In Timeline';
+
+  @override
+  String get settingsTimelineShowFullEntriesHint =>
+      'Show the whole text of each entry instead of a short preview';
+
+  @override
   String get pageCalendarTitle => 'Calendari';
 
   @override
