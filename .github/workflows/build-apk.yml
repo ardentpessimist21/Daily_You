@@ -35,8 +35,21 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           if [ -n "$KEYSTORE_BASE64" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > android/app/release.jks
-            PASS="$KEYSTORE_PASSWORD"
+            # Pasted secrets often pick up stray spaces or line breaks
+            PASS="$(printf '%s' "$KEYSTORE_PASSWORD" | tr -d '[:space:]')"
+            if ! printf '%s' "$KEYSTORE_BASE64" | tr -d '[:space:]' \
+                | base64 -d > android/app/release.jks 2>/dev/null; then
+              echo "::error::KEYSTORE_BASE64 isn't valid. Re-paste the whole contents of keystore-base64.txt."
+              exit 1
+            fi
+            if ! keytool -list -keystore android/app/release.jks \
+                -storepass "$PASS" -alias daily_you_dev > /dev/null 2>&1; then
+              echo "::error::The keystore and KEYSTORE_PASSWORD don't match. Re-paste password.txt into KEYSTORE_PASSWORD (and check KEYSTORE_BASE64 was pasted in full)."
+              exit 1
+            fi
+            echo "Signing with key fingerprint:"
+            keytool -list -keystore android/app/release.jks -storepass "$PASS" \
+              -alias daily_you_dev | grep -i "SHA-256" || true
           else
             echo "::warning::No signing secrets set; using a throwaway key. Uninstall the previous Daily You Dev before installing this build."
             PASS=throwaway-pass
