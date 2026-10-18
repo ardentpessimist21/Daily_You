@@ -103,6 +103,15 @@ class Settings {
       Setting<bool>("hideImagesInFlashbacks", false);
   static const timelineShowFullEntries =
       Setting<bool>("timelineShowFullEntries", false);
+  static const homeGreetingEnabled = Setting<bool>("homeGreetingEnabled", true);
+  static const homeGreetingName = Setting<String>("homeGreetingName", "");
+  static const homeGreetingStyle =
+      Setting<String>("homeGreetingStyle", "classic");
+  static const homeGreetingLastLine =
+      Setting<String>("homeGreetingLastLine", "");
+  static const flashbackStyle = Setting<String>("flashbackStyle", "cards");
+  static const flashbackIconSeenDay =
+      Setting<String>("flashbackIconSeenDay", "");
   static const timelineOldestFirst =
       Setting<bool>("timelineOldestFirst", false);
   static const lastDismissedSupportBannerDate =
@@ -194,6 +203,12 @@ class Settings {
     hideImagesInFlashbacks,
     timelineShowFullEntries,
     timelineOldestFirst,
+    homeGreetingEnabled,
+    homeGreetingName,
+    homeGreetingStyle,
+    homeGreetingLastLine,
+    flashbackStyle,
+    flashbackIconSeenDay,
     lastDismissedSupportBannerDate,
     calendarShowMood,
     calendarTagOverlay,

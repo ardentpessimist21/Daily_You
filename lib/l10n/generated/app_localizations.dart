@@ -768,6 +768,180 @@ abstract class AppLocalizations {
   /// **'Add entry for this day'**
   String get timelineAddEntry;
 
+  /// No description provided for @favouriteAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to favourites'**
+  String get favouriteAdd;
+
+  /// No description provided for @favouriteRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from favourites'**
+  String get favouriteRemove;
+
+  /// No description provided for @greetingMorning.
+  ///
+  /// In en, this message translates to:
+  /// **'Good morning'**
+  String get greetingMorning;
+
+  /// No description provided for @greetingAfternoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Good afternoon'**
+  String get greetingAfternoon;
+
+  /// No description provided for @greetingEvening.
+  ///
+  /// In en, this message translates to:
+  /// **'Good evening'**
+  String get greetingEvening;
+
+  /// No description provided for @greetingNight.
+  ///
+  /// In en, this message translates to:
+  /// **'Good night'**
+  String get greetingNight;
+
+  /// No description provided for @settingsHomeGreeting.
+  ///
+  /// In en, this message translates to:
+  /// **'Greeting On Home'**
+  String get settingsHomeGreeting;
+
+  /// No description provided for @settingsHomeGreetingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Show a greeting instead of \"Home\"'**
+  String get settingsHomeGreetingHint;
+
+  /// No description provided for @settingsGreetingStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Greeting Style'**
+  String get settingsGreetingStyle;
+
+  /// No description provided for @greetingStyleClassic.
+  ///
+  /// In en, this message translates to:
+  /// **'Classic'**
+  String get greetingStyleClassic;
+
+  /// No description provided for @greetingStylePlayful.
+  ///
+  /// In en, this message translates to:
+  /// **'Playful'**
+  String get greetingStylePlayful;
+
+  /// No description provided for @settingsYourName.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Name'**
+  String get settingsYourName;
+
+  /// No description provided for @settingsYourNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Leave empty for no name'**
+  String get settingsYourNameHint;
+
+  /// No description provided for @settingsFlashbackStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Flashback Style'**
+  String get settingsFlashbackStyle;
+
+  /// No description provided for @flashbackStyleCards.
+  ///
+  /// In en, this message translates to:
+  /// **'Cards'**
+  String get flashbackStyleCards;
+
+  /// No description provided for @flashbackStyleChips.
+  ///
+  /// In en, this message translates to:
+  /// **'Chips'**
+  String get flashbackStyleChips;
+
+  /// No description provided for @flashbackStyleIcon.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon (✨)'**
+  String get flashbackStyleIcon;
+
+  /// No description provided for @bulkSelected.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected'**
+  String bulkSelected(int count);
+
+  /// No description provided for @bulkChangeMood.
+  ///
+  /// In en, this message translates to:
+  /// **'Change mood'**
+  String get bulkChangeMood;
+
+  /// No description provided for @bulkChangeTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Change tags'**
+  String get bulkChangeTags;
+
+  /// No description provided for @bulkNoMood.
+  ///
+  /// In en, this message translates to:
+  /// **'No mood'**
+  String get bulkNoMood;
+
+  /// No description provided for @bulkNoTags.
+  ///
+  /// In en, this message translates to:
+  /// **'No tags yet'**
+  String get bulkNoTags;
+
+  /// No description provided for @bulkForEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{For 1 entry} other{For {count} entries}}'**
+  String bulkForEntries(int count);
+
+  /// No description provided for @bulkTagsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Tap a tag to add or remove it.} other{Outlined tags are on some of the {count} entries. Tap to put a tag on all of them, tap again to remove it from all.}}'**
+  String bulkTagsHint(int count);
+
+  /// No description provided for @bulkDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Delete 1 entry?} other{Delete {count} entries?}}'**
+  String bulkDeleteTitle(int count);
+
+  /// No description provided for @bulkDeleteDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Their photos and other attachments are deleted too. This can\'t be undone.'**
+  String get bulkDeleteDescription;
+
+  /// No description provided for @bulkMoodChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Mood changed'**
+  String get bulkMoodChanged;
+
+  /// No description provided for @bulkTagsUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags updated'**
+  String get bulkTagsUpdated;
+
+  /// No description provided for @bulkDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 entry deleted} other{{count} entries deleted}}'**
+  String bulkDeleted(int count);
+
   /// No description provided for @pageCalendarTitle.
   ///
   /// In en, this message translates to:

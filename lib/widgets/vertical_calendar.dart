@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:daily_you/config_provider.dart';
@@ -52,7 +53,7 @@ class VerticalCalendar extends StatefulWidget {
 }
 
 class _VerticalCalendarState extends State<VerticalCalendar>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
   static const double _daysOfWeekRowHeight = 32.0;
 
   double _weekRowHeight = 57.0;
@@ -78,10 +79,12 @@ class _VerticalCalendarState extends State<VerticalCalendar>
   List<String> _dayLabels = [];
 
   final DateTime _firstDate = DateTime(2000, 1, 1);
-  late final DateTime _lastDate =
-      DateTime(DateTime.now().year, DateTime.now().month, 1);
-  final DateTime _today =
+  // Recomputed when the day changes (see _checkForNewDay), so a calendar
+  // left open past midnight or into a new month stays current.
+  DateTime _lastDate = DateTime(DateTime.now().year, DateTime.now().month, 1);
+  DateTime _today =
       DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
+  Timer? _midnightTimer;
 
   @override
   bool get wantKeepAlive => true;
@@ -90,6 +93,37 @@ class _VerticalCalendarState extends State<VerticalCalendar>
   void initState() {
     super.initState();
     widget.scrollController.addListener(_onScroll);
+    WidgetsBinding.instance.addObserver(this);
+    _scheduleMidnightCheck();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _checkForNewDay();
+  }
+
+  void _scheduleMidnightCheck() {
+    _midnightTimer?.cancel();
+    final now = DateTime.now();
+    final nextMidnight = DateTime(now.year, now.month, now.day + 1);
+    // A second of slack so the check lands safely on the new day
+    _midnightTimer = Timer(
+        nextMidnight.difference(now) + const Duration(seconds: 1), () {
+      _checkForNewDay();
+      _scheduleMidnightCheck();
+    });
+  }
+
+  void _checkForNewDay() {
+    if (!mounted) return;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    if (today == _today) return;
+    setState(() {
+      _today = today;
+      _lastDate = DateTime(now.year, now.month, 1);
+      if (_lastFirstDayIndex != null) _buildCalendarItems(_lastFirstDayIndex!);
+    });
   }
 
   @override
@@ -125,6 +159,8 @@ class _VerticalCalendarState extends State<VerticalCalendar>
 
   @override
   void dispose() {
+    _midnightTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     _showTodayButton.dispose();
     widget.scrollController.removeListener(_onScroll);
     super.dispose();

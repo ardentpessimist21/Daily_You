@@ -60,7 +60,7 @@ class EntryTagIconPreview extends StatelessWidget {
         if (attachedTags.isEmpty) return const SizedBox.shrink();
 
         final orderedTags = tagsProvider
-            .buildSections('', tagPool: attachedTags)
+            .buildSections('', tagPool: attachedTags, includeFavourite: true)
             .expand((section) => section.tags)
             .toList();
 

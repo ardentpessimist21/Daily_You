@@ -377,7 +377,10 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
               .toList();
         }
 
-        final sections = provider.buildSections(_searchText, tagPool: pool);
+        // The Gallery filter can show favourites; other pickers can't add it
+        final sections = provider.buildSections(_searchText,
+            tagPool: pool,
+            includeFavourite: widget.mode == TagPickerMode.filter);
 
         final String title;
         switch (widget.mode) {

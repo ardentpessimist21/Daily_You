@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/fork/favourites.dart';
 import 'package:daily_you/models/tag.dart';
 import 'package:daily_you/models/tag_category.dart';
 import 'package:daily_you/providers/tags_provider.dart';
@@ -101,8 +102,10 @@ class _TagsSettingsState extends State<TagsSettings> {
 
     // Header only shown when named categories exist, to give uncategorized
     // tags something to collapse under.
-    final uncategorizedTags =
-        provider.tags.where((tag) => tag.categoryId == null).toList();
+    final uncategorizedTags = provider.tags
+        .where((tag) =>
+            tag.categoryId == null && !Favourites.isFavouriteTag(tag))
+        .toList();
     if (hasCategories) {
       items.add(const _HeaderItem(null));
     }
@@ -116,7 +119,9 @@ class _TagsSettingsState extends State<TagsSettings> {
       items.add(_HeaderItem(category));
       if (!_manuallyCollapsedIds.contains(category.id)) {
         final categoryTags = provider.tags
-            .where((tag) => tag.categoryId == category.id)
+            .where((tag) =>
+                tag.categoryId == category.id &&
+                !Favourites.isFavouriteTag(tag))
             .toList();
         for (final tag in categoryTags) {
           items.add(_TagItem(tag));

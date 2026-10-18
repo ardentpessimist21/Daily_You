@@ -3,6 +3,7 @@
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
 import 'package:daily_you/config_provider.dart';
+import 'package:daily_you/fork/home_greeting.dart';
 import 'package:daily_you/time_manager.dart';
 import 'package:daily_you/widgets/app_dialog.dart';
 import 'package:daily_you/widgets/color_picker_dialog.dart';
@@ -27,6 +28,40 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
   @override
   void initState() {
     super.initState();
+  }
+
+  Future<void> _showNameDialog(ConfigProvider configProvider) async {
+    final controller = TextEditingController(
+        text: configProvider.get(Settings.homeGreetingName));
+    final name = await showAppDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(AppLocalizations.of(context)!.settingsYourName),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 24,
+          textCapitalization: TextCapitalization.words,
+          decoration: InputDecoration(
+              hintText: AppLocalizations.of(context)!.settingsYourNameHint),
+          onSubmitted: (value) => Navigator.pop(context, value),
+        ),
+        actions: [
+          TextButton(
+            child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+            onPressed: () => Navigator.pop(context),
+          ),
+          TextButton(
+            child: Text(MaterialLocalizations.of(context).okButtonLabel),
+            onPressed: () => Navigator.pop(context, controller.text),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (name != null) {
+      await configProvider.set(Settings.homeGreetingName, name.trim());
+    }
   }
 
   Future<void> _showAccentColorPopup(ThemeModeProvider themeProvider) async {
@@ -288,6 +323,43 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
                 _showAccentColorPopup(themeProvider);
               },
             ),
+          SettingsToggle(
+            title: AppLocalizations.of(context)!.settingsHomeGreeting,
+            hint: AppLocalizations.of(context)!.settingsHomeGreetingHint,
+            setting: Settings.homeGreetingEnabled,
+            onChanged: (value) =>
+                configProvider.set(Settings.homeGreetingEnabled, value),
+          ),
+          if (configProvider.get(Settings.homeGreetingEnabled)) ...[
+            SettingsIconAction(
+              title: AppLocalizations.of(context)!.settingsYourName,
+              hint: configProvider.get(Settings.homeGreetingName).isEmpty
+                  ? AppLocalizations.of(context)!.settingsYourNameHint
+                  : configProvider.get(Settings.homeGreetingName),
+              icon: const Icon(Icons.edit_rounded),
+              onPressed: () => _showNameDialog(configProvider),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: SettingsDropdown<String>(
+                  title: AppLocalizations.of(context)!.settingsGreetingStyle,
+                  value: configProvider.get(Settings.homeGreetingStyle),
+                  options: [
+                    DropdownMenuItem<String>(
+                        value: HomeGreeting.styleClassic,
+                        child: Text(AppLocalizations.of(context)!
+                            .greetingStyleClassic)),
+                    DropdownMenuItem<String>(
+                        value: HomeGreeting.stylePlayful,
+                        child: Text(AppLocalizations.of(context)!
+                            .greetingStylePlayful)),
+                  ],
+                  onChanged: (String? newValue) {
+                    if (newValue == null) return;
+                    configProvider.set(Settings.homeGreetingStyle, newValue);
+                  }),
+            ),
+          ],
           Padding(
             padding: const EdgeInsets.only(bottom: 8.0),
             child: SettingsDropdown<String>(

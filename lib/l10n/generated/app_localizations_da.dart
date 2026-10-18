@@ -400,6 +400,129 @@ class AppLocalizationsDa extends AppLocalizations {
   String get timelineAddEntry => 'Add entry for this day';
 
   @override
+  String get favouriteAdd => 'Add to favourites';
+
+  @override
+  String get favouriteRemove => 'Remove from favourites';
+
+  @override
+  String get greetingMorning => 'Good morning';
+
+  @override
+  String get greetingAfternoon => 'Good afternoon';
+
+  @override
+  String get greetingEvening => 'Good evening';
+
+  @override
+  String get greetingNight => 'Good night';
+
+  @override
+  String get settingsHomeGreeting => 'Greeting On Home';
+
+  @override
+  String get settingsHomeGreetingHint => 'Show a greeting instead of \"Home\"';
+
+  @override
+  String get settingsGreetingStyle => 'Greeting Style';
+
+  @override
+  String get greetingStyleClassic => 'Classic';
+
+  @override
+  String get greetingStylePlayful => 'Playful';
+
+  @override
+  String get settingsYourName => 'Your Name';
+
+  @override
+  String get settingsYourNameHint => 'Leave empty for no name';
+
+  @override
+  String get settingsFlashbackStyle => 'Flashback Style';
+
+  @override
+  String get flashbackStyleCards => 'Cards';
+
+  @override
+  String get flashbackStyleChips => 'Chips';
+
+  @override
+  String get flashbackStyleIcon => 'Icon (✨)';
+
+  @override
+  String bulkSelected(int count) {
+    return '$count selected';
+  }
+
+  @override
+  String get bulkChangeMood => 'Change mood';
+
+  @override
+  String get bulkChangeTags => 'Change tags';
+
+  @override
+  String get bulkNoMood => 'No mood';
+
+  @override
+  String get bulkNoTags => 'No tags yet';
+
+  @override
+  String bulkForEntries(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'For $count entries',
+      one: 'For 1 entry',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bulkTagsHint(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          'Outlined tags are on some of the $count entries. Tap to put a tag on all of them, tap again to remove it from all.',
+      one: 'Tap a tag to add or remove it.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bulkDeleteTitle(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Delete $count entries?',
+      one: 'Delete 1 entry?',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get bulkDeleteDescription =>
+      'Their photos and other attachments are deleted too. This can\'t be undone.';
+
+  @override
+  String get bulkMoodChanged => 'Mood changed';
+
+  @override
+  String get bulkTagsUpdated => 'Tags updated';
+
+  @override
+  String bulkDeleted(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count entries deleted',
+      one: '1 entry deleted',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get pageCalendarTitle => 'Calendar';
 
   @override

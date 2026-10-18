@@ -3,6 +3,8 @@
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
 import 'package:daily_you/config_provider.dart';
+import 'package:daily_you/widgets/settings_dropdown.dart';
+import 'package:daily_you/fork/flashback_styles.dart';
 import 'package:daily_you/widgets/settings_header.dart';
 import 'package:daily_you/widgets/settings_toggle.dart';
 import 'package:material_ui/material_ui.dart';
@@ -39,6 +41,31 @@ class _FlashbackSettingsPageState extends State<FlashbackSettings> {
               onChanged: (value) {
                 configProvider.set(Settings.showFlashbacks, value);
               }),
+          if (configProvider.get(Settings.showFlashbacks))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: SettingsDropdown<String>(
+                  title: AppLocalizations.of(context)!.settingsFlashbackStyle,
+                  value: configProvider.get(Settings.flashbackStyle),
+                  options: [
+                    DropdownMenuItem<String>(
+                        value: FlashbackStyle.cards,
+                        child: Text(AppLocalizations.of(context)!
+                            .flashbackStyleCards)),
+                    DropdownMenuItem<String>(
+                        value: FlashbackStyle.chips,
+                        child: Text(AppLocalizations.of(context)!
+                            .flashbackStyleChips)),
+                    DropdownMenuItem<String>(
+                        value: FlashbackStyle.icon,
+                        child: Text(AppLocalizations.of(context)!
+                            .flashbackStyleIcon)),
+                  ],
+                  onChanged: (String? newValue) {
+                    if (newValue == null) return;
+                    configProvider.set(Settings.flashbackStyle, newValue);
+                  }),
+            ),
           if (configProvider.get(Settings.showFlashbacks))
             SettingsToggle(
                 title: AppLocalizations.of(context)!

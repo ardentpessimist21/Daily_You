@@ -5,12 +5,15 @@
 import 'dart:io';
 
 import 'package:daily_you/database/attachment_storage.dart';
+import 'package:daily_you/fork/favourites.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
+import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/models/attachment.dart';
 import 'package:daily_you/pages/edit_entry_page.dart';
 import 'package:daily_you/pages/attachment_view_page.dart';
 import 'package:daily_you/providers/entries_provider.dart';
 import 'package:daily_you/providers/entry_attachments_provider.dart';
+import 'package:daily_you/providers/tags_provider.dart';
 import 'package:daily_you/time_manager.dart';
 import 'package:daily_you/utils/attachment_mime.dart';
 import 'package:daily_you/widgets/attachment_tile_background.dart';
@@ -55,6 +58,8 @@ class _EntryViewPageState extends State<EntryViewPage> {
         actions: [
           _shareButton(context, entry, attachments),
           _editButton(context, entry, attachments),
+          _addEntryButton(context, entry),
+          _favouriteButton(context, entry),
         ],
       ),
       body: ListView(
@@ -201,6 +206,42 @@ class _EntryViewPageState extends State<EntryViewPage> {
 
           widget.onEntryEdited(entry.id);
         });
+  }
+
+  /// Adds a new entry on the same day as the entry being viewed.
+  Widget _addEntryButton(BuildContext context, Entry entry) {
+    return IconButton(
+      tooltip: AppLocalizations.of(context)!.timelineAddEntry,
+      icon: const Icon(Icons.add_rounded),
+      onPressed: () async {
+        await Navigator.of(context).push(MaterialPageRoute(
+          allowSnapshotting: false,
+          builder: (context) => AddEditEntryPage(
+            overrideCreateDate:
+                TimeManager.currentTimeOnDifferentDate(entry.timeCreate)
+                    .copyWith(isUtc: false),
+          ),
+        ));
+      },
+    );
+  }
+
+  Widget _favouriteButton(BuildContext context, Entry entry) {
+    final id = entry.id;
+    if (id == null) return const SizedBox.shrink();
+    return Consumer<TagsProvider>(builder: (context, _, __) {
+      final localizations = AppLocalizations.of(context)!;
+      final isFavourite = Favourites.isFavourite(id);
+      return IconButton(
+        tooltip: isFavourite
+            ? localizations.favouriteRemove
+            : localizations.favouriteAdd,
+        icon: isFavourite
+            ? const Icon(Icons.star_rounded, color: Color(0xFFF2B33D))
+            : const Icon(Icons.star_outline_rounded),
+        onPressed: () => Favourites.toggle(id),
+      );
+    });
   }
 
   Widget _shareButton(

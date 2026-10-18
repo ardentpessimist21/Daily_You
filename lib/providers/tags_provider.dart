@@ -9,6 +9,7 @@ import 'package:daily_you/database/entry_tag_dao.dart';
 import 'package:daily_you/database/tag_category_dao.dart';
 import 'package:daily_you/database/tag_dao.dart';
 import 'package:daily_you/database/template_tag_dao.dart';
+import 'package:daily_you/fork/favourites.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/tag.dart';
 import 'package:daily_you/models/tag_category.dart';
@@ -248,8 +249,13 @@ class TagsProvider with ChangeNotifier {
   /// Uncategorized tags come first (no header), named categories follow in
   /// sort order. Sections with no matching tags are omitted.
   /// [tagPool] defaults to [tags] when null.
-  List<TagSection> buildSections(String searchText, {List<Tag>? tagPool}) {
-    final pool = tagPool ?? tags;
+  /// The ⭐ Favourite tag is left out unless [includeFavourite] is set, since
+  /// it's managed by the star button rather than by hand.
+  List<TagSection> buildSections(String searchText,
+      {List<Tag>? tagPool, bool includeFavourite = false}) {
+    final pool = (tagPool ?? tags)
+        .where((tag) => includeFavourite || !Favourites.isFavouriteTag(tag))
+        .toList();
     final query = searchText.toLowerCase();
 
     bool tagMatches(Tag tag) {

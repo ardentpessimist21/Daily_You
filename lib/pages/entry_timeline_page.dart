@@ -3,6 +3,7 @@
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
 import 'package:daily_you/config_provider.dart';
+import 'package:daily_you/fork/bulk_entry_actions.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/pages/edit_entry_page.dart';
@@ -55,6 +56,97 @@ class EntryTimelinePage extends StatefulWidget {
 }
 
 class _EntryTimelinePageState extends State<EntryTimelinePage> {
+  // Entry ids picked in select mode (started by long-pressing a card)
+  final Set<int> _selected = {};
+  bool get _selecting => _selected.isNotEmpty;
+
+  void _toggleSelected(Entry entry) {
+    final id = entry.id;
+    if (id == null) return;
+    setState(() =>
+        _selected.contains(id) ? _selected.remove(id) : _selected.add(id));
+  }
+
+  List<Entry> _selectedEntries(List<Entry> entries) =>
+      entries.where((entry) => _selected.contains(entry.id)).toList();
+
+  Future<void> _bulkMood(List<Entry> entries) async {
+    final chosen = await BulkEntryActions.pickMood(context, entries.length);
+    if (chosen == null || !mounted) return;
+    await BulkEntryActions.setMood(entries, chosen.mood);
+    if (!mounted) return;
+    setState(_selected.clear);
+    _showStatus(AppLocalizations.of(context)!.bulkMoodChanged);
+  }
+
+  Future<void> _bulkTags(List<Entry> entries) async {
+    final change = await BulkEntryActions.pickTags(context, entries);
+    if (change == null || !mounted) return;
+    final (add, remove) = change;
+    await BulkEntryActions.changeTags(entries, add, remove);
+    if (!mounted) return;
+    setState(_selected.clear);
+    _showStatus(AppLocalizations.of(context)!.bulkTagsUpdated);
+  }
+
+  Future<void> _bulkDelete(List<Entry> entries) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final deletedText =
+        AppLocalizations.of(context)!.bulkDeleted(entries.length);
+    if (!await BulkEntryActions.confirmDelete(context, entries.length)) return;
+    await BulkEntryActions.delete(entries);
+    if (mounted) setState(_selected.clear);
+    // Shown via the messenger so it still appears if the timeline closes
+    // because the day has no entries left.
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(deletedText),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(milliseconds: 1500),
+      ));
+  }
+
+  PreferredSizeWidget _selectionAppBar(List<Entry> entries) {
+    final localizations = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
+    final selected = _selectedEntries(entries);
+    return AppBar(
+      backgroundColor: colorScheme.secondaryContainer,
+      foregroundColor: colorScheme.onSecondaryContainer,
+      leading: IconButton(
+        tooltip: MaterialLocalizations.of(context).cancelButtonLabel,
+        icon: const Icon(Icons.close_rounded),
+        onPressed: () => setState(_selected.clear),
+      ),
+      title: Text(localizations.bulkSelected(selected.length)),
+      actions: [
+        IconButton(
+          tooltip: MaterialLocalizations.of(context).selectAllButtonLabel,
+          icon: const Icon(Icons.select_all_rounded),
+          onPressed: () => setState(() =>
+              _selected.addAll(entries.map((entry) => entry.id).nonNulls)),
+        ),
+        IconButton(
+          tooltip: localizations.bulkChangeMood,
+          icon: const Icon(Icons.mood_rounded),
+          onPressed: () => _bulkMood(selected),
+        ),
+        IconButton(
+          tooltip: localizations.bulkChangeTags,
+          icon: const Icon(Icons.sell_rounded),
+          onPressed: () => _bulkTags(selected),
+        ),
+        IconButton(
+          tooltip: MaterialLocalizations.of(context).deleteButtonTooltip,
+          icon: const Icon(Icons.delete_rounded),
+          onPressed: () => _bulkDelete(selected),
+        ),
+        const SizedBox(width: 4),
+      ],
+    );
+  }
+
   void _showStatus(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -83,7 +175,8 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
 
     final configProvider = Provider.of<ConfigProvider>(context);
     final localizations = AppLocalizations.of(context)!;
-    final showFullEntries = configProvider.get(Settings.timelineShowFullEntries);
+    final showFullEntries =
+        configProvider.get(Settings.timelineShowFullEntries);
     final oldestFirst = configProvider.get(Settings.timelineOldestFirst);
     final addEntryDate = widget.addEntryDate;
 
@@ -92,145 +185,162 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
           ? a.timeCreate.compareTo(b.timeCreate)
           : b.timeCreate.compareTo(a.timeCreate));
 
+    _selected.removeWhere((id) => !entries.any((entry) => entry.id == id));
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (entries.isEmpty && mounted) {
         Navigator.of(context).pop();
       }
     });
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.header),
-        actions: [
-          IconButton(
-            tooltip: oldestFirst
-                ? localizations.timelineOldestFirst
-                : localizations.timelineNewestFirst,
-            icon: Transform.flip(
-              flipY: oldestFirst,
-              child: const Icon(Icons.sort_rounded),
-            ),
-            onPressed: () async {
-              await configProvider.set(
-                  Settings.timelineOldestFirst, !oldestFirst);
-              if (!mounted) return;
-              _showStatus(!oldestFirst
-                  ? localizations.timelineOldestFirst
-                  : localizations.timelineNewestFirst);
-            },
-          ),
-          IconButton(
-            tooltip: showFullEntries
-                ? localizations.timelineShowPreviews
-                : localizations.timelineShowFullEntries,
-            isSelected: showFullEntries,
-            icon: const Icon(Icons.open_in_full_rounded),
-            selectedIcon: const Icon(Icons.close_fullscreen_rounded),
-            onPressed: () async {
-              await configProvider.set(
-                  Settings.timelineShowFullEntries, !showFullEntries);
-              if (!mounted) return;
-              _showStatus(!showFullEntries
-                  ? localizations.timelineShowFullEntries
-                  : localizations.timelineShowPreviews);
-            },
-          ),
-          if (addEntryDate != null)
-            IconButton(
-              tooltip: localizations.timelineAddEntry,
-              icon: const Icon(Icons.add_rounded),
-              onPressed: () => _addEntry(addEntryDate),
-            ),
-          const SizedBox(width: 4),
-        ],
-      ),
-      body: ListView.builder(
-        padding: const EdgeInsets.only(top: 8, bottom: 16),
-        itemCount: entries.length,
-        itemBuilder: (context, index) {
-          final entry = entries[index];
-          final entryAttachments = entryAttachmentsProvider
-              .getForEntry(entry)
-              .where((attachment) => attachment.type.isVisual)
-              .toList();
-          final label = widget.labelBuilder(context, entry);
-          void openEntry() {
-            final id = entry.id;
-            if (id == null) return;
-            Navigator.of(context).push(MaterialPageRoute(
-              allowSnapshotting: false,
-              builder: (context) => EntriesListPage(
-                index: EntriesProvider.instance.getIndexOfEntry(id),
-                getEntries: () => EntriesProvider.instance.entries,
+    return PopScope(
+      canPop: !_selecting,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(_selected.clear);
+      },
+      child: Scaffold(
+        appBar: _selecting
+            ? _selectionAppBar(entries)
+            : AppBar(
+                title: Text(widget.header),
+                actions: [
+                  IconButton(
+                    tooltip: oldestFirst
+                        ? localizations.timelineOldestFirst
+                        : localizations.timelineNewestFirst,
+                    icon: Transform.flip(
+                      flipY: oldestFirst,
+                      child: const Icon(Icons.sort_rounded),
+                    ),
+                    onPressed: () async {
+                      await configProvider.set(
+                          Settings.timelineOldestFirst, !oldestFirst);
+                      if (!mounted) return;
+                      _showStatus(!oldestFirst
+                          ? localizations.timelineOldestFirst
+                          : localizations.timelineNewestFirst);
+                    },
+                  ),
+                  IconButton(
+                    tooltip: showFullEntries
+                        ? localizations.timelineShowPreviews
+                        : localizations.timelineShowFullEntries,
+                    isSelected: showFullEntries,
+                    icon: const Icon(Icons.open_in_full_rounded),
+                    selectedIcon: const Icon(Icons.close_fullscreen_rounded),
+                    onPressed: () async {
+                      await configProvider.set(
+                          Settings.timelineShowFullEntries, !showFullEntries);
+                      if (!mounted) return;
+                      _showStatus(!showFullEntries
+                          ? localizations.timelineShowFullEntries
+                          : localizations.timelineShowPreviews);
+                    },
+                  ),
+                  if (addEntryDate != null)
+                    IconButton(
+                      tooltip: localizations.timelineAddEntry,
+                      icon: const Icon(Icons.add_rounded),
+                      onPressed: () => _addEntry(addEntryDate),
+                    ),
+                  const SizedBox(width: 4),
+                ],
               ),
-            ));
-          }
+        body: ListView.builder(
+          padding: const EdgeInsets.only(top: 8, bottom: 16),
+          itemCount: entries.length,
+          itemBuilder: (context, index) {
+            final entry = entries[index];
+            final entryAttachments = entryAttachmentsProvider
+                .getForEntry(entry)
+                .where((attachment) => attachment.type.isVisual)
+                .toList();
+            final label = widget.labelBuilder(context, entry);
+            void openEntry() {
+              final id = entry.id;
+              if (id == null) return;
+              Navigator.of(context).push(MaterialPageRoute(
+                allowSnapshotting: false,
+                builder: (context) => EntriesListPage(
+                  index: EntriesProvider.instance.getIndexOfEntry(id),
+                  getEntries: () => EntriesProvider.instance.entries,
+                ),
+              ));
+            }
 
-          if (showFullEntries) {
-            return _FullEntryTimelineRow(
-              isFirst: index == 0,
-              isLast: index == entries.length - 1,
-              onTap: openEntry,
-              child: FullEntryCardWidget(
-                title: label,
-                entry: entry,
-                attachments: entryAttachments,
-              ),
-            );
-          }
+            final isSelected = _selected.contains(entry.id);
+            void onTap() => _selecting ? _toggleSelected(entry) : openEntry();
+            void onLongPress() => _toggleSelected(entry);
 
-          return AspectRatio(
-            aspectRatio: 2.2,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SizedBox(
-                  width: 36,
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 3,
-                        height: 12,
-                        color: index == 0
-                            ? Colors.transparent
-                            : Theme.of(context).colorScheme.outlineVariant,
-                      ),
-                      Container(
-                        width: 14,
-                        height: 14,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Theme.of(context).colorScheme.outlineVariant,
-                        ),
-                      ),
-                      Expanded(
-                        child: Container(
+            if (showFullEntries) {
+              return _FullEntryTimelineRow(
+                isFirst: index == 0,
+                isLast: index == entries.length - 1,
+                selecting: _selecting,
+                selected: isSelected,
+                onTap: onTap,
+                onLongPress: onLongPress,
+                child: _SelectionOutline(
+                  selected: isSelected,
+                  child: FullEntryCardWidget(
+                    title: label,
+                    entry: entry,
+                    attachments: entryAttachments,
+                  ),
+                ),
+              );
+            }
+
+            return AspectRatio(
+              aspectRatio: 2.2,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    width: 36,
+                    child: Column(
+                      children: [
+                        Container(
                           width: 3,
-                          color: index == entries.length - 1
+                          height: 12,
+                          color: index == 0
                               ? Colors.transparent
                               : Theme.of(context).colorScheme.outlineVariant,
                         ),
-                      ),
-                    ],
+                        _RailDot(selecting: _selecting, selected: isSelected),
+                        Expanded(
+                          child: Container(
+                            width: 3,
+                            color: index == entries.length - 1
+                                ? Colors.transparent
+                                : Theme.of(context).colorScheme.outlineVariant,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 8, bottom: 8),
-                    child: GestureDetector(
-                      onTap: openEntry,
-                      child: LargeEntryCardWidget(
-                        title: label,
-                        entry: entry,
-                        attachments: entryAttachments,
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 8, bottom: 8),
+                      child: GestureDetector(
+                        onTap: onTap,
+                        onLongPress: onLongPress,
+                        child: _SelectionOutline(
+                          selected: isSelected,
+                          child: LargeEntryCardWidget(
+                            title: label,
+                            entry: entry,
+                            attachments: entryAttachments,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          );
-        },
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -243,6 +353,9 @@ class _FullEntryTimelineRow extends StatelessWidget {
     required this.isFirst,
     required this.isLast,
     required this.onTap,
+    required this.onLongPress,
+    required this.selecting,
+    required this.selected,
     required this.child,
   });
 
@@ -254,6 +367,9 @@ class _FullEntryTimelineRow extends StatelessWidget {
   final bool isFirst;
   final bool isLast;
   final VoidCallback onTap;
+  final VoidCallback onLongPress;
+  final bool selecting;
+  final bool selected;
   final Widget child;
 
   @override
@@ -280,19 +396,78 @@ class _FullEntryTimelineRow extends StatelessWidget {
             child: ColoredBox(color: railColor),
           ),
         Positioned(
-          left: (_railWidth - _dotSize) / 2,
-          top: _dotTop,
-          width: _dotSize,
-          height: _dotSize,
-          child: DecoratedBox(
-            decoration: BoxDecoration(shape: BoxShape.circle, color: railColor),
-          ),
+          left: 0,
+          width: _railWidth,
+          top: _dotTop + _dotSize / 2 - _RailDot.selectingSize / 2,
+          height: _RailDot.selectingSize,
+          child:
+              Center(child: _RailDot(selecting: selecting, selected: selected)),
         ),
         Padding(
           padding: const EdgeInsets.only(left: _railWidth, right: 8, bottom: 8),
-          child: GestureDetector(onTap: onTap, child: child),
+          child: GestureDetector(
+              onTap: onTap, onLongPress: onLongPress, child: child),
         ),
       ],
+    );
+  }
+}
+
+/// The dot on the timeline rail; becomes a checkbox in select mode.
+class _RailDot extends StatelessWidget {
+  const _RailDot({required this.selecting, required this.selected});
+
+  static const double size = 14;
+  static const double selectingSize = 22;
+
+  final bool selecting;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    if (!selecting) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+            shape: BoxShape.circle, color: colorScheme.outlineVariant),
+      );
+    }
+    return Container(
+      width: selectingSize,
+      height: selectingSize,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: selected ? colorScheme.primary : colorScheme.surface,
+        border: Border.all(
+            color: selected ? colorScheme.primary : colorScheme.outline,
+            width: 2),
+      ),
+      child: selected
+          ? Icon(Icons.check_rounded, size: 15, color: colorScheme.onPrimary)
+          : null,
+    );
+  }
+}
+
+/// Outlines a card while it's selected.
+class _SelectionOutline extends StatelessWidget {
+  const _SelectionOutline({required this.selected, required this.child});
+
+  final bool selected;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!selected) return child;
+    return Container(
+      foregroundDecoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border:
+            Border.all(color: Theme.of(context).colorScheme.primary, width: 2),
+      ),
+      child: child,
     );
   }
 }

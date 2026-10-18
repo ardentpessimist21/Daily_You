@@ -8,6 +8,7 @@ import 'dart:io';
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/device_info_service.dart';
 import 'package:daily_you/flashback_manager.dart';
+import 'package:daily_you/fork/flashback_styles.dart';
 import 'package:daily_you/launch_intent.dart';
 import 'package:daily_you/models/flashback.dart';
 import 'package:daily_you/models/attachment.dart';
@@ -24,7 +25,6 @@ import 'package:daily_you/widgets/vertical_calendar.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
-import 'package:daily_you/pages/entries_list_page.dart';
 import 'package:daily_you/pages/entry_timeline_page.dart';
 import 'package:daily_you/pages/edit_entry_page.dart';
 import 'package:provider/provider.dart';
@@ -229,41 +229,7 @@ class _HomePageState extends State<HomePage>
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 1),
                 child: GestureDetector(
-                  onTap: () async {
-                    if (flashback.isMultiEntry && flashback.isOnThisDay) {
-                      await NotificationManager.instance
-                          .dismissOnThisDayNotification();
-                      await _openOnThisDayTimeline(DateTime.now());
-                    } else if (flashback.isMultiEntry) {
-                      final flashbackEntryIds =
-                          flashback.entries.map((e) => e.id).toList();
-                      final title = flashback.title;
-                      if (!context.mounted) return;
-                      await Navigator.of(context).push(MaterialPageRoute(
-                        allowSnapshotting: false,
-                        builder: (context) => EntryTimelinePage(
-                          header: title,
-                          getEntries: () => EntriesProvider.instance.entries
-                              .where((e) => flashbackEntryIds.contains(e.id))
-                              .toList()
-                              .reversed
-                              .toList(),
-                          labelBuilder: (context, e) =>
-                              TimeManager.localizedTimeFormat(context,
-                                      TimeManager.currentLocale(context))
-                                  .format(e.timeCreate),
-                        ),
-                      ));
-                    } else {
-                      await Navigator.of(context).push(MaterialPageRoute(
-                        allowSnapshotting: false,
-                        builder: (context) => EntriesListPage(
-                            index: EntriesProvider.instance
-                                .getIndexOfEntry(flashback.firstEntry.id!),
-                            getEntries: () => EntriesProvider.instance.entries),
-                      ));
-                    }
-                  },
+                  onTap: () => openFlashback(context, flashback),
                   child: FlashbackCard(
                       title: flashback.title, entries: flashback.entries),
                 ),
@@ -302,7 +268,10 @@ class _HomePageState extends State<HomePage>
       Column(
         children: [
           if (showBanner) SupportBanner(configProvider: configProvider),
-          if (showFlashbacks) _buildFlashbacksRow(context, flashbacks),
+          if (showFlashbacks && FlashbackStyle.current == FlashbackStyle.cards)
+            _buildFlashbacksRow(context, flashbacks),
+          if (showFlashbacks && FlashbackStyle.current == FlashbackStyle.chips)
+            FlashbackChipsRow(flashbacks: flashbacks),
           Expanded(
             child: VerticalCalendar(scrollController: _scrollController),
           ),

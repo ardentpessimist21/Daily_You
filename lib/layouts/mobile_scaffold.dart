@@ -5,6 +5,8 @@
 import 'dart:io';
 
 import 'package:daily_you/config_provider.dart';
+import 'package:daily_you/fork/flashback_styles.dart';
+import 'package:daily_you/fork/home_greeting.dart';
 import 'package:daily_you/layouts/fast_page_view_scroll_physics.dart';
 import 'package:daily_you/pages/settings/notification_settings.dart';
 import 'package:daily_you/widgets/app_dialog.dart';
@@ -337,6 +339,7 @@ class _MobileScaffoldState extends State<MobileScaffold> {
           elevation: _isScrolled[currentIndex] ? 1 : 0,
           scrolledUnderElevation: 1,
           actions: [
+            if (currentIndex == 0) const FlashbackIconButton(),
             if (_shouldShowNotificationButton(configProvider))
               IconButton(
                 icon: const Icon(Icons.notifications_off_rounded),
@@ -414,6 +417,7 @@ class _MobileScaffoldState extends State<MobileScaffold> {
         elevation: 0,
         scrolledUnderElevation: 0,
         actions: [
+          if (currentIndex == 0) const FlashbackIconButton(),
           if (_shouldShowNotificationButton(configProvider))
             IconButton(
               icon: const Icon(Icons.notifications_off_rounded),
@@ -466,6 +470,7 @@ class _MobileScaffoldState extends State<MobileScaffold> {
                     elevation: 0,
                     scrolledUnderElevation: 0,
                     actions: [
+                      if (currentIndex == 0) const FlashbackIconButton(),
                       if (_shouldShowNotificationButton(configProvider))
                         IconButton(
                           icon: const Icon(Icons.notifications_off_rounded),
@@ -488,7 +493,8 @@ class _MobileScaffoldState extends State<MobileScaffold> {
     final configProvider = Provider.of<ConfigProvider>(context);
     final l10n = AppLocalizations.of(context)!;
     final List<String> pageTitles = [
-      l10n.pageHomeTitle,
+      HomeGreeting.text(l10n, Localizations.localeOf(context).languageCode) ??
+          l10n.pageHomeTitle,
       l10n.pageGalleryTitle,
       l10n.pageStatisticsTitle,
     ];
