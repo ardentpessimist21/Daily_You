@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/fork/undo_redo_buttons.dart';
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/models/template.dart';
 import 'package:daily_you/providers/tags_provider.dart';
@@ -187,6 +188,7 @@ class _EditTemplateState extends State<EditTemplate> {
     return Scaffold(
       appBar: AppBar(
         actions: [
+          UndoRedoButtons(controller: _undoController),
           if (widget.template != null) deleteButton(),
           saveButton(),
         ],

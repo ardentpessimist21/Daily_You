@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/fork/undo_redo_buttons.dart';
 import 'package:daily_you/widgets/editor_action_bar.dart';
 import 'package:daily_you/widgets/entry_text_field.dart';
 import 'package:daily_you/widgets/markdown_preview_controller.dart';
@@ -12,9 +13,13 @@ import 'package:word_count/word_count.dart';
 class FullScreenTextEditorPage extends StatefulWidget {
   final String initialText;
 
+  /// The entry's date, so timestamps can add the date on older entries
+  final DateTime? entryDate;
+
   const FullScreenTextEditorPage({
     super.key,
     required this.initialText,
+    this.entryDate,
   });
 
   @override
@@ -65,6 +70,7 @@ class _FullScreenTextEditorPageState extends State<FullScreenTextEditorPage> {
             icon: const Icon(Icons.arrow_back_rounded),
             onPressed: _close,
           ),
+          actions: [UndoRedoButtons(controller: _undoController)],
           title: ListenableBuilder(
             listenable: _controller,
             builder: (_, __) => Text(
@@ -98,6 +104,7 @@ class _FullScreenTextEditorPageState extends State<FullScreenTextEditorPage> {
                 controller: _controller,
                 undoController: _undoController,
                 focusNode: _focusNode,
+                entryDate: () => widget.entryDate ?? DateTime.now(),
               ),
             );
           },

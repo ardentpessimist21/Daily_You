@@ -5,6 +5,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:daily_you/fork/writing_prompts.dart';
+import 'package:daily_you/fork/undo_redo_buttons.dart';
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/database/attachment_storage.dart';
 import 'package:daily_you/database/entry_store.dart';
@@ -86,6 +88,11 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
   final MarkdownPreviewController _textEditingController =
       MarkdownPreviewController();
   final UndoHistoryController _undoController = UndoHistoryController();
+
+  // Picked once per new entry so it doesn't change while you look at it
+  late final String? _writingPrompt = widget.entry == null
+      ? WritingPrompts.pick(Localizations.localeOf(context).languageCode)
+      : null;
   bool _deletingEntry = false;
   bool _newEntry = false;
   bool _creatingNewEntry = false;
@@ -203,6 +210,7 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
         allowSnapshotting: false,
         builder: (context) => FullScreenTextEditorPage(
           initialText: _textEditingController.text,
+          entryDate: entryDate,
         ),
       ),
     );
@@ -284,7 +292,11 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
                       }
                     },
                   ),
-                  actions: [_deleteButton(), _closeButton()]),
+                  actions: [
+                    UndoRedoButtons(controller: _undoController),
+                    _deleteButton(),
+                    _closeButton(),
+                  ]),
               body: EditorActionBarOverlay(
                 keyboardInset: keyboardInset,
                 body: LayoutBuilder(
@@ -342,6 +354,7 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
                   focusNode: _focusNode,
                   onTemplateInserted: _applyInsertedTemplateTags,
                   mainActions: _buildMainActions(context),
+                  entryDate: () => entryDate ?? DateTime.now(),
                 ),
               ),
             ),
@@ -548,6 +561,7 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
                       textEditingController: _textEditingController,
                       undoHistoryController: _undoController,
                       onExpand: _openFullScreenEditor,
+                      hintText: _writingPrompt,
                     ),
                   ),
                 ),

@@ -66,6 +66,12 @@ jobs:
               -keyalg RSA -keysize 2048 -validity 10000 \
               -dname "CN=Daily You Dev"
           fi
+          # A short ID of the signing key, shown on the run page, so builds
+          # can be checked against each other (same ID = updates install)
+          sig=$(keytool -list -v -keystore android/app/release.jks \
+            -storepass "$PASS" -alias daily_you_dev 2>/dev/null \
+            | grep -m1 "SHA256:" | awk '{print $2}' | tr -d ':' | tail -c 13)
+          echo "::notice::Signature ID: $sig"
           cat > android/key.properties <<EOF
           storeFile=release.jks
           storePassword=$PASS

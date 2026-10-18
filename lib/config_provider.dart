@@ -112,6 +112,11 @@ class Settings {
   static const flashbackStyle = Setting<String>("flashbackStyle", "cards");
   static const flashbackIconSeenDay =
       Setting<String>("flashbackIconSeenDay", "");
+  static const editorToolbarOrder = Setting<String>("editorToolbarOrder", "");
+  static const editorToolbarHidden = Setting<String>("editorToolbarHidden", "");
+  static const editorPopupItems =
+      Setting<String>("editorPopupItems", "default");
+  static const writingPrompts = Setting<bool>("writingPrompts", true);
   static const timelineOldestFirst =
       Setting<bool>("timelineOldestFirst", false);
   static const lastDismissedSupportBannerDate =
@@ -209,6 +214,10 @@ class Settings {
     homeGreetingLastLine,
     flashbackStyle,
     flashbackIconSeenDay,
+    editorToolbarOrder,
+    editorToolbarHidden,
+    editorPopupItems,
+    writingPrompts,
     lastDismissedSupportBannerDate,
     calendarShowMood,
     calendarTagOverlay,

@@ -73,6 +73,10 @@ class BulletListContinuation {
 
   static final RegExp _emptyBulletLine = RegExp(r'^(\s*)-\s*$');
   static final RegExp _bulletLine = RegExp(r'^(\s*)-\s');
+  // Checklist items ("- [ ] task") continue as a fresh unticked item
+  static final RegExp _emptyChecklistLine =
+      RegExp(r'^(\s*)-\s\[[ xX]\]\s*$');
+  static final RegExp _checklistLine = RegExp(r'^(\s*)-\s\[[ xX]\]\s');
 
   final TextEditingController _controller;
   String _previousText;
@@ -128,17 +132,19 @@ class BulletListContinuation {
     if (lines.length < 2) return;
     final bulletedLine = lines[lines.length - 2];
 
-    if (_emptyBulletLine.hasMatch(bulletedLine)) {
+    if (_emptyBulletLine.hasMatch(bulletedLine) ||
+        _emptyChecklistLine.hasMatch(bulletedLine)) {
       // beforeCursor ends with the newline just typed.
       final lineStart = beforeCursor.length - 1 - bulletedLine.length;
       _setText(text.replaceRange(lineStart, cursor, ''), lineStart);
       return;
     }
 
-    final bullet = _bulletLine.firstMatch(bulletedLine);
+    final checklist = _checklistLine.firstMatch(bulletedLine);
+    final bullet = checklist ?? _bulletLine.firstMatch(bulletedLine);
     if (bullet == null) return;
     final indent = bullet.group(1) ?? '';
-    final newBullet = '$indent- ';
+    final newBullet = checklist != null ? '$indent- [ ] ' : '$indent- ';
     _setText(text.replaceRange(cursor, cursor, newBullet),
         cursor + newBullet.length);
   }

@@ -4,6 +4,7 @@
 
 import 'dart:io';
 
+import 'package:daily_you/fork/checklists.dart';
 import 'package:daily_you/database/attachment_storage.dart';
 import 'package:daily_you/fork/favourites.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
@@ -164,6 +165,8 @@ class _EntryViewPageState extends State<EntryViewPage> {
                               child: ScaledMarkdown(
                                 data: entry.text,
                                 selectable: false,
+                                onCheckboxTap: (index) =>
+                                    Checklists.toggleInEntry(entry, index),
                               ))),
                     Padding(
                       padding: const EdgeInsets.only(

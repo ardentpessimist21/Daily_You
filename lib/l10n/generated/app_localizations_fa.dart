@@ -514,6 +514,96 @@ class AppLocalizationsFa extends AppLocalizations {
   String get bulkTagsUpdated => 'Tags updated';
 
   @override
+  String get editorUndo => 'Undo';
+
+  @override
+  String get editorRedo => 'Redo';
+
+  @override
+  String get editorTimestamp => 'Timestamp';
+
+  @override
+  String get editorDateAndTime => 'Date and time';
+
+  @override
+  String get editorList => 'List';
+
+  @override
+  String get editorNumberedList => 'Numbered list';
+
+  @override
+  String get editorChecklist => 'Checklist';
+
+  @override
+  String get editorTickedCheckbox => 'Ticked checkbox';
+
+  @override
+  String get editorHeading => 'Heading';
+
+  @override
+  String get editorHeading1 => 'Heading 1';
+
+  @override
+  String get editorBold => 'Bold';
+
+  @override
+  String get editorItalic => 'Italic';
+
+  @override
+  String get editorHighlight => 'Highlight';
+
+  @override
+  String get editorStrikethrough => 'Strikethrough';
+
+  @override
+  String get editorQuote => 'Quote';
+
+  @override
+  String get editorDivider => 'Divider line';
+
+  @override
+  String get editorLink => 'Link';
+
+  @override
+  String get editorPasteLink => 'Paste copied link';
+
+  @override
+  String get settingsEditorButtons => 'Editor Buttons';
+
+  @override
+  String get settingsEditorButtonsHint =>
+      'Arrange the toolbar and the popup that appears when you select text';
+
+  @override
+  String get editorButtonsToolbar => 'Toolbar';
+
+  @override
+  String get editorButtonsToolbarHint =>
+      'Drag to reorder. Tap the eye to hide a button. Buttons that don\'t fit go under •••.';
+
+  @override
+  String get editorButtonsPopup => 'Selection popup';
+
+  @override
+  String get editorButtonsPopupHint =>
+      'Shown before Copy and Paste when you select text. Drag to reorder.';
+
+  @override
+  String editorButtonsHold(String action) {
+    return 'hold: $action';
+  }
+
+  @override
+  String get editorButtonsReset => 'Reset to default';
+
+  @override
+  String get settingsWritingPrompts => 'Writing Prompts';
+
+  @override
+  String get settingsWritingPromptsHint =>
+      'Show a gentle question in empty new entries';
+
+  @override
   String bulkDeleted(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

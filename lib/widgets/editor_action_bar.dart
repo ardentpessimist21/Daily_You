@@ -18,6 +18,7 @@ import 'package:daily_you/widgets/editor_action_bar/toolbar_menu_action.dart';
 import 'package:daily_you/widgets/editor_action_bar/toolbar_morph.dart';
 import 'package:daily_you/widgets/editor_action_bar/toolbar_overflow_popup.dart';
 import 'package:daily_you/widgets/template_select_popup.dart';
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 export 'package:daily_you/widgets/editor_action_bar/editor_action_bar_overlay.dart';
@@ -32,6 +33,9 @@ class EditorActionBar extends StatefulWidget {
   final void Function(Template template)? onTemplateInserted;
   final List<ToolbarAction>? mainActions;
 
+  /// The entry's date, so timestamps can add the date on older entries
+  final DateTime Function()? entryDate;
+
   const EditorActionBar({
     super.key,
     required this.controller,
@@ -40,6 +44,7 @@ class EditorActionBar extends StatefulWidget {
     this.showTemplateButton = true,
     this.onTemplateInserted,
     this.mainActions,
+    this.entryDate,
   });
 
   /// Space host pages reserve so content doesn't sit behind the bar
@@ -121,21 +126,18 @@ class _EditorActionBarState extends State<EditorActionBar> {
 
   List<ToolbarEntry> _markdownEntries(
       BuildContext context, DockMetrics metrics) {
-    final undoController = widget.undoController;
     return _spaced([
       // Keep template button in edit actions for full screen editor
       if (widget.showTemplateButton && widget.mainActions == null) ...[
         _templateEntry(metrics),
         _dividerEntry(),
       ],
-      for (final action in markdownActions(context, widget.controller))
+      for (final action in markdownActions(context, widget.controller,
+          entryDate: widget.entryDate))
         _iconEntry(metrics, action.icon, action.onPressed!,
-            reconnectsKeyboard: action.mayLeaveApp),
-      if (undoController != null) ...[
-        _dividerEntry(),
-        _undoEntry(metrics, undoController, isUndo: true),
-        _undoEntry(metrics, undoController, isUndo: false),
-      ],
+            reconnectsKeyboard: action.mayLeaveApp,
+            onLongPress: action.onLongPress,
+            longPressLabel: action.longPressLabel),
     ]);
   }
 
@@ -168,17 +170,35 @@ class _EditorActionBarState extends State<EditorActionBar> {
     FutureOr<void> Function() action, {
     bool claimsFocus = true,
     bool reconnectsKeyboard = false,
+    FutureOr<void> Function()? onLongPress,
+    String? longPressLabel,
   }) {
     return ToolbarEntry(
       width: metrics.buttonSize,
-      build: (context, dismissOverflow) => ToolbarIconButton(
-        size: metrics.buttonSize,
-        icon: icon,
-        onPressed: () {
-          dismissOverflow?.call();
-          _focusRestorer.run(action,
-              claimsFocus: claimsFocus, reconnectsKeyboard: reconnectsKeyboard);
-        },
+      build: (context, dismissOverflow) => Builder(
+        builder: (buttonContext) => ToolbarIconButton(
+          size: metrics.buttonSize,
+          icon: icon,
+          hasAlternative: onLongPress != null,
+          onPressed: () {
+            dismissOverflow?.call();
+            _focusRestorer.run(action,
+                claimsFocus: claimsFocus,
+                reconnectsKeyboard: reconnectsKeyboard);
+          },
+          onLongPress: onLongPress == null
+              ? null
+              : () {
+                  HapticFeedback.selectionClick();
+                  if (longPressLabel != null) {
+                    showToolbarHint(buttonContext, longPressLabel);
+                  }
+                  dismissOverflow?.call();
+                  _focusRestorer.run(onLongPress,
+                      claimsFocus: claimsFocus,
+                      reconnectsKeyboard: reconnectsKeyboard);
+                },
+        ),
       ),
     );
   }
@@ -207,33 +227,6 @@ class _EditorActionBarState extends State<EditorActionBar> {
             );
           },
         ),
-      ),
-    );
-  }
-
-  ToolbarEntry _undoEntry(
-      DockMetrics metrics, UndoHistoryController undoController,
-      {required bool isUndo}) {
-    return ToolbarEntry(
-      width: metrics.buttonSize,
-      group: 'undo',
-      build: (context, dismissOverflow) =>
-          ValueListenableBuilder<UndoHistoryValue>(
-        valueListenable: undoController,
-        builder: (context, value, _) {
-          final enabled = isUndo ? value.canUndo : value.canRedo;
-          return ToolbarIconButton(
-            size: metrics.buttonSize,
-            icon: Icon(isUndo ? Icons.undo_rounded : Icons.redo_rounded),
-            onPressed: enabled
-                ? () {
-                    dismissOverflow?.call();
-                    _focusRestorer.run(() =>
-                        isUndo ? undoController.undo() : undoController.redo());
-                  }
-                : null,
-          );
-        },
       ),
     );
   }

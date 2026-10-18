@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/fork/checklists.dart';
 import 'package:daily_you/widgets/markdown_highlight_syntax.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:markdown_widget/markdown_widget.dart';
@@ -15,6 +16,10 @@ class ScaledMarkdown extends StatelessWidget {
   final bool compact;
   final bool selectable;
 
+  /// When set, checklist boxes can be tapped; called with the box's index
+  /// (0 = first box in the text).
+  final void Function(int index)? onCheckboxTap;
+
   const ScaledMarkdown({
     super.key,
     required this.data,
@@ -22,6 +27,7 @@ class ScaledMarkdown extends StatelessWidget {
     this.scaleFactor = 1,
     this.compact = false,
     this.selectable = true,
+    this.onCheckboxTap,
   });
 
   @override
@@ -44,7 +50,19 @@ class ScaledMarkdown extends StatelessWidget {
     final paragraphStyle = baseConfig.p.textStyle;
     final bulletOffset =
         (paragraphStyle.fontSize ?? 16.0) * (paragraphStyle.height ?? 1.2) / 2;
+    // Boxes are built in document order, so counting them gives each one's
+    // index. Wrapping around keeps it right if the block rebuilds.
+    final boxCount = onCheckboxTap == null ? 0 : Checklists.count(text);
+    var nextBox = 0;
     final config = baseConfig.copy(configs: [
+      if (onCheckboxTap != null && boxCount > 0)
+        CheckBoxConfig(builder: (checked) {
+          final index = nextBox++ % boxCount;
+          return _TappableCheckbox(
+            checked: checked,
+            onTap: () => onCheckboxTap!(index),
+          );
+        }),
       ListConfig(
         marker: (isOrdered, depth, index) => isOrdered
             ? null
@@ -84,6 +102,34 @@ class ScaledMarkdown extends StatelessWidget {
     );
 
     return selectable ? SelectionArea(child: markdown) : markdown;
+  }
+}
+
+class _TappableCheckbox extends StatelessWidget {
+  const _TappableCheckbox({required this.checked, required this.onTap});
+
+  final bool checked;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      // A plain GestureDetector: ink effects need a Material ancestor, which
+      // text spans don't provide
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Icon(
+          checked
+              ? Icons.check_box_rounded
+              : Icons.check_box_outline_blank_rounded,
+          size: 22,
+          color: checked ? colorScheme.primary : colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
   }
 }
 

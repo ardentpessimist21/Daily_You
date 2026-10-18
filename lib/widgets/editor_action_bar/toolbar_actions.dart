@@ -4,10 +4,10 @@
 
 import 'dart:async';
 
+import 'package:daily_you/fork/editor_buttons.dart';
 import 'package:daily_you/utils/text_editing.dart';
 import 'package:daily_you/widgets/app_dialog.dart';
 import 'package:daily_you/widgets/editor_action_bar/toolbar_menu_action.dart';
-import 'package:daily_you/widgets/icons/svg_icon.dart';
 import 'package:material_ui/material_ui.dart';
 
 @immutable
@@ -20,54 +20,31 @@ class ToolbarAction {
   /// For actions that may launch an external activity. Focus must be manually restored
   final bool mayLeaveApp;
 
+  /// An alternative action on long-press, named by [longPressLabel]
+  final FutureOr<void> Function()? onLongPress;
+  final String? longPressLabel;
+
   const ToolbarAction({
     required this.icon,
     this.onPressed,
     this.menu,
     this.mayLeaveApp = false,
+    this.onLongPress,
+    this.longPressLabel,
   }) : assert((onPressed == null) != (menu == null),
             'Provide exactly one of onPressed or menu');
 }
 
+/// The formatting buttons, in the order and visibility chosen in
+/// Settings > Appearance > Editor buttons.
 List<ToolbarAction> markdownActions(
-    BuildContext context, TextEditingController controller) {
-  return [
-    ToolbarAction(
-      icon: const Icon(Icons.format_list_bulleted_rounded),
-      onPressed: () => insertLinePrefix(controller, '-'),
-    ),
-    ToolbarAction(
-      icon: const Icon(Icons.text_fields_rounded),
-      onPressed: () => _insertHeader(context, controller),
-    ),
-    ToolbarAction(
-      icon: const Icon(Icons.format_bold_rounded),
-      onPressed: () => wrapSelection(controller, '**'),
-    ),
-    ToolbarAction(
-      icon: const Icon(Icons.format_italic_rounded),
-      onPressed: () => wrapSelection(controller, '_'),
-    ),
-    ToolbarAction(
-      icon: const SvgIcon('assets/icons/format_ink_highlighter.svg'),
-      onPressed: () => wrapSelection(controller, '=='),
-    ),
-    ToolbarAction(
-      icon: const Icon(Icons.format_strikethrough_rounded),
-      onPressed: () => wrapSelection(controller, '~~'),
-    ),
-    ToolbarAction(
-      icon: const Icon(Icons.format_quote_rounded),
-      onPressed: () => insertLinePrefix(controller, '>'),
-    ),
-    ToolbarAction(
-      icon: const Icon(Icons.link_rounded),
-      onPressed: () => wrapSelection(controller, '[', ']()'),
-    ),
-  ];
+    BuildContext context, TextEditingController controller,
+    {DateTime Function()? entryDate}) {
+  return EditorButtons.toolbarActions(context, controller,
+      entryDate: entryDate);
 }
 
-Future<void> _insertHeader(
+Future<void> insertHeader(
     BuildContext context, TextEditingController controller) async {
   final level = await showAppDialog<int>(
     context: context,

@@ -4,6 +4,7 @@
 
 import 'dart:ui';
 
+import 'package:daily_you/fork/editor_buttons.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/utils/markdown_preview_styles.dart';
 import 'package:daily_you/widgets/editor_action_bar/editor_keyboard_session.dart';
@@ -20,6 +21,9 @@ class EntryTextField extends StatefulWidget {
   final EdgeInsets contentPadding;
   final TextAlignVertical? textAlignVertical;
 
+  /// Replaces the usual "Write something…" placeholder, e.g. with a prompt
+  final String? hintText;
+
   const EntryTextField({
     super.key,
     required this.controller,
@@ -30,6 +34,7 @@ class EntryTextField extends StatefulWidget {
     this.contentPadding =
         const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
     this.textAlignVertical,
+    this.hintText,
   });
 
   @override
@@ -77,8 +82,20 @@ class _EntryTextFieldState extends State<EntryTextField> {
       contextMenuBuilder: (context, editor) {
         final suggestions = widget.controller.spellCheckMenuItems(editor);
         if (suggestions.isEmpty) {
-          return AdaptiveTextSelectionToolbar.editableText(
-              editableTextState: editor);
+          // Formatting options (Settings > Appearance > Editor buttons) come
+          // first when text is selected, then the usual Copy / Paste items
+          final formatting = editor.textEditingValue.selection.isCollapsed
+              ? const <ContextMenuButtonItem>[]
+              : EditorButtons.popupMenuItems(
+                  context, widget.controller, editor.hideToolbar);
+          if (formatting.isEmpty) {
+            return AdaptiveTextSelectionToolbar.editableText(
+                editableTextState: editor);
+          }
+          return AdaptiveTextSelectionToolbar.buttonItems(
+            anchors: editor.contextMenuAnchors,
+            buttonItems: [...formatting, ...editor.contextMenuButtonItems],
+          );
         }
         return SpellCheckSuggestionsToolbar(
           anchor: SpellCheckSuggestionsToolbar.getToolbarAnchor(
@@ -92,7 +109,8 @@ class _EntryTextFieldState extends State<EntryTextField> {
       decoration: InputDecoration(
         border: InputBorder.none,
         contentPadding: widget.contentPadding,
-        hintText: AppLocalizations.of(context)!.writeSomethingHint,
+        hintText:
+            widget.hintText ?? AppLocalizations.of(context)!.writeSomethingHint,
       ),
     );
 

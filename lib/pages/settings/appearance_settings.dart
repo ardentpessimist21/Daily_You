@@ -3,6 +3,7 @@
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
 import 'package:daily_you/config_provider.dart';
+import 'package:daily_you/fork/editor_buttons_settings_page.dart';
 import 'package:daily_you/fork/home_greeting.dart';
 import 'package:daily_you/time_manager.dart';
 import 'package:daily_you/widgets/app_dialog.dart';
@@ -323,6 +324,20 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
                 _showAccentColorPopup(themeProvider);
               },
             ),
+          SettingsIconAction(
+            title: AppLocalizations.of(context)!.settingsEditorButtons,
+            hint: AppLocalizations.of(context)!.settingsEditorButtonsHint,
+            icon: const Icon(Icons.chevron_right_rounded),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const EditorButtonsSettingsPage())),
+          ),
+          SettingsToggle(
+            title: AppLocalizations.of(context)!.settingsWritingPrompts,
+            hint: AppLocalizations.of(context)!.settingsWritingPromptsHint,
+            setting: Settings.writingPrompts,
+            onChanged: (value) =>
+                configProvider.set(Settings.writingPrompts, value),
+          ),
           SettingsToggle(
             title: AppLocalizations.of(context)!.settingsHomeGreeting,
             hint: AppLocalizations.of(context)!.settingsHomeGreetingHint,

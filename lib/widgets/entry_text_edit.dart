@@ -15,6 +15,9 @@ class EntryTextEditor extends StatefulWidget {
   final UndoHistoryController undoHistoryController;
   final VoidCallback? onExpand;
 
+  /// Placeholder to show instead of the usual one, e.g. a writing prompt
+  final String? hintText;
+
   const EntryTextEditor({
     super.key,
     this.text = '',
@@ -22,6 +25,7 @@ class EntryTextEditor extends StatefulWidget {
     required this.textEditingController,
     required this.undoHistoryController,
     this.onExpand,
+    this.hintText,
   });
 
   @override
@@ -58,6 +62,7 @@ class _EntryTextEditorState extends State<EntryTextEditor> {
               controller: widget.textEditingController,
               undoController: widget.undoHistoryController,
               focusNode: widget.focusNode,
+              hintText: widget.hintText,
               scrollController: _scrollController,
               // Add padding so cursor avoids action bar
               scrollPadding: EdgeInsets.only(

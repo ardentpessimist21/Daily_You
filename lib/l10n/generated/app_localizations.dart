@@ -936,6 +936,174 @@ abstract class AppLocalizations {
   /// **'Tags updated'**
   String get bulkTagsUpdated;
 
+  /// No description provided for @editorUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get editorUndo;
+
+  /// No description provided for @editorRedo.
+  ///
+  /// In en, this message translates to:
+  /// **'Redo'**
+  String get editorRedo;
+
+  /// No description provided for @editorTimestamp.
+  ///
+  /// In en, this message translates to:
+  /// **'Timestamp'**
+  String get editorTimestamp;
+
+  /// No description provided for @editorDateAndTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Date and time'**
+  String get editorDateAndTime;
+
+  /// No description provided for @editorList.
+  ///
+  /// In en, this message translates to:
+  /// **'List'**
+  String get editorList;
+
+  /// No description provided for @editorNumberedList.
+  ///
+  /// In en, this message translates to:
+  /// **'Numbered list'**
+  String get editorNumberedList;
+
+  /// No description provided for @editorChecklist.
+  ///
+  /// In en, this message translates to:
+  /// **'Checklist'**
+  String get editorChecklist;
+
+  /// No description provided for @editorTickedCheckbox.
+  ///
+  /// In en, this message translates to:
+  /// **'Ticked checkbox'**
+  String get editorTickedCheckbox;
+
+  /// No description provided for @editorHeading.
+  ///
+  /// In en, this message translates to:
+  /// **'Heading'**
+  String get editorHeading;
+
+  /// No description provided for @editorHeading1.
+  ///
+  /// In en, this message translates to:
+  /// **'Heading 1'**
+  String get editorHeading1;
+
+  /// No description provided for @editorBold.
+  ///
+  /// In en, this message translates to:
+  /// **'Bold'**
+  String get editorBold;
+
+  /// No description provided for @editorItalic.
+  ///
+  /// In en, this message translates to:
+  /// **'Italic'**
+  String get editorItalic;
+
+  /// No description provided for @editorHighlight.
+  ///
+  /// In en, this message translates to:
+  /// **'Highlight'**
+  String get editorHighlight;
+
+  /// No description provided for @editorStrikethrough.
+  ///
+  /// In en, this message translates to:
+  /// **'Strikethrough'**
+  String get editorStrikethrough;
+
+  /// No description provided for @editorQuote.
+  ///
+  /// In en, this message translates to:
+  /// **'Quote'**
+  String get editorQuote;
+
+  /// No description provided for @editorDivider.
+  ///
+  /// In en, this message translates to:
+  /// **'Divider line'**
+  String get editorDivider;
+
+  /// No description provided for @editorLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Link'**
+  String get editorLink;
+
+  /// No description provided for @editorPasteLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste copied link'**
+  String get editorPasteLink;
+
+  /// No description provided for @settingsEditorButtons.
+  ///
+  /// In en, this message translates to:
+  /// **'Editor Buttons'**
+  String get settingsEditorButtons;
+
+  /// No description provided for @settingsEditorButtonsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Arrange the toolbar and the popup that appears when you select text'**
+  String get settingsEditorButtonsHint;
+
+  /// No description provided for @editorButtonsToolbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Toolbar'**
+  String get editorButtonsToolbar;
+
+  /// No description provided for @editorButtonsToolbarHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag to reorder. Tap the eye to hide a button. Buttons that don\'t fit go under •••.'**
+  String get editorButtonsToolbarHint;
+
+  /// No description provided for @editorButtonsPopup.
+  ///
+  /// In en, this message translates to:
+  /// **'Selection popup'**
+  String get editorButtonsPopup;
+
+  /// No description provided for @editorButtonsPopupHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Shown before Copy and Paste when you select text. Drag to reorder.'**
+  String get editorButtonsPopupHint;
+
+  /// No description provided for @editorButtonsHold.
+  ///
+  /// In en, this message translates to:
+  /// **'hold: {action}'**
+  String editorButtonsHold(String action);
+
+  /// No description provided for @editorButtonsReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to default'**
+  String get editorButtonsReset;
+
+  /// No description provided for @settingsWritingPrompts.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing Prompts'**
+  String get settingsWritingPrompts;
+
+  /// No description provided for @settingsWritingPromptsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Show a gentle question in empty new entries'**
+  String get settingsWritingPromptsHint;
+
   /// No description provided for @bulkDeleted.
   ///
   /// In en, this message translates to:
