@@ -380,8 +380,7 @@ class AppLocalizationsFa extends AppLocalizations {
   String get settingsHideImages => 'پنهان کردن عکس ها';
 
   @override
-  String get settingsTimelineShowFullEntries =>
-      'Show Full Entries In Timeline';
+  String get settingsTimelineShowFullEntries => 'Show Full Entries In Timeline';
 
   @override
   String get settingsTimelineShowFullEntriesHint =>

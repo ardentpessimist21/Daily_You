@@ -5,6 +5,13 @@ name: Build APK
 # "Artifacts" section on the Actions tab.
 on:
   push:
+    # Changes that can't affect the app don't need a new APK
+    paths-ignore:
+      - "**/*.md"
+      - "fastlane/**"
+      - "LICENSE.txt"
+      - "ADDITIONAL_TERMS.md"
+      - ".github/FUNDING.yml"
   workflow_dispatch:
 
 jobs:
@@ -18,6 +25,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+          cache: gradle
 
       - uses: subosito/flutter-action@v2
         with:
@@ -67,13 +75,40 @@ jobs:
 
       - run: flutter pub get
 
+      # flutter pub get regenerates the translation files from lib/l10n/*.arb.
+      # If the committed copies differ, they were edited by hand or not
+      # regenerated; the build still uses the fresh ones.
+      - name: Check translation files
+        run: |
+          if ! git diff --quiet -- lib/l10n/generated; then
+            echo "::warning::Generated translation files were out of date; built with freshly generated ones."
+          fi
+
+      # Each build gets its own number: version name 3.6.1.<run> (shown in
+      # Settings > About), and a version code that always goes up so new
+      # builds install over older ones, including Build #5 (3006001).
+      - name: Work out version
+        id: version
+        run: |
+          base=$(grep -m1 '^version:' pubspec.yaml | sed -E 's/version: *([0-9.]+).*/\1/')
+          name="$base.${{ github.run_number }}"
+          code=$((2000000000 + ${{ github.run_number }}))
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+
       - name: Build APK
         run: |
           flutter build apk --flavor dev --release \
-            --split-per-abi --target-platform=android-arm64
+            --split-per-abi --target-platform=android-arm64 \
+            --build-name=${{ steps.version.outputs.name }} \
+            --build-number=${{ steps.version.outputs.code }}
+          mv build/app/outputs/flutter-apk/app-arm64-v8a-dev-release.apk \
+            "build/app/outputs/flutter-apk/daily-you-dev-${{ steps.version.outputs.name }}.apk"
+          # --split-per-abi adds 2000 to the version code for arm64 builds
+          echo "::notice::Built Daily You Dev ${{ steps.version.outputs.name }}-dev (version code $(( ${{ steps.version.outputs.code }} + 2000 )))"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: daily-you-dev-apk
-          path: build/app/outputs/flutter-apk/app-arm64-v8a-dev-release.apk
+          name: daily-you-dev-${{ steps.version.outputs.name }}
+          path: build/app/outputs/flutter-apk/daily-you-dev-${{ steps.version.outputs.name }}.apk
           retention-days: 30

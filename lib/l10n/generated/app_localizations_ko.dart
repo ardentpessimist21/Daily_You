@@ -378,8 +378,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get settingsHideImages => 'Hide Images';
 
   @override
-  String get settingsTimelineShowFullEntries =>
-      'Show Full Entries In Timeline';
+  String get settingsTimelineShowFullEntries => 'Show Full Entries In Timeline';
 
   @override
   String get settingsTimelineShowFullEntriesHint =>

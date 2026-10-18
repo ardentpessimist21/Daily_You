@@ -381,8 +381,7 @@ class AppLocalizationsTa extends AppLocalizations {
   String get settingsHideImages => 'படங்களை மறை';
 
   @override
-  String get settingsTimelineShowFullEntries =>
-      'Show Full Entries In Timeline';
+  String get settingsTimelineShowFullEntries => 'Show Full Entries In Timeline';
 
   @override
   String get settingsTimelineShowFullEntriesHint =>
