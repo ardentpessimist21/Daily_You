@@ -491,6 +491,11 @@ class AppLocalizationsJa extends AppLocalizations {
   }
 
   @override
+  String bulkTagsOnSome(int count, String tags) {
+    return 'On some of the $count entries: $tags. Tap one to add it to all.';
+  }
+
+  @override
   String bulkDeleteTitle(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

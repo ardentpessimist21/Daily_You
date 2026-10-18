@@ -3,11 +3,14 @@
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
 import 'package:daily_you/database/entry_store.dart';
+import 'package:daily_you/fork/favourites.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/models/tag.dart';
 import 'package:daily_you/providers/entry_attachments_provider.dart';
 import 'package:daily_you/providers/tags_provider.dart';
+import 'package:daily_you/widgets/tag_attachment_source.dart';
+import 'package:daily_you/widgets/tag_picker_dialog.dart';
 import 'package:daily_you/widgets/app_dialog.dart';
 import 'package:daily_you/widgets/mood_icon.dart';
 import 'package:material_ui/material_ui.dart';
@@ -102,15 +105,16 @@ class BulkEntryActions {
     );
   }
 
-  /// Shows label tags as on all / some / none of [entries]; tapping a tag
-  /// puts it on all of them, tapping again takes it off all of them.
-  /// Returns (add, remove) tag ids, or null if cancelled.
-  static Future<(Set<int>, Set<int>)?> pickTags(
-      BuildContext context, List<Entry> entries) {
+  /// Opens the app's own "Add tags" picker for several entries at once.
+  /// Tags on every selected entry start attached; tapping a tag puts it on
+  /// all of them, and ✕ takes it off all of them. Tags on only some entries
+  /// are listed in a note and left alone unless you add or remove them.
+  /// Returns (add, remove) tag ids.
+  static Future<(Set<int>, Set<int>)> pickTags(
+      BuildContext context, List<Entry> entries) async {
     final provider = TagsProvider.instance;
     final labelTags =
         provider.tags.where((tag) => tag.tagType == TagType.label).toList();
-    final sections = provider.buildSections('', tagPool: labelTags);
 
     int countWith(int tagId) => entries
         .where((entry) =>
@@ -120,87 +124,43 @@ class BulkEntryActions {
                 .any((entryTag) => entryTag.tagId == tagId))
         .length;
 
-    // null = on some (left as is), true = on all, false = on none
-    final state = <int, bool?>{
-      for (final tag in labelTags)
-        tag.id!: switch (countWith(tag.id!)) {
-          0 => false,
-          final n when n == entries.length => true,
-          _ => null,
-        }
-    };
-    final initial = Map<int, bool?>.from(state);
+    final onAll = <int>{};
+    final onSome = <Tag>[];
+    for (final tag in labelTags) {
+      final count = countWith(tag.id!);
+      if (count == entries.length) {
+        onAll.add(tag.id!);
+      } else if (count > 0) {
+        onSome.add(tag);
+      }
+    }
+
+    final source = TagAttachmentSource(initialTagIds: onAll.toList());
+    // Anything attached during this session, so "add then ✕" on a tag that
+    // was on only some entries removes it from all of them
+    final touched = <int>{...onAll};
+    void track() => touched.addAll(source.attachedTagIds);
+    source.addListener(track);
+
     final l10n = AppLocalizations.of(context)!;
-
-    return showAppDialog<(Set<int>, Set<int>)>(
+    final visibleSome =
+        onSome.where((tag) => !Favourites.isFavouriteTag(tag)).toList();
+    await showAppDialog<void>(
       context: context,
-      builder: (context) => StatefulBuilder(builder: (context, setState) {
-        final colorScheme = Theme.of(context).colorScheme;
-        Widget chip(Tag tag) {
-          final value = state[tag.id!];
-          return FilterChip(
-            label: Text(tag.name),
-            selected: value == true,
-            showCheckmark: value == true,
-            side: value == null
-                ? BorderSide(color: colorScheme.primary, width: 1.5)
-                : null,
-            onSelected: (_) =>
-                setState(() => state[tag.id!] = value == true ? false : true),
-          );
-        }
-
-        return AlertDialog(
-          title: Text(l10n.bulkChangeTags),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(l10n.bulkTagsHint(entries.length)),
-                  const SizedBox(height: 12),
-                  if (labelTags.isEmpty) Text(l10n.bulkNoTags),
-                  for (final section in sections) ...[
-                    if (section.category != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8, bottom: 4),
-                        child: Text(section.category!.name,
-                            style: Theme.of(context).textTheme.labelLarge),
-                      ),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: section.tags.map(chip).toList(),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
-            ),
-            TextButton(
-              onPressed: () {
-                final add = <int>{};
-                final remove = <int>{};
-                state.forEach((tagId, value) {
-                  if (value == initial[tagId]) return;
-                  if (value == true) add.add(tagId);
-                  if (value == false) remove.add(tagId);
-                });
-                Navigator.pop(context, (add, remove));
-              },
-              child: Text(MaterialLocalizations.of(context).okButtonLabel),
-            ),
-          ],
-        );
-      }),
+      builder: (_) => TagPickerDialog(
+        mode: TagPickerMode.attach,
+        source: source,
+        tagTypeFilter: TagType.label,
+        note: visibleSome.isEmpty
+            ? null
+            : l10n.bulkTagsOnSome(
+                entries.length, visibleSome.map((tag) => tag.name).join(', ')),
+      ),
     );
+    source.removeListener(track);
+
+    final finalIds = source.attachedTagIds.toSet();
+    return (finalIds.difference(onAll), touched.difference(finalIds));
   }
 
   static Future<bool> confirmDelete(BuildContext context, int count) async {

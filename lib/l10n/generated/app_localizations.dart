@@ -912,6 +912,12 @@ abstract class AppLocalizations {
   /// **'{count, plural, one{Tap a tag to add or remove it.} other{Outlined tags are on some of the {count} entries. Tap to put a tag on all of them, tap again to remove it from all.}}'**
   String bulkTagsHint(int count);
 
+  /// No description provided for @bulkTagsOnSome.
+  ///
+  /// In en, this message translates to:
+  /// **'On some of the {count} entries: {tags}. Tap one to add it to all.'**
+  String bulkTagsOnSome(int count, String tags);
+
   /// No description provided for @bulkDeleteTitle.
   ///
   /// In en, this message translates to:

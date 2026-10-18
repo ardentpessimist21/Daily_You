@@ -249,6 +249,8 @@
   "@bulkForEntries": {"placeholders": {"count": {"type": "int"}}},
   "bulkTagsHint": "{count, plural, one{Tap a tag to add or remove it.} other{Outlined tags are on some of the {count} entries. Tap to put a tag on all of them, tap again to remove it from all.}}",
   "@bulkTagsHint": {"placeholders": {"count": {"type": "int"}}},
+  "bulkTagsOnSome": "On some of the {count} entries: {tags}. Tap one to add it to all.",
+  "@bulkTagsOnSome": {"placeholders": {"count": {"type": "int"}, "tags": {"type": "String"}}},
   "bulkDeleteTitle": "{count, plural, one{Delete 1 entry?} other{Delete {count} entries?}}",
   "@bulkDeleteTitle": {"placeholders": {"count": {"type": "int"}}},
   "bulkDeleteDescription": "Their photos and other attachments are deleted too. This can't be undone.",

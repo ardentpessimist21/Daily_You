@@ -34,6 +34,9 @@ class TagPickerDialog extends StatefulWidget {
 
   final TagType? tagTypeFilter;
 
+  /// Optional line under the title, e.g. multi-select's "On some: …"
+  final String? note;
+
   const TagPickerDialog({
     super.key,
     required this.mode,
@@ -43,6 +46,7 @@ class TagPickerDialog extends StatefulWidget {
     this.initialNoTagsOnly = false,
     this.onFilterChanged,
     this.tagTypeFilter,
+    this.note,
   });
 
   @override
@@ -461,6 +465,14 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (widget.note != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(widget.note!,
+                      style: TextStyle(
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant)),
+                ),
               if (widget.mode == TagPickerMode.attach)
                 _buildAttachedChips(provider),
               if (widget.mode == TagPickerMode.filter) ...[

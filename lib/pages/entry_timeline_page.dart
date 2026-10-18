@@ -80,9 +80,8 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
   }
 
   Future<void> _bulkTags(List<Entry> entries) async {
-    final change = await BulkEntryActions.pickTags(context, entries);
-    if (change == null || !mounted) return;
-    final (add, remove) = change;
+    final (add, remove) = await BulkEntryActions.pickTags(context, entries);
+    if (!mounted || (add.isEmpty && remove.isEmpty)) return;
     await BulkEntryActions.changeTags(entries, add, remove);
     if (!mounted) return;
     setState(_selected.clear);
