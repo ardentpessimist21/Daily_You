@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/device_info_service.dart';
 import 'package:daily_you/fork/places.dart';
+import 'package:daily_you/fork/search_highlight.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/pages/entries_list_page.dart';
@@ -82,14 +84,21 @@ class EntryLinks {
     final l10n = AppLocalizations.of(context)!;
     final messenger = ScaffoldMessenger.of(context);
     await Clipboard.setData(ClipboardData(text: markdownForEntry(entry)));
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(l10n.linkCopied),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(milliseconds: 1500),
-      ));
+    // Android 13 and newer shows its own "Copied" message.
+    if (!showsOwnCopiedMessage(DeviceInfoService().androidSdk)) {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(l10n.linkCopied),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(milliseconds: 1500),
+        ));
+    }
   }
+
+  /// True on Android 13 (API 33) and newer, where the phone confirms copies.
+  static bool showsOwnCopiedMessage(int? androidSdk) =>
+      androidSdk != null && androidSdk >= 33;
 
   /// Opens a tapped link: entries in the app, anything else outside it.
   static Future<void> open(BuildContext context, String url) async {
@@ -110,7 +119,9 @@ class EntryLinks {
       ));
       return;
     }
-    final uri = Uri.tryParse(url.trim());
+    // geo: addresses go to Google Maps as web links, which Android hands to
+    // the Maps app (some phones give geo: to Google Play Services instead).
+    final uri = Uri.tryParse(Places.mapsUrlFor(url.trim()) ?? url.trim());
     var opened = false;
     if (uri != null) {
       try {
@@ -430,15 +441,26 @@ class _EntryPickerPageState extends State<EntryPickerPage> {
                     itemBuilder: (context, index) {
                       final entry = entries[index];
                       final title = EntryLinks.titleOf(entry);
+                      final when =
+                          '${TimeManager.formatDateWithWeekday(entry.timeCreate, context)} · '
+                          '${TimeManager.localizedTimeFormat(context, TimeManager.currentLocale(context)).format(entry.timeCreate)}';
+                      final snippet = matchSnippet(entry.text, query);
                       return ListTile(
                         title: Text(
                           title.isEmpty ? l10n.writeSomethingHint : title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        subtitle: Text(
-                            '${TimeManager.formatDateWithWeekday(entry.timeCreate, context)} · '
-                            '${TimeManager.localizedTimeFormat(context, TimeManager.currentLocale(context)).format(entry.timeCreate)}'),
+                        subtitle: snippet == null
+                            ? Text(when)
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _SnippetText(snippet: snippet, query: query),
+                                  Text(when),
+                                ],
+                              ),
+                        isThreeLine: snippet != null,
                         onTap: () => Navigator.pop(context, entry),
                       );
                     },
@@ -446,6 +468,54 @@ class _EntryPickerPageState extends State<EntryPickerPage> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// The words around the first match of [query] in [text], on one line and
+/// without formatting marks, e.g. "…felt so tired after the night…".
+/// Null when there's no query or no match.
+String? matchSnippet(String text, String query, {int around = 40}) {
+  if (query.isEmpty) return null;
+  final plain = text
+      .split('\n')
+      .map(EntryLinks.plainText)
+      .where((line) => line.isNotEmpty)
+      .join(' ');
+  final index = plain.toLowerCase().indexOf(query.toLowerCase());
+  if (index < 0) return null;
+  var start = (index - around).clamp(0, plain.length);
+  var end = (index + query.length + around).clamp(0, plain.length);
+  // Break on whole words.
+  if (start > 0) {
+    final space = plain.indexOf(' ', start);
+    if (space >= 0 && space < index) start = space + 1;
+  }
+  if (end < plain.length) {
+    final space = plain.lastIndexOf(' ', end);
+    if (space > index + query.length) end = space;
+  }
+  return '${start > 0 ? '…' : ''}${plain.substring(start, end).trim()}'
+      '${end < plain.length ? '…' : ''}';
+}
+
+/// A picker snippet with the search words highlighted, as in the Gallery.
+class _SnippetText extends StatelessWidget {
+  const _SnippetText({required this.snippet, required this.query});
+
+  final String snippet;
+  final String query;
+
+  @override
+  Widget build(BuildContext context) {
+    final (marked, _) = SearchMatchCounter(query).mark(TextSpan(text: snippet));
+    return Text.rich(
+      TextSpan(
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+        children: [marked],
+      ),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }

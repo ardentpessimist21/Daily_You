@@ -4,7 +4,6 @@
 
 import 'dart:math';
 
-import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/utils/markdown_preview_scanner.dart';
 import 'package:daily_you/utils/markdown_preview_styles.dart';
 import 'package:material_ui/material_ui.dart';
@@ -12,14 +11,7 @@ import 'package:flutter/services.dart';
 
 /// A [TextEditingController] that styles Markdown syntax in place
 class MarkdownPreviewController extends TextEditingController {
-  MarkdownPreviewController({super.text, this.allowHidingSymbols = true});
-
-  /// Whether this editor follows the "Hide formatting symbols" setting.
-  final bool allowHidingSymbols;
-
-  bool get hidesSymbols =>
-      allowHidingSymbols &&
-      ConfigProvider.instance.get(Settings.hideFormattingSymbols);
+  MarkdownPreviewController({super.text});
 
   late final SpellCheckService spellCheckService =
       _PreviewSpellCheckService(this);
@@ -120,8 +112,6 @@ class MarkdownPreviewController extends TextEditingController {
         styles: MarkdownPreviewStyles.fromTheme(context),
         composing: withComposing ? value.composing : TextRange.empty,
         misspellings: misspellings.map((span) => span.range).toList(),
-        hideMarkers: hidesSymbols,
-        revealed: revealedLines(text, selection),
       );
 }
 

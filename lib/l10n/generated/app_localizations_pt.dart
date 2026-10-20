@@ -1437,22 +1437,6 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get placeNoMapSpot => 'Text only';
-
-  @override
-  String get placeFromPhoto => 'Add this photo\'s location';
-
-  @override
-  String get settingsHideSymbols => 'Hide formatting symbols';
-
-  @override
-  String get settingsHideSymbolsHint =>
-      'While editing, show **bold** as bold without the stars. Symbols come back faintly on the line you\'re typing in.';
-
-  @override
-  String get editorShowSymbols => 'Show formatting symbols';
-
-  @override
-  String get editorHideSymbols => 'Hide formatting symbols';
 }
 
 /// The translations for Portuguese, as used in Brazil (`pt_BR`).

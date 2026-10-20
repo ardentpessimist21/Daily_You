@@ -802,15 +802,5 @@
   "placeHasMapSpot": "Opens in Maps",
   "@placeHasMapSpot": {},
   "placeNoMapSpot": "Text only",
-  "@placeNoMapSpot": {},
-  "placeFromPhoto": "Add this photo's location",
-  "@placeFromPhoto": {},
-  "settingsHideSymbols": "Hide formatting symbols",
-  "@settingsHideSymbols": {},
-  "settingsHideSymbolsHint": "While editing, show **bold** as bold without the stars. Symbols come back faintly on the line you're typing in.",
-  "@settingsHideSymbolsHint": {},
-  "editorShowSymbols": "Show formatting symbols",
-  "@editorShowSymbols": {},
-  "editorHideSymbols": "Hide formatting symbols",
-  "@editorHideSymbols": {}
+  "@placeNoMapSpot": {}
 }

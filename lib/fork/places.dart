@@ -3,16 +3,12 @@
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:daily_you/config_provider.dart';
-import 'package:daily_you/database/attachment_storage.dart';
 import 'package:daily_you/fork/links.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
-import 'package:daily_you/models/attachment.dart';
 import 'package:daily_you/utils/text_editing.dart';
 import 'package:flutter/services.dart';
-import 'package:image/image.dart' as img;
 import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -36,7 +32,7 @@ class SavedPlace {
 }
 
 /// 📍 places in entries, without location permission or internet: typed,
-/// pasted or shared from Google Maps, saved places, or a photo's location.
+/// pasted or shared from Google Maps, or saved places.
 /// Stored as ordinary text links, e.g. `[📍 Work](geo:-27.47,153.02)`.
 class Places {
   static const String pin = '📍';
@@ -100,6 +96,33 @@ class Places {
     return coords.replaceAll(',', ', ');
   }
 
+  /// A Google Maps web link for a `geo:` address, or null for anything else.
+  /// `geo:0,0?q=Jollibee` searches the name; `geo:-27.47,153.02` (with an
+  /// optional `?q=`) opens that spot.
+  static String? mapsUrlFor(String address) {
+    final trimmed = address.trim();
+    if (!_geo.hasMatch(trimmed)) return null;
+    final rest = trimmed.substring(4);
+    final question = rest.indexOf('?');
+    final coords =
+        (question < 0 ? rest : rest.substring(0, question)).split(';').first;
+    final query = Uri.tryParse(trimmed)?.queryParameters['q']?.trim() ?? '';
+    final parts = coords.split(',');
+    final lat = parts.isNotEmpty ? double.tryParse(parts[0]) : null;
+    final lng = parts.length > 1 ? double.tryParse(parts[1]) : null;
+    final hasSpot = lat != null && lng != null && !(lat == 0 && lng == 0);
+    final search = query.isNotEmpty
+        ? query
+        : hasSpot
+            ? '$lat,$lng'
+            : '';
+    if (search.isEmpty) return 'https://www.google.com/maps';
+    return Uri.https('www.google.com', '/maps/search/', {
+      'api': '1',
+      'query': search,
+    }).toString();
+  }
+
   /// Turns text shared into Daily You from a map app into a tidy place
   /// link; anything else is returned as it was.
   static String tidyShared(String text) => fromShared(text)?.$3 ?? text;
@@ -157,45 +180,6 @@ class Places {
     if (!fresh || !pending.context.mounted) return false;
     insertAtCursor(pending.controller, place.$3);
     return true;
-  }
-
-  // Location from a photo
-
-  /// Where an attached photo was taken, from its EXIF data, or null.
-  static Future<(double, double)?> photoLocation(
-      EntryAttachment attachment) async {
-    if (attachment.type != AttachmentType.image) return null;
-    try {
-      final path = await AttachmentStorage.instance
-          .getLocalPath(attachment.filePath, attachment.type);
-      if (path == null) return null;
-      final bytes = await File(path).readAsBytes();
-      return locationFromExif(img.decodeJpgExif(bytes));
-    } catch (_) {
-      return null;
-    }
-  }
-
-  static (double, double)? locationFromExif(img.ExifData? exif) {
-    if (exif == null || !exif.directories.containsKey('ifd0')) return null;
-    final ifd0 = exif['ifd0'];
-    if (!ifd0.sub.containsKey('gps')) return null;
-    final gps = ifd0.sub['gps'];
-    final latitude = _degrees(gps[0x02], gps[0x01]?.toString());
-    final longitude = _degrees(gps[0x04], gps[0x03]?.toString());
-    if (latitude == null || longitude == null) return null;
-    if (latitude == 0 && longitude == 0) return null;
-    return (latitude, longitude);
-  }
-
-  static double? _degrees(img.IfdValue? value, String? ref) {
-    if (value == null || value.length < 3) return null;
-    final degrees =
-        value.toDouble(0) + value.toDouble(1) / 60 + value.toDouble(2) / 3600;
-    final negative = ref != null &&
-        (ref.trim().toUpperCase().startsWith('S') ||
-            ref.trim().toUpperCase().startsWith('W'));
-    return negative ? -degrees : degrees;
   }
 
   // The 📍 toolbar sheet

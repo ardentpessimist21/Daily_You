@@ -7,8 +7,6 @@ import 'dart:io';
 
 import 'package:daily_you/fork/editor_buttons.dart';
 import 'package:daily_you/fork/places.dart';
-import 'package:daily_you/fork/photo_location_chip.dart';
-import 'package:daily_you/fork/symbols_toggle.dart';
 import 'package:daily_you/fork/future_entries.dart';
 import 'package:daily_you/fork/writing_prompts.dart';
 import 'package:daily_you/fork/undo_redo_buttons.dart';
@@ -305,7 +303,6 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
                   ),
                   actions: [
                     UndoRedoButtons(controller: _undoController),
-                    SymbolsToggleButton(onChanged: () => setState(() {})),
                     _deleteButton(),
                     _closeButton(),
                   ]),
@@ -342,10 +339,6 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
                                           await _saveEntry();
                                           await _deleteUnsavedFiles(removed);
                                         }),
-                                  PhotoLocationChip(
-                                    attachments: _currentAttachments,
-                                    controller: _textEditingController,
-                                  ),
                                   StatefulBuilder(
                                     builder: (context, setLocalState) =>
                                         _buildMetadataCard(

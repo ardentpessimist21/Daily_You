@@ -95,43 +95,7 @@ class MarkdownPreviewStyles {
   }
 }
 
-/// Constructs whose symbols can be hidden while editing. List, checkbox and
-/// divider marks stay (faintly) visible, and code is left alone.
-const Set<MarkdownConstruct> hideableMarkerConstructs = {
-  MarkdownConstruct.bold,
-  MarkdownConstruct.italic,
-  MarkdownConstruct.strikethrough,
-  MarkdownConstruct.highlight,
-  MarkdownConstruct.header,
-  MarkdownConstruct.link,
-  MarkdownConstruct.blockquote,
-};
-
-/// Text that takes up no visible space. The characters stay in the field,
-/// so the cursor and edits still line up with the real text.
-TextStyle hiddenMarkerStyle(TextStyle style) => style.copyWith(
-      fontSize: 0.01,
-      letterSpacing: 0,
-      wordSpacing: 0,
-      color: const Color(0x00000000),
-      backgroundColor: const Color(0x00000000),
-      decoration: TextDecoration.none,
-    );
-
-/// The start and end of the lines that [selection] touches, where hidden
-/// symbols are shown again so they can be edited safely.
-TextRange revealedLines(String text, TextSelection selection) {
-  if (!selection.isValid) return TextRange.empty;
-  final from = selection.start.clamp(0, text.length);
-  final to = selection.end.clamp(0, text.length);
-  final start = from == 0 ? 0 : text.lastIndexOf('\n', from - 1) + 1;
-  final newline = text.indexOf('\n', to);
-  final end = newline < 0 ? text.length : newline;
-  return TextRange(start: start, end: end);
-}
-
-/// Flattens the nested [spans] into one styled span per stretch of text.
-/// With [hideMarkers], formatting symbols outside [revealed] are hidden.
+/// Flattens the nested [spans] into one styled span per stretch of text
 TextSpan buildMarkdownPreviewSpan({
   required String text,
   required List<MarkdownSpan> spans,
@@ -139,8 +103,6 @@ TextSpan buildMarkdownPreviewSpan({
   required MarkdownPreviewStyles styles,
   TextRange composing = TextRange.empty,
   List<TextRange> misspellings = const [],
-  bool hideMarkers = false,
-  TextRange revealed = TextRange.empty,
 }) {
   if (text.isEmpty) return TextSpan(style: baseStyle);
 
@@ -156,7 +118,6 @@ TextSpan buildMarkdownPreviewSpan({
   final activeSpans = <MarkdownSpan>[];
   var cursor = 0;
   var nextSpan = 0;
-  var hiddenLeadEnd = -1;
 
   while (cursor < text.length) {
     while (nextSpan < spans.length && spans[nextSpan].start <= cursor) {
@@ -176,27 +137,6 @@ TextSpan buildMarkdownPreviewSpan({
     var style = baseStyle;
     for (final span in activeSpans) {
       style = styles.apply(style, span);
-    }
-    if (hideMarkers &&
-        !(revealed.isValid &&
-            cursor >= revealed.start &&
-            cursor <= revealed.end)) {
-      final hiddenMarker = activeSpans.where((span) =>
-          span.role == MarkdownSpanRole.marker &&
-          hideableMarkerConstructs.contains(span.construct));
-      // The space after a hidden "#" or ">" goes too, so the line doesn't
-      // start with a gap.
-      final leadingGap = cursor == hiddenLeadEnd &&
-          text.substring(cursor, segmentEnd).trim().isEmpty &&
-          !text.substring(cursor, segmentEnd).contains('\n');
-      if (hiddenMarker.isNotEmpty || leadingGap) {
-        style = hiddenMarkerStyle(style);
-        hiddenLeadEnd = hiddenMarker.any((span) =>
-                span.construct == MarkdownConstruct.header ||
-                span.construct == MarkdownConstruct.blockquote)
-            ? segmentEnd
-            : -1;
-      }
     }
     if (_covers(underlined, cursor, segmentEnd)) {
       style = _decorate(style, TextDecoration.underline);

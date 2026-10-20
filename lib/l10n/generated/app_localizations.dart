@@ -2573,36 +2573,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Text only'**
   String get placeNoMapSpot;
-
-  /// No description provided for @placeFromPhoto.
-  ///
-  /// In en, this message translates to:
-  /// **'Add this photo\'s location'**
-  String get placeFromPhoto;
-
-  /// No description provided for @settingsHideSymbols.
-  ///
-  /// In en, this message translates to:
-  /// **'Hide formatting symbols'**
-  String get settingsHideSymbols;
-
-  /// No description provided for @settingsHideSymbolsHint.
-  ///
-  /// In en, this message translates to:
-  /// **'While editing, show **bold** as bold without the stars. Symbols come back faintly on the line you\'re typing in.'**
-  String get settingsHideSymbolsHint;
-
-  /// No description provided for @editorShowSymbols.
-  ///
-  /// In en, this message translates to:
-  /// **'Show formatting symbols'**
-  String get editorShowSymbols;
-
-  /// No description provided for @editorHideSymbols.
-  ///
-  /// In en, this message translates to:
-  /// **'Hide formatting symbols'**
-  String get editorHideSymbols;
 }
 
 class _AppLocalizationsDelegate

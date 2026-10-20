@@ -332,13 +332,6 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(
                 builder: (_) => const EditorButtonsSettingsPage())),
           ),
-          SettingsToggle(
-            title: AppLocalizations.of(context)!.settingsHideSymbols,
-            hint: AppLocalizations.of(context)!.settingsHideSymbolsHint,
-            setting: Settings.hideFormattingSymbols,
-            onChanged: (value) =>
-                configProvider.set(Settings.hideFormattingSymbols, value),
-          ),
           SettingsIconAction(
             title: AppLocalizations.of(context)!.placeSaved,
             hint: AppLocalizations.of(context)!.placeSavedEmpty,

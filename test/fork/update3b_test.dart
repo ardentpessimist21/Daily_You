@@ -8,14 +8,8 @@ import 'package:daily_you/fork/links.dart';
 import 'package:daily_you/fork/places.dart';
 import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/pages/edit_entry_page.dart';
-import 'package:daily_you/utils/markdown_preview_scanner.dart';
-import 'package:daily_you/utils/markdown_preview_styles.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:image/image.dart' as img;
-// Rational isn't exported by the image package
-// ignore: implementation_imports
-import 'package:image/src/util/rational.dart';
 
 import '../support/config_provider_harness.dart';
 
@@ -138,93 +132,39 @@ void main() {
               '', 'Mum\'s place\nhttps://maps.app.goo.gl/q1'),
           "[📍 Mum's place](https://maps.app.goo.gl/q1)");
     });
-
-    test('reads a photo location from EXIF', () {
-      final exif = img.ExifData();
-      final gps = exif['ifd0'].sub['gps'];
-      gps[0x01] = img.IfdValueAscii('S');
-      gps[0x02] = img.IfdValueRational.list([
-        Rational(27, 1),
-        Rational(28, 1),
-        Rational(12, 1),
-      ]);
-      gps[0x03] = img.IfdValueAscii('E');
-      gps[0x04] = img.IfdValueRational.list([
-        Rational(153, 1),
-        Rational(1, 1),
-        Rational(30, 1),
-      ]);
-      final location = Places.locationFromExif(exif)!;
-      expect(location.$1, closeTo(-27.47, 0.001));
-      expect(location.$2, closeTo(153.025, 0.001));
-    });
-
-    test('photos without a location give nothing', () {
-      expect(Places.locationFromExif(img.ExifData()), isNull);
-      expect(Places.locationFromExif(null), isNull);
-    });
   });
 
-  group('Hiding formatting symbols', () {
-    TextSpan build(String text, {int? cursor, bool hide = true}) {
-      final selection = TextSelection.collapsed(offset: cursor ?? -1);
-      return buildMarkdownPreviewSpan(
-        text: text,
-        spans: scanMarkdown(text).spans,
-        baseStyle: const TextStyle(fontSize: 16),
-        styles: const MarkdownPreviewStyles(
-          marker: Colors.grey,
-          link: Colors.blue,
-          quote: Colors.grey,
-          codeBackground: Colors.black12,
-          misspelling: Colors.red,
-          highlightBackground: Colors.yellow,
-        ),
-        hideMarkers: hide,
-        revealed:
-            cursor == null ? TextRange.empty : revealedLines(text, selection),
-      );
-    }
-
-    String visible(TextSpan span) => [
-          for (final child in span.children!.cast<TextSpan>())
-            if ((child.style?.fontSize ?? 16) >= 1) child.text!
-        ].join();
-
-    test('symbols disappear but the text keeps every character', () {
-      const text = '# Night shift\nFelt **so tired** but ==we got through==.';
-      final span = build(text);
-      expect(span.toPlainText(), text);
-      expect(visible(span), 'Night shift\nFelt so tired but we got through.');
+  group('3B fixes', () {
+    test('📍 links open as Google Maps web links', () {
+      expect(Places.mapsUrlFor('geo:0,0?q=Jollibee+Taipei'),
+          'https://www.google.com/maps/search/?api=1&query=Jollibee+Taipei');
+      expect(Places.mapsUrlFor('geo:-27.47,153.02'),
+          'https://www.google.com/maps/search/?api=1&query=-27.47%2C153.02');
+      expect(Places.mapsUrlFor('https://maps.app.goo.gl/abc'), isNull);
+      expect(Places.mapsUrlFor('entry:4'), isNull);
     });
 
-    test('link code hides, leaving the words', () {
-      final span = build('See [Exam day](entry:7) soon');
-      expect(visible(span), 'See Exam day soon');
+    test('Android 13+ shows its own Copied message', () {
+      expect(EntryLinks.showsOwnCopiedMessage(33), isTrue);
+      expect(EntryLinks.showsOwnCopiedMessage(34), isTrue);
+      expect(EntryLinks.showsOwnCopiedMessage(32), isFalse);
+      expect(EntryLinks.showsOwnCopiedMessage(null), isFalse);
     });
 
-    test('the line being edited shows its symbols', () {
-      const text = 'Line **one**\nLine **two**';
-      final span = build(text, cursor: text.length);
-      expect(visible(span), 'Line one\nLine **two**');
+    test('picker snippet shows the words around the match', () {
+      const text = '# Night shift\nBusy ward tonight. Felt **so tired** '
+          'after the handover but we got through it together in the end.';
+      final snippet = matchSnippet(text, 'tired', around: 20)!;
+      expect(snippet, contains('so tired'));
+      expect(snippet, isNot(contains('**')));
+      expect(snippet.startsWith('…'), isTrue);
+      expect(snippet.endsWith('…'), isTrue);
+      expect(matchSnippet(text, ''), isNull);
+      expect(matchSnippet(text, 'pharmacology'), isNull);
     });
 
-    test('list and checkbox marks stay', () {
-      final span = build('- [ ] Meds round\n- Notes');
-      expect(visible(span), '- [ ] Meds round\n- Notes');
-    });
-
-    test('nothing is hidden when the setting is off', () {
-      const text = 'Felt **so tired**';
-      expect(visible(build(text, hide: false)), text);
-    });
-
-    test('revealed lines cover the whole selection', () {
-      const text = 'a\nbb\nccc';
-      expect(
-          revealedLines(
-              text, const TextSelection(baseOffset: 3, extentOffset: 6)),
-          const TextRange(start: 2, end: 8));
+    test('short entries show the whole line', () {
+      expect(matchSnippet('Exam day', 'exam'), 'Exam day');
     });
   });
 
