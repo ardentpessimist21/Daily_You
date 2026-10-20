@@ -41,7 +41,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
         content: TextField(
           controller: controller,
           autofocus: true,
-          maxLength: 24,
+          maxLength: HomeGreeting.maxNameLength,
           textCapitalization: TextCapitalization.words,
           decoration: InputDecoration(
               hintText: AppLocalizations.of(context)!.settingsYourNameHint),
@@ -339,6 +339,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
                 configProvider.set(Settings.writingPrompts, value),
           ),
           SettingsToggle(
+            title: AppLocalizations.of(context)!.settingsFutureEntries,
+            hint: AppLocalizations.of(context)!.settingsFutureEntriesHint,
+            setting: Settings.allowFutureEntries,
+            onChanged: (value) =>
+                configProvider.set(Settings.allowFutureEntries, value),
+          ),
+          SettingsToggle(
             title: AppLocalizations.of(context)!.settingsHomeGreeting,
             hint: AppLocalizations.of(context)!.settingsHomeGreetingHint,
             setting: Settings.homeGreetingEnabled,
@@ -437,8 +444,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
             onPressed: () => _showHideImagesDialog(context, configProvider),
           ),
           SettingsToggle(
-            title: AppLocalizations.of(context)!
-                .settingsTimelineShowFullEntries,
+            title:
+                AppLocalizations.of(context)!.settingsTimelineShowFullEntries,
             hint: AppLocalizations.of(context)!
                 .settingsTimelineShowFullEntriesHint,
             setting: Settings.timelineShowFullEntries,

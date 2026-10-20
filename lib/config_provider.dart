@@ -117,6 +117,7 @@ class Settings {
   static const editorPopupItems =
       Setting<String>("editorPopupItems", "default");
   static const writingPrompts = Setting<bool>("writingPrompts", true);
+  static const allowFutureEntries = Setting<bool>("allowFutureEntries", false);
   static const timelineOldestFirst =
       Setting<bool>("timelineOldestFirst", false);
   static const lastDismissedSupportBannerDate =
@@ -218,6 +219,7 @@ class Settings {
     editorToolbarHidden,
     editorPopupItems,
     writingPrompts,
+    allowFutureEntries,
     lastDismissedSupportBannerDate,
     calendarShowMood,
     calendarTagOverlay,

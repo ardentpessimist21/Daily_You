@@ -6,6 +6,7 @@ import 'dart:math';
 
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
+import 'package:flutter/widgets.dart';
 
 enum _DayPart { morning, afternoon, evening, night }
 
@@ -13,6 +14,17 @@ enum _DayPart { morning, afternoon, evening, night }
 class HomeGreeting {
   static const String styleClassic = 'classic';
   static const String stylePlayful = 'playful';
+
+  /// Longest name the greeting keeps, so it still fits the top bar.
+  static const int maxNameLength = 20;
+
+  /// The saved name, trimmed and capped to [maxNameLength].
+  static String name() {
+    final name = ConfigProvider.instance.get(Settings.homeGreetingName).trim();
+    return name.length > maxNameLength
+        ? name.substring(0, maxNameLength).trimRight()
+        : name;
+  }
 
   // Each line comes with and without a name, so it always reads naturally.
   static const Map<_DayPart, List<(String, String)>> _playful = {
@@ -67,7 +79,7 @@ class HomeGreeting {
     final config = ConfigProvider.instance;
     if (!config.get(Settings.homeGreetingEnabled)) return null;
 
-    final name = config.get(Settings.homeGreetingName).trim();
+    final name = HomeGreeting.name();
     final part = _partOf(DateTime.now());
     final playful = config.get(Settings.homeGreetingStyle) == stylePlayful &&
         languageCode == 'en';
@@ -97,5 +109,55 @@ class HomeGreeting {
     Future.microtask(
         () => config.set(Settings.homeGreetingLastLine, choice.$1));
     return choice;
+  }
+}
+
+/// Shows the greeting with the name in italics. A greeting too wide for the
+/// top bar shrinks to fit, down to 80% size, and only then gets "…".
+class HomeGreetingTitle extends StatelessWidget {
+  final String text;
+
+  const HomeGreetingTitle(this.text, {super.key});
+
+  static const double _minScale = 0.8;
+
+  List<InlineSpan> _spans(String name) {
+    final index = name.isEmpty ? -1 : text.lastIndexOf(name);
+    if (index < 0) return [TextSpan(text: text)];
+    return [
+      TextSpan(text: text.substring(0, index)),
+      TextSpan(text: name, style: const TextStyle(fontStyle: FontStyle.italic)),
+      TextSpan(text: text.substring(index + name.length)),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final span = TextSpan(children: _spans(HomeGreeting.name()));
+    return LayoutBuilder(builder: (context, constraints) {
+      final style = DefaultTextStyle.of(context).style;
+      final textScaler = MediaQuery.textScalerOf(context);
+      final painter = TextPainter(
+        text: TextSpan(style: style, children: [span]),
+        textDirection: Directionality.of(context),
+        textScaler: textScaler,
+        maxLines: 1,
+      )..layout();
+      final width = painter.width;
+      painter.dispose();
+      var scale = 1.0;
+      if (constraints.hasBoundedWidth && width > constraints.maxWidth) {
+        scale = max(_minScale, constraints.maxWidth / width);
+      }
+      return Text.rich(
+        span,
+        maxLines: 1,
+        softWrap: false,
+        overflow: TextOverflow.ellipsis,
+        style: scale < 1 && style.fontSize != null
+            ? TextStyle(fontSize: style.fontSize! * scale)
+            : null,
+      );
+    });
   }
 }

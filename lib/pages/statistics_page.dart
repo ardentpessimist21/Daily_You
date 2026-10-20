@@ -3,6 +3,8 @@
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
 import 'package:daily_you/config_provider.dart';
+import 'package:daily_you/fork/future_entries.dart';
+import 'package:daily_you/time_manager.dart';
 import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/models/stats_subject.dart';
 import 'package:daily_you/models/tag.dart';
@@ -110,13 +112,20 @@ class _StatsPageState extends State<StatsPage>
 
     final subject =
         StatsSubject.fromConfigString(_subjectConfig, tagsProvider.tags);
-    final rangedEntries = entriesInRange(entriesProvider.entries, statsRange);
-    final streaks = calculateStreaks(entriesProvider.entries);
+    // Upcoming entries count once their day arrives
+    final pastEntries = FutureEntries.past(entriesProvider.entries);
+    final rangedEntries = entriesInRange(pastEntries, statsRange);
+    final streaks = calculateStreaks(pastEntries);
     final daysSinceBadDay = streaks.daysSinceBadDay;
 
-    final logCount = entriesProvider.entries.length;
-    final entryDayCount = entriesProvider.getEntryDayCount();
-    final wordCount = _wordCountOf(entriesProvider.entries);
+    final logCount = pastEntries.length;
+    final entryDayCount = identical(pastEntries, entriesProvider.entries)
+        ? entriesProvider.getEntryDayCount()
+        : pastEntries
+            .map((entry) => TimeManager.startOfDay(entry.timeCreate))
+            .toSet()
+            .length;
+    final wordCount = _wordCountOf(pastEntries);
 
     final primaryStreakItem = logCount > 0
         ? StatItem(
@@ -134,7 +143,7 @@ class _StatsPageState extends State<StatsPage>
       if (logCount > 0)
         StatItem(
           icon: Icons.mood_rounded,
-          title: l10n.streakGreatDays(greatDayCount(entriesProvider.entries)),
+          title: l10n.streakGreatDays(greatDayCount(pastEntries)),
         ),
       if (daysSinceBadDay != null && daysSinceBadDay > 3)
         StatItem(

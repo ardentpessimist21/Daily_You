@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:daily_you/config_provider.dart';
+import 'package:daily_you/fork/future_entries.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
@@ -102,7 +103,8 @@ class FlashbackManager {
       BuildContext context, List<Entry> entries) {
     final configProvider = Provider.of<ConfigProvider>(context);
 
-    List<Entry> filteredEntries = entries;
+    // Upcoming entries wait until their day
+    List<Entry> filteredEntries = FutureEntries.past(entries);
 
     if (configProvider.get(Settings.excludeBadDaysFromFlashbacks)) {
       // Filter out unhappy entries

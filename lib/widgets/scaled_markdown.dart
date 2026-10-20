@@ -3,6 +3,7 @@
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
 import 'package:daily_you/fork/checklists.dart';
+import 'package:daily_you/fork/search_highlight.dart';
 import 'package:daily_you/widgets/markdown_highlight_syntax.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:markdown_widget/markdown_widget.dart';
@@ -20,6 +21,16 @@ class ScaledMarkdown extends StatelessWidget {
   /// (0 = first box in the text).
   final void Function(int index)? onCheckboxTap;
 
+  /// Gallery search text to highlight, if any.
+  final String? searchQuery;
+
+  /// The match to highlight more strongly (0 = first).
+  final int? currentMatch;
+
+  /// When given, filled with one key per match: the text block holding it,
+  /// so the page can scroll to a match.
+  final List<GlobalKey>? matchKeys;
+
   const ScaledMarkdown({
     super.key,
     required this.data,
@@ -28,6 +39,9 @@ class ScaledMarkdown extends StatelessWidget {
     this.compact = false,
     this.selectable = true,
     this.onCheckboxTap,
+    this.searchQuery,
+    this.currentMatch,
+    this.matchKeys,
   });
 
   @override
@@ -71,14 +85,34 @@ class ScaledMarkdown extends StatelessWidget {
       ),
     ]);
 
+    final query = searchQuery ?? '';
+    matchKeys?.clear();
+    final matchCounter = query.isEmpty
+        ? null
+        : SearchMatchCounter(query,
+            current: currentMatch, blockKeys: matchKeys);
+
     final markdown = MarkdownBlock(
       selectable: false,
       config: config,
       generator: MarkdownGenerator(
         inlineSyntaxList: [HighlightSyntax()],
         generators: [highlightGenerator(Colors.yellow.shade700)],
-        richTextBuilder: (span) {
-          return Builder(builder: (context) {
+        richTextBuilder: (original) {
+          // Matches are numbered here, in the order blocks are built.
+          var span = original;
+          GlobalKey? blockKey;
+          if (matchCounter != null) {
+            final (marked, found) = matchCounter.mark(original);
+            span = marked;
+            if (found > 0 && matchKeys != null) {
+              blockKey = GlobalKey();
+              for (var i = 0; i < found; i++) {
+                matchKeys!.add(blockKey);
+              }
+            }
+          }
+          final block = Builder(builder: (context) {
             final shouldIgnoreTextScaler =
                 context.getInheritedWidgetOfExactType<_WithTextScalar>() !=
                     null;
@@ -93,6 +127,9 @@ class ScaledMarkdown extends StatelessWidget {
                 ? child
                 : _WithTextScalar(child: child);
           });
+          return blockKey == null
+              ? block
+              : KeyedSubtree(key: blockKey, child: block);
         },
         linesMargin: compact
             ? EdgeInsets.zero

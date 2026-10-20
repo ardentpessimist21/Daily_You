@@ -5,6 +5,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:daily_you/fork/future_entries.dart';
 import 'package:daily_you/fork/writing_prompts.dart';
 import 'package:daily_you/fork/undo_redo_buttons.dart';
 import 'package:daily_you/config_provider.dart';
@@ -590,7 +591,7 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
       context,
       initialDate: entryDate!,
       firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
+      lastDate: FutureEntries.lastPickableDate(),
     );
     if (pickedDate == null) return;
 

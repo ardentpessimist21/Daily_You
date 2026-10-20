@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/fork/search_highlight.dart';
 import 'package:daily_you/models/attachment.dart';
 import 'package:daily_you/time_manager.dart';
 import 'package:daily_you/widgets/entry_card_header_row.dart';
@@ -77,13 +78,16 @@ class LargeCard extends StatelessWidget {
     );
   }
 
-  static Widget markdownBody(String text) => OverflowBox(
+  static Widget markdownBody(String text, {String? searchQuery}) => OverflowBox(
         alignment: AlignmentDirectional.topStart,
         maxHeight: double.infinity,
         child: ScaledMarkdown(
-          data: text,
+          data: searchQuery == null || searchQuery.isEmpty
+              ? text
+              : SearchHighlight.preview(text, searchQuery),
           maxCharacters: 500,
           scaleFactor: 0.95,
+          searchQuery: searchQuery,
         ),
       );
 }
@@ -160,6 +164,7 @@ class LargeEntryCardWidget extends StatelessWidget {
     required this.entry,
     required this.attachments,
     this.hideImage = false,
+    this.searchQuery,
   });
 
   final Entry entry;
@@ -167,11 +172,15 @@ class LargeEntryCardWidget extends StatelessWidget {
   final String? title;
   final bool hideImage;
 
+  /// Gallery search text: matches are highlighted and counted.
+  final String? searchQuery;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final time = TimeManager.formatDate(entry.timeCreate, context);
-    return LargeCard(
+    final matches = SearchHighlight.count(entry.text, searchQuery ?? '');
+    final card = LargeCard(
       media: attachments.isNotEmpty && !hideImage
           ? AttachmentGrid(attachments: attachments)
           : null,
@@ -185,11 +194,20 @@ class LargeEntryCardWidget extends StatelessWidget {
         ),
       ),
       body: entry.text.isNotEmpty
-          ? LargeCard.markdownBody(entry.text)
+          ? LargeCard.markdownBody(entry.text, searchQuery: searchQuery)
           : Text(
               AppLocalizations.of(context)!.writeSomethingHint,
               style: TextStyle(color: theme.disabledColor, fontSize: 16),
             ),
     );
+    if (matches == 0) return card;
+    return Stack(children: [
+      card,
+      PositionedDirectional(
+        end: 10,
+        bottom: 10,
+        child: SearchMatchBadge(count: matches),
+      ),
+    ]);
   }
 }

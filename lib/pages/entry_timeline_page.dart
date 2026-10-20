@@ -22,6 +22,7 @@ class EntryTimelinePage extends StatefulWidget {
     required this.getEntries,
     required this.labelBuilder,
     this.addEntryDate,
+    this.swipeDays = false,
   });
 
   final String header;
@@ -31,6 +32,10 @@ class EntryTimelinePage extends StatefulWidget {
   /// When set, an add button creates a new entry on this day. Left null for
   /// timelines that span several days, such as "On this day".
   final DateTime? addEntryDate;
+
+  /// Day timelines only: swipe left or right to move to the next or previous
+  /// day with entries. The header, entries and add button follow the day.
+  final bool swipeDays;
 
   /// Pushes a timeline listing every entry created on [date], with each
   /// entry labeled by its time of day and an add button for that day.
@@ -44,6 +49,7 @@ class EntryTimelinePage extends StatefulWidget {
             .where((entry) => TimeManager.isSameDay(entry.timeCreate, date))
             .toList(),
         addEntryDate: date,
+        swipeDays: true,
         labelBuilder: (context, entry) => TimeManager.localizedTimeFormat(
                 context, TimeManager.currentLocale(context))
             .format(entry.timeCreate),
@@ -56,6 +62,40 @@ class EntryTimelinePage extends StatefulWidget {
 }
 
 class _EntryTimelinePageState extends State<EntryTimelinePage> {
+  // The day shown, for swipeable day timelines.
+  late DateTime? _day = widget.swipeDays && widget.addEntryDate != null
+      ? DateUtils.dateOnly(widget.addEntryDate!)
+      : null;
+  PageController? _pageController;
+
+  @override
+  void dispose() {
+    _pageController?.dispose();
+    super.dispose();
+  }
+
+  // Every day with at least one entry, oldest first.
+  static List<DateTime> _daysWithEntries() {
+    final days = EntriesProvider.instance.entries
+        .map((entry) => DateUtils.dateOnly(entry.timeCreate))
+        .toSet()
+        .toList()
+      ..sort();
+    return days;
+  }
+
+  static List<Entry> _entriesOn(DateTime day) =>
+      EntriesProvider.instance.entries
+          .where((entry) => TimeManager.isSameDay(entry.timeCreate, day))
+          .toList();
+
+  void _onDayChanged(DateTime day) {
+    setState(() {
+      _day = day;
+      _selected.clear();
+    });
+  }
+
   // Entry ids picked in select mode (started by long-pressing a card)
   final Set<int> _selected = {};
   bool get _selecting => _selected.isNotEmpty;
@@ -177,12 +217,34 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
     final showFullEntries =
         configProvider.get(Settings.timelineShowFullEntries);
     final oldestFirst = configProvider.get(Settings.timelineOldestFirst);
-    final addEntryDate = widget.addEntryDate;
+    final day = _day;
+    final addEntryDate = day ?? widget.addEntryDate;
+    final header =
+        day != null ? TimeManager.formatDate(day, context) : widget.header;
 
-    final entries = List<Entry>.from(widget.getEntries())
+    List<Entry> sorted(List<Entry> list) => List<Entry>.from(list)
       ..sort((a, b) => oldestFirst
           ? a.timeCreate.compareTo(b.timeCreate)
           : b.timeCreate.compareTo(a.timeCreate));
+
+    final entries = sorted(day != null ? _entriesOn(day) : widget.getEntries());
+
+    final days = day != null ? _daysWithEntries() : const <DateTime>[];
+    final dayIndex = days.indexOf(day ?? DateTime(0));
+    if (day != null && dayIndex >= 0) {
+      final controller =
+          _pageController ??= PageController(initialPage: dayIndex);
+      // Keep the pager on this day if days were added or removed elsewhere.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !controller.hasClients) return;
+        final page = controller.page?.round();
+        if (page != null &&
+            page != dayIndex &&
+            !controller.position.isScrollingNotifier.value) {
+          controller.jumpToPage(dayIndex);
+        }
+      });
+    }
 
     _selected.removeWhere((id) => !entries.any((entry) => entry.id == id));
 
@@ -201,7 +263,7 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
         appBar: _selecting
             ? _selectionAppBar(entries)
             : AppBar(
-                title: Text(widget.header),
+                title: Text(header),
                 actions: [
                   IconButton(
                     tooltip: oldestFirst
@@ -245,102 +307,118 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
                   const SizedBox(width: 4),
                 ],
               ),
-        body: ListView.builder(
-          padding: const EdgeInsets.only(top: 8, bottom: 16),
-          itemCount: entries.length,
-          itemBuilder: (context, index) {
-            final entry = entries[index];
-            final entryAttachments = entryAttachmentsProvider
-                .getForEntry(entry)
-                .where((attachment) => attachment.type.isVisual)
-                .toList();
-            final label = widget.labelBuilder(context, entry);
-            void openEntry() {
-              final id = entry.id;
-              if (id == null) return;
-              Navigator.of(context).push(MaterialPageRoute(
-                allowSnapshotting: false,
-                builder: (context) => EntriesListPage(
-                  index: EntriesProvider.instance.getIndexOfEntry(id),
-                  getEntries: () => EntriesProvider.instance.entries,
-                ),
-              ));
-            }
+        body: day != null && dayIndex >= 0
+            ? PageView.builder(
+                controller: _pageController,
+                itemCount: days.length,
+                onPageChanged: (index) => _onDayChanged(days[index]),
+                itemBuilder: (context, index) => days[index] == day
+                    ? _entryList(
+                        entries, showFullEntries, entryAttachmentsProvider)
+                    : _entryList(sorted(_entriesOn(days[index])),
+                        showFullEntries, entryAttachmentsProvider),
+              )
+            : _entryList(entries, showFullEntries, entryAttachmentsProvider),
+      ),
+    );
+  }
 
-            final isSelected = _selected.contains(entry.id);
-            void onTap() => _selecting ? _toggleSelected(entry) : openEntry();
-            void onLongPress() => _toggleSelected(entry);
+  Widget _entryList(List<Entry> entries, bool showFullEntries,
+      EntryAttachmentsProvider entryAttachmentsProvider) {
+    return ListView.builder(
+      padding: const EdgeInsets.only(top: 8, bottom: 16),
+      itemCount: entries.length,
+      itemBuilder: (context, index) {
+        final entry = entries[index];
+        final entryAttachments = entryAttachmentsProvider
+            .getForEntry(entry)
+            .where((attachment) => attachment.type.isVisual)
+            .toList();
+        final label = widget.labelBuilder(context, entry);
+        void openEntry() {
+          final id = entry.id;
+          if (id == null) return;
+          Navigator.of(context).push(MaterialPageRoute(
+            allowSnapshotting: false,
+            builder: (context) => EntriesListPage(
+              index: EntriesProvider.instance.getIndexOfEntry(id),
+              getEntries: () => EntriesProvider.instance.entries,
+            ),
+          ));
+        }
 
-            if (showFullEntries) {
-              return _FullEntryTimelineRow(
-                isFirst: index == 0,
-                isLast: index == entries.length - 1,
-                selecting: _selecting,
-                selected: isSelected,
-                onTap: onTap,
-                onLongPress: onLongPress,
-                child: _SelectionOutline(
-                  selected: isSelected,
-                  child: FullEntryCardWidget(
-                    title: label,
-                    entry: entry,
-                    attachments: entryAttachments,
-                  ),
-                ),
-              );
-            }
+        final isSelected = _selected.contains(entry.id);
+        void onTap() => _selecting ? _toggleSelected(entry) : openEntry();
+        void onLongPress() => _toggleSelected(entry);
 
-            return AspectRatio(
-              aspectRatio: 2.2,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SizedBox(
-                    width: 36,
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 3,
-                          height: 12,
-                          color: index == 0
-                              ? Colors.transparent
-                              : Theme.of(context).colorScheme.outlineVariant,
-                        ),
-                        _RailDot(selecting: _selecting, selected: isSelected),
-                        Expanded(
-                          child: Container(
-                            width: 3,
-                            color: index == entries.length - 1
-                                ? Colors.transparent
-                                : Theme.of(context).colorScheme.outlineVariant,
-                          ),
-                        ),
-                      ],
+        if (showFullEntries) {
+          return _FullEntryTimelineRow(
+            isFirst: index == 0,
+            isLast: index == entries.length - 1,
+            selecting: _selecting,
+            selected: isSelected,
+            onTap: onTap,
+            onLongPress: onLongPress,
+            child: _SelectionOutline(
+              selected: isSelected,
+              child: FullEntryCardWidget(
+                title: label,
+                entry: entry,
+                attachments: entryAttachments,
+              ),
+            ),
+          );
+        }
+
+        return AspectRatio(
+          aspectRatio: 2.2,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                width: 36,
+                child: Column(
+                  children: [
+                    Container(
+                      width: 3,
+                      height: 12,
+                      color: index == 0
+                          ? Colors.transparent
+                          : Theme.of(context).colorScheme.outlineVariant,
                     ),
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 8, bottom: 8),
-                      child: GestureDetector(
-                        onTap: onTap,
-                        onLongPress: onLongPress,
-                        child: _SelectionOutline(
-                          selected: isSelected,
-                          child: LargeEntryCardWidget(
-                            title: label,
-                            entry: entry,
-                            attachments: entryAttachments,
-                          ),
-                        ),
+                    _RailDot(selecting: _selecting, selected: isSelected),
+                    Expanded(
+                      child: Container(
+                        width: 3,
+                        color: index == entries.length - 1
+                            ? Colors.transparent
+                            : Theme.of(context).colorScheme.outlineVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 8, bottom: 8),
+                  child: GestureDetector(
+                    onTap: onTap,
+                    onLongPress: onLongPress,
+                    child: _SelectionOutline(
+                      selected: isSelected,
+                      child: LargeEntryCardWidget(
+                        title: label,
+                        entry: entry,
+                        attachments: entryAttachments,
                       ),
                     ),
                   ),
-                ],
+                ),
               ),
-            );
-          },
-        ),
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

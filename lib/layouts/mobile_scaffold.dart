@@ -335,7 +335,7 @@ class _MobileScaffoldState extends State<MobileScaffold> {
       child: Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
         appBar: AppBar(
-          title: Text(pageTitles[currentIndex]),
+          title: _pageTitle(pageTitles),
           elevation: _isScrolled[currentIndex] ? 1 : 0,
           scrolledUnderElevation: 1,
           actions: [
@@ -410,7 +410,7 @@ class _MobileScaffoldState extends State<MobileScaffold> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(pageTitles[currentIndex]),
+        title: _pageTitle(pageTitles),
         backgroundColor: _isScrolled[currentIndex]
             ? theme.colorScheme.surfaceContainer
             : theme.colorScheme.surface,
@@ -462,7 +462,7 @@ class _MobileScaffoldState extends State<MobileScaffold> {
               child: Column(
                 children: [
                   AppBar(
-                    title: Text(pageTitles[currentIndex]),
+                    title: _pageTitle(pageTitles),
                     automaticallyImplyLeading: false,
                     backgroundColor: _isScrolled[currentIndex]
                         ? theme.colorScheme.surfaceContainer
@@ -486,6 +486,15 @@ class _MobileScaffoldState extends State<MobileScaffold> {
         ],
       ),
     );
+  }
+
+  Widget _pageTitle(List<String> pageTitles) {
+    final title = pageTitles[currentIndex];
+    if (currentIndex == 0 &&
+        ConfigProvider.instance.get(Settings.homeGreetingEnabled)) {
+      return HomeGreetingTitle(title);
+    }
+    return Text(title);
   }
 
   @override

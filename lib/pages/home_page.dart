@@ -5,6 +5,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:daily_you/fork/future_entries.dart';
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/device_info_service.dart';
 import 'package:daily_you/flashback_manager.dart';
@@ -91,7 +92,7 @@ class _HomePageState extends State<HomePage>
       context,
       initialDate: DateTime.now(),
       firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
+      lastDate: FutureEntries.lastPickableDate(),
     );
     if (picked == null || !mounted) return;
     final overrideDate = TimeManager.isToday(picked)

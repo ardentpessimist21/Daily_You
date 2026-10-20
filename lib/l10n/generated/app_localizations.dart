@@ -2333,6 +2333,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to record audio!'**
   String get recorderErrorDescription;
+
+  /// No description provided for @searchMatchCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 match} other{{count} matches}}'**
+  String searchMatchCount(int count);
+
+  /// No description provided for @searchMatchPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'{current} of {total}'**
+  String searchMatchPosition(int current, int total);
+
+  /// No description provided for @searchPreviousMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous match'**
+  String get searchPreviousMatch;
+
+  /// No description provided for @searchNextMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Next match'**
+  String get searchNextMatch;
+
+  /// No description provided for @searchClearHighlights.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear highlights'**
+  String get searchClearHighlights;
+
+  /// No description provided for @galleryJumpToMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Jump to month'**
+  String get galleryJumpToMonth;
+
+  /// No description provided for @galleryMonthEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No entries} one{1 entry} other{{count} entries}}'**
+  String galleryMonthEntries(int count);
+
+  /// No description provided for @galleryUpcoming.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Upcoming · 1 entry} other{Upcoming · {count} entries}}'**
+  String galleryUpcoming(int count);
+
+  /// No description provided for @upcomingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Upcoming'**
+  String get upcomingTitle;
+
+  /// No description provided for @settingsFutureEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow future entries'**
+  String get settingsFutureEntries;
+
+  /// No description provided for @settingsFutureEntriesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Write entries for days ahead, up to 12 months. They stay out of stats and flashbacks until their day.'**
+  String get settingsFutureEntriesHint;
 }
 
 class _AppLocalizationsDelegate

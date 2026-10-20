@@ -188,7 +188,7 @@ class TimeManager {
   static bool isOnThisDayMatch(
       DateTime entryDate, DateTime referenceDate, bool isJalali) {
     return isSameCalendarDayOfYear(entryDate, referenceDate, isJalali) &&
-        calendarYearOf(entryDate, isJalali) !=
+        calendarYearOf(entryDate, isJalali) <
             calendarYearOf(referenceDate, isJalali);
   }
 

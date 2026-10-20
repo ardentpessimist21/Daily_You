@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:daily_you/fork/checklists.dart';
 import 'package:daily_you/database/attachment_storage.dart';
 import 'package:daily_you/fork/favourites.dart';
+import 'package:daily_you/fork/search_highlight.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/models/attachment.dart';
@@ -31,16 +32,57 @@ class EntryViewPage extends StatefulWidget {
     super.key,
     required this.entryId,
     required this.onEntryEdited,
+    this.searchQuery,
   });
 
   final int entryId;
   final Function(int entryId) onEntryEdited;
+
+  /// Gallery search text: highlighted, with ▲▼ to move between matches.
+  final String? searchQuery;
 
   @override
   State<EntryViewPage> createState() => _EntryViewPageState();
 }
 
 class _EntryViewPageState extends State<EntryViewPage> {
+  late String _query = widget.searchQuery ?? '';
+  int _currentMatch = 0;
+  final List<GlobalKey> _matchKeys = [];
+  bool _jumpedToFirst = false;
+
+  void _showMatch(int index) {
+    if (_matchKeys.isEmpty) return;
+    final count = _matchKeys.length;
+    setState(() => _currentMatch = (index % count + count) % count);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _currentMatch >= _matchKeys.length) return;
+      final matchContext = _matchKeys[_currentMatch].currentContext;
+      if (matchContext == null) return;
+      Scrollable.ensureVisible(matchContext,
+          alignment: 0.3,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut);
+    });
+  }
+
+  Widget? _matchNavigator(int total) {
+    if (_query.isEmpty || total == 0) return null;
+    if (!_jumpedToFirst) {
+      _jumpedToFirst = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showMatch(0);
+      });
+    }
+    return SearchMatchNavigator(
+      current: _currentMatch.clamp(0, total - 1),
+      total: total,
+      onPrevious: () => _showMatch(_currentMatch - 1),
+      onNext: () => _showMatch(_currentMatch + 1),
+      onClose: () => setState(() => _query = ''),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -54,7 +96,10 @@ class _EntryViewPageState extends State<EntryViewPage> {
     if (entry == null) return const Scaffold();
 
     final attachments = entryAttachmentsProvider.getForEntry(entry);
+    final matchTotal = SearchHighlight.count(entry.text, _query);
     return Scaffold(
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      floatingActionButton: _matchNavigator(matchTotal),
       appBar: AppBar(
         actions: [
           _shareButton(context, entry, attachments),
@@ -167,6 +212,9 @@ class _EntryViewPageState extends State<EntryViewPage> {
                                 selectable: false,
                                 onCheckboxTap: (index) =>
                                     Checklists.toggleInEntry(entry, index),
+                                searchQuery: _query,
+                                currentMatch: _currentMatch,
+                                matchKeys: _matchKeys,
                               ))),
                     Padding(
                       padding: const EdgeInsets.only(
@@ -272,8 +320,14 @@ class _EntryViewPageState extends State<EntryViewPage> {
                       attachment.filePath, attachment.type)));
               fileNames.add(attachment.filePath);
             }
-            await SharePlus.instance.share(ShareParams(
-                files: files, fileNameOverrides: fileNames, text: sharedText));
+            // share_plus rejects an empty file list, so text-only entries
+            // pass no files at all.
+            await SharePlus.instance.share(files.isEmpty
+                ? ShareParams(text: sharedText)
+                : ShareParams(
+                    files: files,
+                    fileNameOverrides: fileNames,
+                    text: sharedText));
           });
     }
     return Container();

@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'dart:async';
+
 import 'package:daily_you/config_provider.dart';
+import 'package:daily_you/fork/future_entries.dart';
+import 'package:daily_you/fork/gallery_month_pill.dart';
+import 'package:daily_you/pages/entry_timeline_page.dart';
+import 'package:daily_you/time_manager.dart';
 import 'package:daily_you/models/attachment.dart';
 import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/models/tag.dart';
@@ -40,6 +46,21 @@ class _GalleryPageState extends State<GalleryPage>
 
   bool get _hasTagFilter => _filterTagIds.isNotEmpty || _filterNoTags;
 
+  // Month pill: the month at the top while scrolling, fading 3s after.
+  final _pill = ValueNotifier<(DateTime?, bool)>((null, false));
+  Timer? _pillTimer;
+  // What the grid last showed, for working out which entry is at the top.
+  List<Entry> _gridEntries = const [];
+  int _gridColumns = 1;
+  double _gridRowExtent = 1;
+  double _gridTop = _listTopPadding;
+  bool _pillAllowed = false;
+
+  // Space under the floating search bar, above and below the list.
+  static const double _listTopPadding = 70;
+  static const double _upcomingRowHeight = 60;
+  static const double _gridSpacing = 1.0;
+
   @override
   bool get wantKeepAlive => true;
 
@@ -48,6 +69,7 @@ class _GalleryPageState extends State<GalleryPage>
     super.initState();
     _searchController.text = EntriesProvider.instance.searchText;
     _scrollController.addListener(() {
+      _onScrollForPill();
       final elevation = _scrollController.position.pixels > 0 ? 1.0 : 0.0;
 
       if (_searchElevation != elevation) {
@@ -58,8 +80,73 @@ class _GalleryPageState extends State<GalleryPage>
     });
   }
 
+  // The entry under the search bar, given the grid's row size.
+  Entry? _entryAtTop() {
+    if (_gridEntries.isEmpty || !_scrollController.hasClients) return null;
+    final y =
+        _scrollController.position.pixels + _listTopPadding - _gridTop + 1;
+    final row = (y / _gridRowExtent).floor().clamp(0, 1 << 30);
+    final index = (row * _gridColumns).clamp(0, _gridEntries.length - 1);
+    return _gridEntries[index];
+  }
+
+  void _onScrollForPill() {
+    if (!_pillAllowed) {
+      if (_pill.value.$2) _pill.value = (_pill.value.$1, false);
+      return;
+    }
+    final entry = _entryAtTop();
+    if (entry == null) return;
+    _showPill(DateTime(entry.timeCreate.year, entry.timeCreate.month));
+  }
+
+  void _showPill(DateTime month) {
+    if (_pill.value != (month, true)) _pill.value = (month, true);
+    _pillTimer?.cancel();
+    _pillTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) _pill.value = (_pill.value.$1, false);
+    });
+  }
+
+  Future<void> _pickMonthAndJump() async {
+    final current = _pill.value.$1;
+    if (current == null) return;
+    _pillTimer?.cancel();
+    final entries = _gridEntries;
+    final month = await GalleryMonthPill.pickMonth(context, entries, current);
+    if (month == null || !mounted || !_scrollController.hasClients) {
+      if (mounted) _showPill(current);
+      return;
+    }
+    final index = entries.indexWhere((entry) =>
+        entry.timeCreate.year == month.year &&
+        entry.timeCreate.month == month.month);
+    if (index < 0) return;
+    final row = index ~/ _gridColumns;
+    final target = _gridTop + row * _gridRowExtent - _listTopPadding;
+    final position = _scrollController.position;
+    _scrollController.jumpTo(target.clamp(0.0, position.maxScrollExtent));
+    _showPill(month);
+  }
+
+  Future<void> _openUpcoming() async {
+    await Navigator.of(context).push(MaterialPageRoute(
+      allowSnapshotting: false,
+      builder: (context) => EntryTimelinePage(
+        header: AppLocalizations.of(context)!.upcomingTitle,
+        getEntries: () =>
+            FutureEntries.upcoming(EntriesProvider.instance.entries),
+        labelBuilder: (context, entry) =>
+            '${TimeManager.formatDateWithWeekday(entry.timeCreate, context)} · '
+            '${TimeManager.localizedTimeFormat(context, TimeManager.currentLocale(context)).format(entry.timeCreate)}',
+      ),
+    ));
+  }
+
   @override
   void dispose() {
+    _pillTimer?.cancel();
+    _pill.dispose();
     _searchController.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
@@ -277,11 +364,26 @@ class _GalleryPageState extends State<GalleryPage>
     final configProvider = Provider.of<ConfigProvider>(context);
     String viewMode = configProvider.get(Settings.galleryPageViewMode);
     bool listView = viewMode == 'list';
-    var entries = _getVisibleEntries(entriesProvider, tagsProvider);
+    final visible = _getVisibleEntries(entriesProvider, tagsProvider);
+    // Entries dated after today sit in their own Upcoming row at the top.
+    final upcoming = FutureEntries.upcoming(visible);
+    final entries = upcoming.isEmpty ? visible : FutureEntries.past(visible);
+    _pillAllowed = entriesProvider.orderBy == OrderBy.date;
     final bool showClear = _searchController.text.isNotEmpty || _hasTagFilter;
     return Center(
       child: Stack(alignment: Alignment.topCenter, children: [
-        buildEntries(context, listView, entries, tagsProvider),
+        buildEntries(context, listView, entries, tagsProvider, upcoming),
+        Positioned(
+          top: _listTopPadding,
+          child: ValueListenableBuilder<(DateTime?, bool)>(
+            valueListenable: _pill,
+            builder: (context, pill, _) => GalleryMonthPill(
+              month: pill.$1,
+              visible: pill.$2 && _pillAllowed && entries.isNotEmpty,
+              onTap: _pickMonthAndJump,
+            ),
+          ),
+        ),
         Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -386,7 +488,8 @@ class _GalleryPageState extends State<GalleryPage>
                 duration: Duration(milliseconds: 200),
                 hideDirection: HideDirection.down,
                 shouldShow: () {
-                  return _scrollController.position.pixels >= 500;
+                  return _scrollController.hasClients &&
+                      _scrollController.position.pixels >= 500;
                 },
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
@@ -428,60 +531,147 @@ class _GalleryPageState extends State<GalleryPage>
   }
 
   Widget buildEntries(BuildContext context, bool listView, List<Entry> entries,
-      TagsProvider tagsProvider) {
+      TagsProvider tagsProvider, List<Entry> upcoming) {
     final entryAttachmentsProvider =
         Provider.of<EntryAttachmentsProvider>(context);
     final configProvider = Provider.of<ConfigProvider>(context);
-    return entries.isEmpty
-        ? Center(
-            child: Text(
-              _searchController.text.isNotEmpty || _hasTagFilter
-                  ? AppLocalizations.of(context)!.noResults
-                  : AppLocalizations.of(context)!.noLogs,
+    final searchQuery = EntriesProvider.instance.searchText;
+    if (entries.isEmpty && upcoming.isEmpty) {
+      _gridEntries = const [];
+      return Center(
+        child: Text(
+          _searchController.text.isNotEmpty || _hasTagFilter
+              ? AppLocalizations.of(context)!.noResults
+              : AppLocalizations.of(context)!.noLogs,
+        ),
+      );
+    }
+
+    final maxExtent = listView ? 500.0 : 300.0;
+    final aspectRatio = listView ? 2.0 : 1.0;
+    return LayoutBuilder(builder: (context, constraints) {
+      // Same sizing as SliverGridDelegateWithMaxCrossAxisExtent, kept here
+      // so the month pill knows which entry sits at the top.
+      final width = constraints.maxWidth;
+      final columns =
+          (width / (maxExtent + _gridSpacing)).ceil().clamp(1, 1 << 20);
+      final tileWidth = (width - _gridSpacing * (columns - 1)) / columns;
+      _gridEntries = entries;
+      _gridColumns = columns;
+      _gridRowExtent = tileWidth / aspectRatio + _gridSpacing;
+      _gridTop =
+          _listTopPadding + (upcoming.isNotEmpty ? _upcomingRowHeight : 0);
+
+      return CustomScrollView(
+        controller: _scrollController,
+        physics: const ScrollPhysics(),
+        shrinkWrap: true,
+        slivers: [
+          const SliverToBoxAdapter(child: SizedBox(height: _listTopPadding)),
+          if (upcoming.isNotEmpty)
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: _upcomingRowHeight,
+                child:
+                    _UpcomingRow(count: upcoming.length, onTap: _openUpcoming),
+              ),
             ),
-          )
-        : GridView.builder(
-            controller: _scrollController,
-            padding: const EdgeInsets.only(top: 70, bottom: 70),
-            physics: const ScrollPhysics(),
-            shrinkWrap: true,
-            gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: listView ? 500 : 300,
-                crossAxisSpacing: 1.0,
-                mainAxisSpacing: 1.0,
-                childAspectRatio: listView ? 2.0 : 1.0),
-            itemCount: entries.length,
-            itemBuilder: (context, index) {
-              final entry = entries[index];
-              return GestureDetector(
-                onTap: () async {
-                  await Navigator.of(context).push(MaterialPageRoute(
-                      allowSnapshotting: false,
-                      builder: (context) => EntriesListPage(
-                            index: index,
-                            getEntries: () => _getVisibleEntries(
-                              EntriesProvider.instance,
-                              TagsProvider.instance,
-                            ),
-                          )));
+          SliverPadding(
+            padding: const EdgeInsets.only(bottom: 70),
+            sliver: SliverGrid(
+              gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: maxExtent,
+                  crossAxisSpacing: _gridSpacing,
+                  mainAxisSpacing: _gridSpacing,
+                  childAspectRatio: aspectRatio),
+              delegate: SliverChildBuilderDelegate(
+                childCount: entries.length,
+                (context, index) {
+                  final entry = entries[index];
+                  return GestureDetector(
+                    onTap: () async {
+                      await Navigator.of(context).push(MaterialPageRoute(
+                          allowSnapshotting: false,
+                          builder: (context) => EntriesListPage(
+                                index: index,
+                                searchQuery:
+                                    EntriesProvider.instance.searchText,
+                                getEntries: () =>
+                                    FutureEntries.past(_getVisibleEntries(
+                                  EntriesProvider.instance,
+                                  TagsProvider.instance,
+                                )),
+                              )));
+                    },
+                    child: listView
+                        ? LargeEntryCardWidget(
+                            entry: entry,
+                            attachments: _visualAttachmentsOf(
+                                entryAttachmentsProvider, entry),
+                            hideImage: configProvider
+                                .get(Settings.hideImagesInGallery),
+                            searchQuery: searchQuery,
+                          )
+                        : EntryCardWidget(
+                            entry: entry,
+                            attachments: _visualAttachmentsOf(
+                                entryAttachmentsProvider, entry),
+                            hideImage: configProvider
+                                .get(Settings.hideImagesInGallery),
+                            searchQuery: searchQuery,
+                          ),
+                  );
                 },
-                child: listView
-                    ? LargeEntryCardWidget(
-                        entry: entry,
-                        attachments: _visualAttachmentsOf(
-                            entryAttachmentsProvider, entry),
-                        hideImage:
-                            configProvider.get(Settings.hideImagesInGallery),
-                      )
-                    : EntryCardWidget(
-                        entry: entry,
-                        attachments: _visualAttachmentsOf(
-                            entryAttachmentsProvider, entry),
-                        hideImage:
-                            configProvider.get(Settings.hideImagesInGallery),
-                      ),
-              );
-            },
-          );
+              ),
+            ),
+          ),
+        ],
+      );
+    });
+  }
+}
+
+/// "Upcoming · 3 entries" at the top of the Gallery, opening a timeline of
+/// entries dated after today.
+class _UpcomingRow extends StatelessWidget {
+  const _UpcomingRow({required this.count, required this.onTap});
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
+      child: Material(
+        color: colorScheme.tertiaryContainer,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Icon(Icons.event_rounded,
+                    color: colorScheme.onTertiaryContainer),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    AppLocalizations.of(context)!.galleryUpcoming(count),
+                    style: TextStyle(
+                        color: colorScheme.onTertiaryContainer,
+                        fontWeight: FontWeight.w600),
+                  ),
+                ),
+                Icon(Icons.chevron_right_rounded,
+                    color: colorScheme.onTertiaryContainer),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

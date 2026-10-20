@@ -1292,4 +1292,65 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get recorderErrorDescription => 'Failed to record audio!';
+
+  @override
+  String searchMatchCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count matches',
+      one: '1 match',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String searchMatchPosition(int current, int total) {
+    return '$current of $total';
+  }
+
+  @override
+  String get searchPreviousMatch => 'Previous match';
+
+  @override
+  String get searchNextMatch => 'Next match';
+
+  @override
+  String get searchClearHighlights => 'Clear highlights';
+
+  @override
+  String get galleryJumpToMonth => 'Jump to month';
+
+  @override
+  String galleryMonthEntries(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count entries',
+      one: '1 entry',
+      zero: 'No entries',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String galleryUpcoming(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Upcoming · $count entries',
+      one: 'Upcoming · 1 entry',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get upcomingTitle => 'Upcoming';
+
+  @override
+  String get settingsFutureEntries => 'Allow future entries';
+
+  @override
+  String get settingsFutureEntriesHint =>
+      'Write entries for days ahead, up to 12 months. They stay out of stats and flashbacks until their day.';
 }

@@ -13,10 +13,14 @@ class EntriesListPage extends StatefulWidget {
   final int index;
   final List<Entry> Function() getEntries;
 
+  /// Gallery search text to highlight in each entry.
+  final String? searchQuery;
+
   const EntriesListPage({
     super.key,
     required this.index,
     required this.getEntries,
+    this.searchQuery,
   });
 
   @override
@@ -55,6 +59,7 @@ class _EntriesListPageState extends State<EntriesListPage> {
           itemBuilder: (context, index) {
             return EntryViewPage(
               entryId: entries[index].id!,
+              searchQuery: widget.searchQuery,
               onEntryEdited: (editedEntryId) {
                 final updatedEntries = widget.getEntries();
                 final newIndex =

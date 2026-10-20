@@ -3,6 +3,7 @@
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
 import 'package:daily_you/l10n/generated/app_localizations.dart';
+import 'package:daily_you/fork/search_highlight.dart';
 import 'package:daily_you/models/attachment.dart';
 import 'package:daily_you/time_manager.dart';
 import 'package:daily_you/widgets/entry_card_header_row.dart';
@@ -17,17 +18,23 @@ class EntryCardWidget extends StatelessWidget {
       this.title,
       required this.entry,
       required this.attachments,
-      this.hideImage = false});
+      this.hideImage = false,
+      this.searchQuery});
 
   final Entry entry;
   final String? title;
   final List<EntryAttachment> attachments;
   final bool hideImage;
 
+  /// Gallery search text: highlighted on text tiles, counted on photo tiles.
+  final String? searchQuery;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final time = TimeManager.formatDate(entry.timeCreate, context);
+    final query = searchQuery ?? '';
+    final matches = SearchHighlight.count(entry.text, query);
     return Card.filled(
       color: Theme.of(context).colorScheme.surfaceContainer,
       clipBehavior: Clip.antiAlias,
@@ -40,7 +47,16 @@ class EntryCardWidget extends StatelessWidget {
               clipBehavior: Clip.hardEdge,
               borderRadius: BorderRadius.circular(12),
               child: (attachments.isNotEmpty && !hideImage)
-                  ? AttachmentGrid(attachments: attachments)
+                  ? (matches == 0
+                      ? AttachmentGrid(attachments: attachments)
+                      : Stack(fit: StackFit.expand, children: [
+                          AttachmentGrid(attachments: attachments),
+                          PositionedDirectional(
+                            top: 8,
+                            start: 8,
+                            child: SearchMatchBadge(count: matches),
+                          ),
+                        ]))
                   : (entry.text.isNotEmpty)
                       ? ShaderMask(
                           shaderCallback: (Rect bounds) {
@@ -59,9 +75,12 @@ class EntryCardWidget extends StatelessWidget {
                                   child: SizedBox(
                                 width: double.maxFinite,
                                 child: ScaledMarkdown(
-                                  data: entry.text,
+                                  data: SearchHighlight.preview(
+                                      entry.text, query,
+                                      visibleChars: 90),
                                   maxCharacters: 250,
                                   scaleFactor: 0.95,
+                                  searchQuery: query,
                                 ),
                               ))
                             ]),
