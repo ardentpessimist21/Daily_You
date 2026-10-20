@@ -2399,6 +2399,210 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Write entries for days ahead, up to 12 months. They stay out of stats and flashbacks until their day.'**
   String get settingsFutureEntriesHint;
+
+  /// No description provided for @linkCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Link to entry copied'**
+  String get linkCopied;
+
+  /// No description provided for @linkEntryMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'That entry no longer exists'**
+  String get linkEntryMissing;
+
+  /// No description provided for @linkCannotOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open this link'**
+  String get linkCannotOpen;
+
+  /// No description provided for @linkAddTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add link'**
+  String get linkAddTitle;
+
+  /// No description provided for @linkKindEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Entry'**
+  String get linkKindEntry;
+
+  /// No description provided for @linkKindWebsite.
+  ///
+  /// In en, this message translates to:
+  /// **'Website'**
+  String get linkKindWebsite;
+
+  /// No description provided for @linkTextToShow.
+  ///
+  /// In en, this message translates to:
+  /// **'Text to show'**
+  String get linkTextToShow;
+
+  /// No description provided for @linkChooseEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an entry'**
+  String get linkChooseEntry;
+
+  /// No description provided for @linkClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get linkClear;
+
+  /// No description provided for @linkWebAddress.
+  ///
+  /// In en, this message translates to:
+  /// **'Web address'**
+  String get linkWebAddress;
+
+  /// No description provided for @linkAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get linkAdd;
+
+  /// No description provided for @linkAnyDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Any date'**
+  String get linkAnyDate;
+
+  /// No description provided for @linkCopyToEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy link to entry'**
+  String get linkCopyToEntry;
+
+  /// No description provided for @shareEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get shareEntry;
+
+  /// No description provided for @editorPlace.
+  ///
+  /// In en, this message translates to:
+  /// **'Place'**
+  String get editorPlace;
+
+  /// No description provided for @placeAddTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a place'**
+  String get placeAddTitle;
+
+  /// No description provided for @placeTypeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a place'**
+  String get placeTypeHint;
+
+  /// No description provided for @placePasteCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste copied place'**
+  String get placePasteCopied;
+
+  /// No description provided for @placeFindInMaps.
+  ///
+  /// In en, this message translates to:
+  /// **'Find in Google Maps'**
+  String get placeFindInMaps;
+
+  /// No description provided for @placeFindInMapsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a place, tap Share, then Daily You'**
+  String get placeFindInMapsHint;
+
+  /// No description provided for @placeSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved places'**
+  String get placeSaved;
+
+  /// No description provided for @placeSavedEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Add the places you go often, like Home or Work, to put them in an entry with one tap.'**
+  String get placeSavedEmpty;
+
+  /// No description provided for @placeManageSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage saved places'**
+  String get placeManageSaved;
+
+  /// No description provided for @placeNewSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'New place'**
+  String get placeNewSaved;
+
+  /// No description provided for @placeName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get placeName;
+
+  /// No description provided for @placeMapLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Map link (optional)'**
+  String get placeMapLink;
+
+  /// No description provided for @placeMapLinkHint.
+  ///
+  /// In en, this message translates to:
+  /// **'In Google Maps, tap Share on the place, then Copy, and paste it here.'**
+  String get placeMapLinkHint;
+
+  /// No description provided for @placeHasMapSpot.
+  ///
+  /// In en, this message translates to:
+  /// **'Opens in Maps'**
+  String get placeHasMapSpot;
+
+  /// No description provided for @placeNoMapSpot.
+  ///
+  /// In en, this message translates to:
+  /// **'Text only'**
+  String get placeNoMapSpot;
+
+  /// No description provided for @placeFromPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Add this photo\'s location'**
+  String get placeFromPhoto;
+
+  /// No description provided for @settingsHideSymbols.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide formatting symbols'**
+  String get settingsHideSymbols;
+
+  /// No description provided for @settingsHideSymbolsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'While editing, show **bold** as bold without the stars. Symbols come back faintly on the line you\'re typing in.'**
+  String get settingsHideSymbolsHint;
+
+  /// No description provided for @editorShowSymbols.
+  ///
+  /// In en, this message translates to:
+  /// **'Show formatting symbols'**
+  String get editorShowSymbols;
+
+  /// No description provided for @editorHideSymbols.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide formatting symbols'**
+  String get editorHideSymbols;
 }
 
 class _AppLocalizationsDelegate

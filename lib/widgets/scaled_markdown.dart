@@ -3,6 +3,7 @@
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
 import 'package:daily_you/fork/checklists.dart';
+import 'package:daily_you/fork/links.dart';
 import 'package:daily_you/fork/search_highlight.dart';
 import 'package:daily_you/widgets/markdown_highlight_syntax.dart';
 import 'package:material_ui/material_ui.dart';
@@ -77,6 +78,15 @@ class ScaledMarkdown extends StatelessWidget {
             onTap: () => onCheckboxTap!(index),
           );
         }),
+      // Entry links open in the app; websites and places outside it.
+      LinkConfig(
+        style: TextStyle(
+          color: theme.colorScheme.primary,
+          decoration: TextDecoration.underline,
+          decorationColor: theme.colorScheme.primary,
+        ),
+        onTap: (url) => EntryLinks.open(context, url),
+      ),
       ListConfig(
         marker: (isOrdered, depth, index) => isOrdered
             ? null

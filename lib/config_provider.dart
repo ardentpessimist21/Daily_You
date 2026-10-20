@@ -118,6 +118,9 @@ class Settings {
       Setting<String>("editorPopupItems", "default");
   static const writingPrompts = Setting<bool>("writingPrompts", true);
   static const allowFutureEntries = Setting<bool>("allowFutureEntries", false);
+  static const savedPlaces = Setting<String>("savedPlaces", "[]");
+  static const hideFormattingSymbols =
+      Setting<bool>("hideFormattingSymbols", true);
   static const timelineOldestFirst =
       Setting<bool>("timelineOldestFirst", false);
   static const lastDismissedSupportBannerDate =
@@ -220,6 +223,8 @@ class Settings {
     editorPopupItems,
     writingPrompts,
     allowFutureEntries,
+    savedPlaces,
+    hideFormattingSymbols,
     lastDismissedSupportBannerDate,
     calendarShowMood,
     calendarTagOverlay,

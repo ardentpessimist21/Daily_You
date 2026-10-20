@@ -5,6 +5,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:daily_you/fork/places.dart';
 import 'package:daily_you/fork/future_entries.dart';
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/device_info_service.dart';
@@ -134,6 +135,9 @@ class _HomePageState extends State<HomePage>
 
   Future<void> _handleShare(SharePayload payload) async {
     if (!mounted) return;
+    // A place picked with "Find in Google Maps" goes back into the entry
+    // that asked for it, without the "Choose a log" step.
+    if (!payload.hasMedia && Places.deliverShared(payload.text)) return;
     Navigator.of(context).popUntil((route) => route.isFirst);
     await Navigator.of(context).push(MaterialPageRoute(
       allowSnapshotting: false,

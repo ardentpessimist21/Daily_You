@@ -1353,4 +1353,109 @@ class AppLocalizationsUk extends AppLocalizations {
   @override
   String get settingsFutureEntriesHint =>
       'Write entries for days ahead, up to 12 months. They stay out of stats and flashbacks until their day.';
+
+  @override
+  String get linkCopied => 'Link to entry copied';
+
+  @override
+  String get linkEntryMissing => 'That entry no longer exists';
+
+  @override
+  String get linkCannotOpen => 'Couldn\'t open this link';
+
+  @override
+  String get linkAddTitle => 'Add link';
+
+  @override
+  String get linkKindEntry => 'Entry';
+
+  @override
+  String get linkKindWebsite => 'Website';
+
+  @override
+  String get linkTextToShow => 'Text to show';
+
+  @override
+  String get linkChooseEntry => 'Choose an entry';
+
+  @override
+  String get linkClear => 'Clear';
+
+  @override
+  String get linkWebAddress => 'Web address';
+
+  @override
+  String get linkAdd => 'Add';
+
+  @override
+  String get linkAnyDate => 'Any date';
+
+  @override
+  String get linkCopyToEntry => 'Copy link to entry';
+
+  @override
+  String get shareEntry => 'Share';
+
+  @override
+  String get editorPlace => 'Place';
+
+  @override
+  String get placeAddTitle => 'Add a place';
+
+  @override
+  String get placeTypeHint => 'Type a place';
+
+  @override
+  String get placePasteCopied => 'Paste copied place';
+
+  @override
+  String get placeFindInMaps => 'Find in Google Maps';
+
+  @override
+  String get placeFindInMapsHint => 'Pick a place, tap Share, then Daily You';
+
+  @override
+  String get placeSaved => 'Saved places';
+
+  @override
+  String get placeSavedEmpty =>
+      'Add the places you go often, like Home or Work, to put them in an entry with one tap.';
+
+  @override
+  String get placeManageSaved => 'Manage saved places';
+
+  @override
+  String get placeNewSaved => 'New place';
+
+  @override
+  String get placeName => 'Name';
+
+  @override
+  String get placeMapLink => 'Map link (optional)';
+
+  @override
+  String get placeMapLinkHint =>
+      'In Google Maps, tap Share on the place, then Copy, and paste it here.';
+
+  @override
+  String get placeHasMapSpot => 'Opens in Maps';
+
+  @override
+  String get placeNoMapSpot => 'Text only';
+
+  @override
+  String get placeFromPhoto => 'Add this photo\'s location';
+
+  @override
+  String get settingsHideSymbols => 'Hide formatting symbols';
+
+  @override
+  String get settingsHideSymbolsHint =>
+      'While editing, show **bold** as bold without the stars. Symbols come back faintly on the line you\'re typing in.';
+
+  @override
+  String get editorShowSymbols => 'Show formatting symbols';
+
+  @override
+  String get editorHideSymbols => 'Hide formatting symbols';
 }

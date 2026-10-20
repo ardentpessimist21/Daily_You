@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:daily_you/fork/checklists.dart';
 import 'package:daily_you/database/attachment_storage.dart';
 import 'package:daily_you/fork/favourites.dart';
+import 'package:daily_you/fork/links.dart';
 import 'package:daily_you/fork/search_highlight.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
@@ -296,41 +297,71 @@ class _EntryViewPageState extends State<EntryViewPage> {
   }
 
   Widget _shareButton(
-      BuildContext context, entry, List<EntryAttachment> attachments) {
-    if (Platform.isAndroid &&
-        (attachments.isNotEmpty || entry.text.isNotEmpty)) {
-      return IconButton(
-          icon: const Icon(Icons.share_rounded),
-          onPressed: () async {
-            String sharedText = "";
-            if (entry.mood != null) {
-              sharedText = "${MoodIcon.getMoodIcon(entry.mood)} ";
-            }
-            sharedText =
-                "$sharedText${TimeManager.formatDateWithWeekday(entry.timeCreate, context)}\n${entry.text}";
+      BuildContext context, Entry entry, List<EntryAttachment> attachments) {
+    final canShare =
+        Platform.isAndroid && (attachments.isNotEmpty || entry.text.isNotEmpty);
+    final l10n = AppLocalizations.of(context)!;
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.share_rounded),
+      tooltip: l10n.shareEntry,
+      onSelected: (choice) async {
+        if (choice == 'copy') {
+          await EntryLinks.copyLink(context, entry);
+        } else {
+          await _shareEntry(context, entry, attachments);
+        }
+      },
+      itemBuilder: (context) => [
+        if (canShare)
+          PopupMenuItem(
+            value: 'share',
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.share_rounded),
+              title: Text(l10n.shareEntry),
+            ),
+          ),
+        PopupMenuItem(
+          value: 'copy',
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.link_rounded),
+            title: Text(l10n.linkCopyToEntry),
+          ),
+        ),
+      ],
+    );
+  }
 
-            final files = <XFile>[];
-            final fileNames = <String>[];
-            for (final attachment in attachments) {
-              final localPath = await AttachmentStorage.instance
-                  .getLocalPath(attachment.filePath, attachment.type);
-              if (localPath == null) continue;
-              files.add(XFile(localPath,
-                  mimeType: attachmentMimeType(
-                      attachment.filePath, attachment.type)));
-              fileNames.add(attachment.filePath);
-            }
-            // share_plus rejects an empty file list, so text-only entries
-            // pass no files at all.
-            await SharePlus.instance.share(files.isEmpty
-                ? ShareParams(text: sharedText)
-                : ShareParams(
-                    files: files,
-                    fileNameOverrides: fileNames,
-                    text: sharedText));
-          });
+  Future<void> _shareEntry(BuildContext context, Entry entry,
+      List<EntryAttachment> attachments) async {
+    String sharedText = "";
+    if (entry.mood != null) {
+      sharedText = "${MoodIcon.getMoodIcon(entry.mood)} ";
     }
-    return Container();
+    // Links to other entries only work inside Daily You, so they're shared
+    // as their words.
+    final text = entry.text.replaceAllMapped(
+        RegExp(r'\[([^\]\n]*)\]\(entry:\d+\)'), (match) => match[1]!);
+    sharedText =
+        "$sharedText${TimeManager.formatDateWithWeekday(entry.timeCreate, context)}\n$text";
+
+    final files = <XFile>[];
+    final fileNames = <String>[];
+    for (final attachment in attachments) {
+      final localPath = await AttachmentStorage.instance
+          .getLocalPath(attachment.filePath, attachment.type);
+      if (localPath == null) continue;
+      files.add(XFile(localPath,
+          mimeType: attachmentMimeType(attachment.filePath, attachment.type)));
+      fileNames.add(attachment.filePath);
+    }
+    // share_plus rejects an empty file list, so text-only entries pass no
+    // files at all.
+    await SharePlus.instance.share(files.isEmpty
+        ? ShareParams(text: sharedText)
+        : ShareParams(
+            files: files, fileNameOverrides: fileNames, text: sharedText));
   }
 
   Widget _attachmentsList(

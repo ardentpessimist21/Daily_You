@@ -5,6 +5,7 @@
 import 'dart:ui';
 
 import 'package:daily_you/fork/editor_buttons.dart';
+import 'package:daily_you/fork/links.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/utils/markdown_preview_styles.dart';
 import 'package:daily_you/widgets/editor_action_bar/editor_keyboard_session.dart';
@@ -73,6 +74,7 @@ class _EntryTextFieldState extends State<EntryTextField> {
       scrollController: _scrollController,
       maxLines: null,
       expands: true,
+      inputFormatters: [LinkPasteFormatter()],
       selectionWidthStyle: BoxWidthStyle.tight,
       selectionHeightStyle: MarkdownPreviewDecorations.heightStyle,
       scrollPadding: widget.scrollPadding,

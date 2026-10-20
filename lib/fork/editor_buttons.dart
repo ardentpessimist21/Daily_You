@@ -5,6 +5,8 @@
 import 'dart:async';
 
 import 'package:daily_you/config_provider.dart';
+import 'package:daily_you/fork/links.dart';
+import 'package:daily_you/fork/places.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/time_manager.dart';
 import 'package:daily_you/utils/text_editing.dart';
@@ -18,6 +20,7 @@ import 'package:material_ui/material_ui.dart';
 /// popup and the "Editor buttons" settings all read from here.
 enum EditorButton {
   timestamp,
+  place,
   list,
   checklist,
   heading,
@@ -30,6 +33,9 @@ enum EditorButton {
 }
 
 class EditorButtons {
+  /// The entry open in the editor, so the link picker can leave it out.
+  static int? editingEntryId;
+
   static const List<EditorButton> defaultToolbar = EditorButton.values;
   static const List<EditorButton> defaultPopup = [
     EditorButton.bold,
@@ -55,10 +61,16 @@ class EditorButtons {
     final stored =
         _parse(ConfigProvider.instance.get(Settings.editorToolbarOrder));
     if (stored.isEmpty) return List.of(defaultToolbar);
+    final order = [...stored];
+    // 📍 joins a saved order second, after 🕒, as it does by default.
+    if (!order.contains(EditorButton.place)) {
+      final after = order.indexOf(EditorButton.timestamp);
+      order.insert(after + 1, EditorButton.place);
+    }
     return [
-      ...stored,
+      ...order,
       for (final button in defaultToolbar)
-        if (!stored.contains(button)) button,
+        if (!order.contains(button)) button,
     ];
   }
 
@@ -90,6 +102,7 @@ class EditorButtons {
 
   static Widget icon(EditorButton button) => switch (button) {
         EditorButton.timestamp => const Icon(Icons.schedule_rounded),
+        EditorButton.place => const Icon(Icons.place_rounded),
         EditorButton.list => const Icon(Icons.format_list_bulleted_rounded),
         EditorButton.checklist => const Icon(Icons.checklist_rounded),
         EditorButton.heading => const Icon(Icons.text_fields_rounded),
@@ -106,6 +119,7 @@ class EditorButtons {
   static String label(AppLocalizations l10n, EditorButton button) =>
       switch (button) {
         EditorButton.timestamp => l10n.editorTimestamp,
+        EditorButton.place => l10n.editorPlace,
         EditorButton.list => l10n.editorList,
         EditorButton.checklist => l10n.editorChecklist,
         EditorButton.heading => l10n.editorHeading,
@@ -128,7 +142,10 @@ class EditorButtons {
         EditorButton.highlight => l10n.editorStrikethrough,
         EditorButton.quote => l10n.editorDivider,
         EditorButton.link => l10n.editorPasteLink,
-        EditorButton.italic || EditorButton.strikethrough => null,
+        EditorButton.italic ||
+        EditorButton.strikethrough ||
+        EditorButton.place =>
+          null,
       };
 
   static Future<void> tap(EditorButton button, BuildContext context,
@@ -137,6 +154,8 @@ class EditorButtons {
     switch (button) {
       case EditorButton.timestamp:
         insertTimestamp(context, controller, entryDate: entryDate);
+      case EditorButton.place:
+        await Places.showPlaceSheet(context, controller);
       case EditorButton.list:
         insertLinePrefix(controller, '-');
       case EditorButton.checklist:
@@ -154,7 +173,8 @@ class EditorButtons {
       case EditorButton.quote:
         insertLinePrefix(controller, '>');
       case EditorButton.link:
-        wrapSelection(controller, '[', ']()');
+        await EntryLinks.showAddLinkDialog(context, controller,
+            currentEntryId: editingEntryId);
     }
   }
 
@@ -181,6 +201,7 @@ class EditorButtons {
         await pasteLink(controller);
       case EditorButton.italic:
       case EditorButton.strikethrough:
+      case EditorButton.place:
         break;
     }
   }
@@ -219,15 +240,23 @@ class EditorButtons {
     );
   }
 
-  /// Turns the selection (or nothing) into a link to a copied address.
+  /// Turns the selection (or nothing) into a link to a copied address. A
+  /// copied entry link or Maps place keeps its name.
   static Future<void> pasteLink(TextEditingController controller) async {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final copied = data?.text?.trim() ?? '';
-    final looksLikeLink =
-        RegExp(r'^[a-z][a-z0-9+.-]*:\S+$', caseSensitive: false)
-            .hasMatch(copied);
     if (copied.isEmpty) return;
-    if (!looksLikeLink) {
+    final selection = controller.selection;
+    final selected = selection.isValid && !selection.isCollapsed
+        ? selection.textInside(controller.text)
+        : '';
+    final tidied = LinkPasteFormatter.tidy(copied, selectedText: selected);
+    if (tidied != null) {
+      insertAtCursor(controller, tidied);
+      return;
+    }
+    if (EntryLinks.parseMarkdownLink(copied) != null ||
+        !EntryLinks.looksLikeAddress(copied)) {
       insertAtCursor(controller, copied);
       return;
     }

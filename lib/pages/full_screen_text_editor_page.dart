@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/fork/symbols_toggle.dart';
 import 'package:daily_you/fork/undo_redo_buttons.dart';
 import 'package:daily_you/widgets/editor_action_bar.dart';
 import 'package:daily_you/widgets/entry_text_field.dart';
@@ -70,7 +71,10 @@ class _FullScreenTextEditorPageState extends State<FullScreenTextEditorPage> {
             icon: const Icon(Icons.arrow_back_rounded),
             onPressed: _close,
           ),
-          actions: [UndoRedoButtons(controller: _undoController)],
+          actions: [
+            UndoRedoButtons(controller: _undoController),
+            SymbolsToggleButton(onChanged: () => setState(() {})),
+          ],
           title: ListenableBuilder(
             listenable: _controller,
             builder: (_, __) => Text(

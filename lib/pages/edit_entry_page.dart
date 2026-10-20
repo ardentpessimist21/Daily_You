@@ -5,6 +5,10 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:daily_you/fork/editor_buttons.dart';
+import 'package:daily_you/fork/places.dart';
+import 'package:daily_you/fork/photo_location_chip.dart';
+import 'package:daily_you/fork/symbols_toggle.dart';
 import 'package:daily_you/fork/future_entries.dart';
 import 'package:daily_you/fork/writing_prompts.dart';
 import 'package:daily_you/fork/undo_redo_buttons.dart';
@@ -64,7 +68,9 @@ class AddEditEntryPage extends StatefulWidget {
 
   static String mergeSharedText(String baseText, String? sharedText) {
     if (sharedText == null) return baseText;
-    return baseText.isEmpty ? sharedText : '$baseText\n\n$sharedText';
+    // A place shared from Google Maps becomes a tidy 📍 link
+    final shared = Places.tidyShared(sharedText);
+    return baseText.isEmpty ? shared : '$baseText\n\n$shared';
   }
 
   @override
@@ -151,6 +157,7 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
     _tagSource.addListener(_onTagsChanged);
     mood = _entry.mood;
     entryDate = _entry.timeCreate;
+    EditorButtons.editingEntryId = _entry.id;
     text = _entry.text;
     _textEditingController.addListener(() {
       text = _textEditingController.text;
@@ -187,6 +194,9 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
 
   @override
   void dispose() {
+    if (EditorButtons.editingEntryId == _entry.id) {
+      EditorButtons.editingEntryId = null;
+    }
     WidgetsBinding.instance.removeObserver(this);
     _scrollController.dispose();
     _focusNode.dispose();
@@ -295,6 +305,7 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
                   ),
                   actions: [
                     UndoRedoButtons(controller: _undoController),
+                    SymbolsToggleButton(onChanged: () => setState(() {})),
                     _deleteButton(),
                     _closeButton(),
                   ]),
@@ -331,6 +342,10 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
                                           await _saveEntry();
                                           await _deleteUnsavedFiles(removed);
                                         }),
+                                  PhotoLocationChip(
+                                    attachments: _currentAttachments,
+                                    controller: _textEditingController,
+                                  ),
                                   StatefulBuilder(
                                     builder: (context, setLocalState) =>
                                         _buildMetadataCard(
