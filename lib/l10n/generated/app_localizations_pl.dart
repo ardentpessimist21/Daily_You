@@ -895,6 +895,9 @@ class AppLocalizationsPl extends AppLocalizations {
   String get formatDiaro => 'Diaro';
 
   @override
+  String get formatMiFitness => 'Mi Fitness (GPX)';
+
+  @override
   String get formatMyBrain => 'My Brain';
 
   @override

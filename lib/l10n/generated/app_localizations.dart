@@ -1644,6 +1644,12 @@ abstract class AppLocalizations {
   /// **'Diaro'**
   String get formatDiaro;
 
+  /// No description provided for @formatMiFitness.
+  ///
+  /// In en, this message translates to:
+  /// **'Mi Fitness (GPX)'**
+  String get formatMiFitness;
+
   /// No description provided for @formatMyBrain.
   ///
   /// In en, this message translates to:

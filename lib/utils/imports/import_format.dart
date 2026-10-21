@@ -8,6 +8,7 @@ enum ImportFormat {
   daylio,
   diarium,
   diaro,
+  miFitness,
   myBrain,
   oneShot,
   pixels,

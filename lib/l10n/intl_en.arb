@@ -493,6 +493,8 @@
   "@formatDiarium": {},
   "formatDiaro": "Diaro",
   "@formatDiaro": {},
+  "formatMiFitness": "Mi Fitness (GPX)",
+  "@formatMiFitness": {},
   "formatMyBrain": "My Brain",
   "@formatMyBrain": {},
   "formatOneShot": "OneShot",

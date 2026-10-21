@@ -9,6 +9,7 @@ import 'package:daily_you/utils/imports/import_diarium.dart' as diarium;
 import 'package:daily_you/utils/imports/import_diaro.dart' as diaro;
 import 'package:daily_you/utils/imports/import_format.dart';
 import 'package:daily_you/utils/imports/import_json.dart' as json;
+import 'package:daily_you/utils/imports/import_mi_fitness.dart' as mi_fitness;
 import 'package:daily_you/utils/imports/import_mybrain.dart' as mybrain;
 import 'package:daily_you/utils/imports/import_oneshot.dart' as oneshot;
 import 'package:daily_you/utils/imports/import_pixels.dart' as pixels;
@@ -56,6 +57,11 @@ class ImportRegistry {
       ImportFormat.diaro,
       (localizations) => localizations.formatDiaro,
       diaro.importFromDiaro,
+    ),
+    ImportFormatOption(
+      ImportFormat.miFitness,
+      (localizations) => localizations.formatMiFitness,
+      (context, updateStatus) => mi_fitness.importFromMiFitness(updateStatus),
     ),
     ImportFormatOption(
       ImportFormat.myBrain,
