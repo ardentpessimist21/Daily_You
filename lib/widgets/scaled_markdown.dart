@@ -3,6 +3,7 @@
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
 import 'package:daily_you/fork/checklists.dart';
+import 'package:daily_you/fork/hyphenation.dart';
 import 'package:daily_you/fork/links.dart';
 import 'package:daily_you/fork/search_highlight.dart';
 import 'package:daily_you/widgets/markdown_highlight_syntax.dart';
@@ -32,8 +33,8 @@ class ScaledMarkdown extends StatelessWidget {
   /// so the page can scroll to a match.
   final List<GlobalKey>? matchKeys;
 
-  /// Justifies ordinary paragraphs, for reading. Headings, lists,
-  /// checklists and quotes stay left-aligned.
+  /// Justifies ordinary paragraphs, with hyphenation, for reading.
+  /// Headings, lists, checklists and quotes stay left-aligned.
   final bool justify;
 
   const ScaledMarkdown({
@@ -150,12 +151,24 @@ class ScaledMarkdown extends StatelessWidget {
                 context.getInheritedWidgetOfExactType<_WithTextScalar>() !=
                     null;
 
-            final child = Text.rich(
-              span,
-              textAlign: justified ? TextAlign.justify : null,
-              textScaler:
-                  shouldIgnoreTextScaler ? TextScaler.noScaling : customScaler,
-            );
+            final scaler =
+                shouldIgnoreTextScaler ? TextScaler.noScaling : customScaler;
+            final Widget child = justified
+                // Justified with hyphenation, laid out for the real width.
+                ? LayoutBuilder(
+                    builder: (context, constraints) => Text.rich(
+                      HyphenatedLayout.apply(
+                        span,
+                        maxWidth: constraints.maxWidth,
+                        style: DefaultTextStyle.of(context).style,
+                        textScaler: scaler,
+                        textDirection: Directionality.of(context),
+                      ),
+                      textAlign: TextAlign.justify,
+                      textScaler: scaler,
+                    ),
+                  )
+                : Text.rich(span, textScaler: scaler);
 
             return shouldIgnoreTextScaler
                 ? child

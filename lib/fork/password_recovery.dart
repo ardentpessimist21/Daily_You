@@ -280,19 +280,16 @@ class _RecoveryCodeDialog extends StatelessWidget {
   }
 }
 
-/// "Welcome back, *Hanah*" with the name from Settings, or "Unlock the app"
-/// when no name is set.
+/// "Welcome" with the name from Settings in italics on the line below, or
+/// "Unlock the app" when no name is set.
 Widget unlockTitle(BuildContext context) {
   final l10n = AppLocalizations.of(context)!;
   final name = ConfigProvider.instance.get(Settings.homeGreetingName).trim();
   if (name.isEmpty) return Text(l10n.unlockAppPrompt);
-  const marker = '\u0000';
-  final parts = l10n.unlockWelcomeBack(marker).split(marker);
   return Text.rich(
     TextSpan(children: [
-      TextSpan(text: parts.first),
+      TextSpan(text: '${l10n.unlockWelcome}\n'),
       TextSpan(text: name, style: const TextStyle(fontStyle: FontStyle.italic)),
-      if (parts.length > 1) TextSpan(text: parts.sublist(1).join()),
     ]),
     textAlign: TextAlign.center,
   );

@@ -1419,9 +1419,7 @@ class AppLocalizationsMs extends AppLocalizations {
   String get galleryShowGrid => 'Show as grid';
 
   @override
-  String unlockWelcomeBack(String name) {
-    return 'Welcome back, $name';
-  }
+  String get unlockWelcome => 'Welcome';
 
   @override
   String get forgotPasswordButton => 'Forgot password?';
@@ -1474,4 +1472,11 @@ class AppLocalizationsMs extends AppLocalizations {
   @override
   String get recoveryCodeSettingNoCode =>
       'Make a one-time code to reset a forgotten password';
+
+  @override
+  String get settingsJustifyText => 'Justify text';
+
+  @override
+  String get settingsJustifyTextHint =>
+      'When reading, lines fill the width like a book, with long words split by a hyphen. Off keeps text left-aligned.';
 }

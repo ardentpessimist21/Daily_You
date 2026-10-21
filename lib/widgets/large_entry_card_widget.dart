@@ -3,6 +3,7 @@
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
 import 'package:daily_you/fork/locations.dart';
+import 'package:daily_you/fork/hyphenation.dart';
 import 'package:daily_you/fork/search_highlight.dart';
 import 'package:daily_you/models/attachment.dart';
 import 'package:daily_you/time_manager.dart';
@@ -125,6 +126,7 @@ class FullEntryCardWidget extends StatelessWidget {
     final time = TimeManager.formatDate(entry.timeCreate, context);
     final (body, places) = EntryLocations.split(entry.text);
     final showPlaces = places.isNotEmpty && EntryLocations.showButtons;
+    final justify = JustifyText.enabled;
     return Card.filled(
       color: theme.colorScheme.surfaceContainer,
       clipBehavior: Clip.antiAlias,
@@ -156,12 +158,12 @@ class FullEntryCardWidget extends StatelessWidget {
               ),
             ),
           Padding(
-            padding:
-                EdgeInsets.fromLTRB(8.0, 4.0, 8.0, showPlaces ? 6.0 : 12.0),
+            padding: EdgeInsets.fromLTRB(justify ? 6.0 : 8.0, 4.0,
+                justify ? 6.0 : 8.0, showPlaces ? 6.0 : 12.0),
             child: body.isNotEmpty
                 ? IgnorePointer(
                     child: ScaledMarkdown(
-                        data: body, scaleFactor: 0.95, justify: true),
+                        data: body, scaleFactor: 0.95, justify: justify),
                   )
                 : Text(
                     AppLocalizations.of(context)!.writeSomethingHint,

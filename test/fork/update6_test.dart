@@ -147,17 +147,12 @@ void main() {
   group('Unlock screen', () {
     useTemporaryConfig();
 
-    testWidgets('welcome back with the name in italics', (tester) async {
+    testWidgets('"Welcome", then the name in italics below', (tester) async {
       await tester.runAsync(() =>
           ConfigProvider.instance.set(Settings.homeGreetingName, 'Hanah'));
       await tester.pumpWidget(_app(Builder(builder: unlockTitle)));
       final rich = tester.widget<RichText>(find.byType(RichText).first);
-      expect(rich.text.toPlainText(), 'Welcome back, Hanah');
-      final name = (rich.text as TextSpan)
-          .children!
-          .first
-          .toPlainText(); // the outer Text.rich span
-      expect(name, contains('Hanah'));
+      expect(rich.text.toPlainText(), 'Welcome\nHanah');
       var italic = false;
       rich.text.visitChildren((span) {
         if (span is TextSpan &&

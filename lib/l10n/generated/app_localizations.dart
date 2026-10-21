@@ -2634,11 +2634,11 @@ abstract class AppLocalizations {
   /// **'Show as grid'**
   String get galleryShowGrid;
 
-  /// No description provided for @unlockWelcomeBack.
+  /// No description provided for @unlockWelcome.
   ///
   /// In en, this message translates to:
-  /// **'Welcome back, {name}'**
-  String unlockWelcomeBack(String name);
+  /// **'Welcome'**
+  String get unlockWelcome;
 
   /// No description provided for @forgotPasswordButton.
   ///
@@ -2735,6 +2735,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Make a one-time code to reset a forgotten password'**
   String get recoveryCodeSettingNoCode;
+
+  /// No description provided for @settingsJustifyText.
+  ///
+  /// In en, this message translates to:
+  /// **'Justify text'**
+  String get settingsJustifyText;
+
+  /// No description provided for @settingsJustifyTextHint.
+  ///
+  /// In en, this message translates to:
+  /// **'When reading, lines fill the width like a book, with long words split by a hyphen. Off keeps text left-aligned.'**
+  String get settingsJustifyTextHint;
 }
 
 class _AppLocalizationsDelegate

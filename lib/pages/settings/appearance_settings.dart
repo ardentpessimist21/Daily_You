@@ -332,6 +332,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
                 builder: (_) => const EditorButtonsSettingsPage())),
           ),
           SettingsToggle(
+            title: AppLocalizations.of(context)!.settingsJustifyText,
+            hint: AppLocalizations.of(context)!.settingsJustifyTextHint,
+            setting: Settings.justifyText,
+            onChanged: (value) =>
+                configProvider.set(Settings.justifyText, value),
+          ),
+          SettingsToggle(
             title: AppLocalizations.of(context)!.settingsWritingPrompts,
             hint: AppLocalizations.of(context)!.settingsWritingPromptsHint,
             setting: Settings.writingPrompts,

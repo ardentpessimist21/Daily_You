@@ -829,14 +829,8 @@
   "@galleryShowList": {},
   "galleryShowGrid": "Show as grid",
   "@galleryShowGrid": {},
-  "unlockWelcomeBack": "Welcome back, {name}",
-  "@unlockWelcomeBack": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
+  "unlockWelcome": "Welcome",
+  "@unlockWelcome": {},
   "forgotPasswordButton": "Forgot password?",
   "@forgotPasswordButton": {},
   "forgotPasswordTitle": "Reset your password",
@@ -868,5 +862,9 @@
   "recoveryCodeSettingHasCode": "You have a code. Making a new one cancels the old one.",
   "@recoveryCodeSettingHasCode": {},
   "recoveryCodeSettingNoCode": "Make a one-time code to reset a forgotten password",
-  "@recoveryCodeSettingNoCode": {}
+  "@recoveryCodeSettingNoCode": {},
+  "settingsJustifyText": "Justify text",
+  "@settingsJustifyText": {},
+  "settingsJustifyTextHint": "When reading, lines fill the width like a book, with long words split by a hyphen. Off keeps text left-aligned.",
+  "@settingsJustifyTextHint": {}
 }

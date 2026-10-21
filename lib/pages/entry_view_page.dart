@@ -7,6 +7,7 @@ import 'dart:io';
 
 import 'package:daily_you/fork/checklists.dart';
 import 'package:daily_you/fork/double_tap_to_edit.dart';
+import 'package:daily_you/fork/hyphenation.dart';
 import 'package:daily_you/database/attachment_storage.dart';
 import 'package:daily_you/fork/favourites.dart';
 import 'package:daily_you/fork/links.dart';
@@ -101,6 +102,9 @@ class _EntryViewPageState extends State<EntryViewPage> {
     final attachments = entryAttachmentsProvider.getForEntry(entry);
     final (body, places) = EntryLocations.split(entry.text);
     final matchTotal = SearchHighlight.count(body, _query);
+    // Justified text gets a little more width, so lines hold more words.
+    final justify = JustifyText.enabled;
+    final side = justify ? 4.0 : 8.0;
     return Scaffold(
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: _matchNavigator(matchTotal),
@@ -121,7 +125,7 @@ class _EntryViewPageState extends State<EntryViewPage> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 800),
                 child: Padding(
-                  padding: const EdgeInsets.only(left: 8, right: 8),
+                  padding: EdgeInsets.only(left: side, right: side),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -213,12 +217,15 @@ class _EntryViewPageState extends State<EntryViewPage> {
                             color:
                                 Theme.of(context).colorScheme.surfaceContainer,
                             child: Padding(
-                                padding: const EdgeInsets.only(
-                                    left: 8, top: 4, bottom: 4, right: 8),
+                                padding: EdgeInsets.only(
+                                    left: side + 2,
+                                    top: 4,
+                                    bottom: 4,
+                                    right: side + 2),
                                 child: ScaledMarkdown(
                                   data: body,
                                   selectable: false,
-                                  justify: true,
+                                  justify: justify,
                                   onCheckboxTap: (index) =>
                                       Checklists.toggleInEntry(entry, index),
                                   searchQuery: _query,
