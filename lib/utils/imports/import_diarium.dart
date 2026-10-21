@@ -7,6 +7,7 @@ import 'dart:typed_data';
 
 import 'package:daily_you/database/attachment_storage.dart';
 import 'package:daily_you/database/app_database.dart';
+import 'package:daily_you/database/entry_store.dart';
 import 'package:daily_you/database/entry_tag_dao.dart';
 import 'package:daily_you/database/tag_dao.dart';
 import 'package:daily_you/fork/locations.dart';
@@ -15,6 +16,7 @@ import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/models/attachment.dart';
 import 'package:daily_you/models/tag.dart';
 import 'package:daily_you/providers/entries_provider.dart';
+import 'package:daily_you/providers/entry_attachments_provider.dart';
 import 'package:daily_you/providers/tags_provider.dart';
 import 'package:daily_you/storage/storage_picker.dart';
 import 'package:daily_you/utils/imports/import_helpers.dart';
@@ -123,6 +125,9 @@ Future<OperationOutcome> importFromDiarium(
 
         await addDiariumEntryTags(addedEntry.id!, timestamp,
             entryTagsByEntryId[id] ?? const [], tagsByDiariumId);
+      } else if (place != null) {
+        // Already imported: add its location, and change nothing else.
+        await addPlaceToImportedEntries(timestamp, place);
       }
 
       processedEntries++;
@@ -167,6 +172,32 @@ Place? diariumPlace(Object? latitude, Object? longitude) {
   final latText = lat.toStringAsFixed(5);
   final lngText = lng.toStringAsFixed(5);
   return Place('$latText, $lngText', 'geo:$latText,$lngText');
+}
+
+/// [text] with [place] added, or null when it already has that spot.
+String? textWithImportedPlace(String text, Place place) {
+  final places = EntryLocations.placesOf(text);
+  if (places.any((existing) => existing.address == place.address)) {
+    return null;
+  }
+  return EntryLocations.add(text, place);
+}
+
+/// Adds [place] to entries already at [timestamp]. Their text, mood, tags,
+/// photos and "Last modified" stay as they are.
+Future<void> addPlaceToImportedEntries(DateTime timestamp, Place place) async {
+  final matches = EntriesProvider.instance.entries
+      .where((entry) => entry.timeCreate == timestamp && entry.id != null)
+      .toList();
+  for (final entry in matches) {
+    final text = textWithImportedPlace(entry.text, place);
+    if (text == null) continue;
+    await EntryStore.instance.beginDraft().save((_) => EntryDraft(
+          entry: entry.copy(text: text),
+          tags: TagsProvider.instance.getEntryTagsForEntry(entry.id!),
+          attachments: EntryAttachmentsProvider.instance.getForEntry(entry),
+        ));
+  }
 }
 
 const int _diariumLabelTagType = 0;
