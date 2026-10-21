@@ -90,6 +90,24 @@ class Places {
 
   static String saved(Place place) => markdownFor(place);
 
+  /// The name given to a Maps place that arrives without one.
+  static const String unnamed = 'Google Maps';
+
+  /// Puts a share's [subject] in front of a bare map link, since some
+  /// versions of Google Maps send the place's name there instead of in the
+  /// text. Anything else comes back unchanged.
+  static String? nameShared(String? text, String? subject) {
+    if (text == null) return null;
+    final name = subject?.trim() ?? '';
+    if (name.isEmpty || name.contains('\n') || name.length > 120) return text;
+    if (RegExp(r'https?://|geo:', caseSensitive: false).hasMatch(name)) {
+      return text;
+    }
+    final shared = fromShared(text);
+    if (shared == null || shared.$1.isNotEmpty) return text;
+    return '$name\n${text.trim()}';
+  }
+
   /// A place read from shared or copied map text.
   static Place? placeFromShared(String text) {
     final shared = fromShared(text);
@@ -99,7 +117,7 @@ class Places {
     if (address.toLowerCase().startsWith('geo:')) {
       return Place(_geoLabel(address), address);
     }
-    return Place('Google Maps', address);
+    return Place(unnamed, address);
   }
 
   /// Reads a place shared or copied from a map app: "Name\nhttps://maps…",
@@ -465,8 +483,11 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
         ),
       ),
     );
-    name.dispose();
-    address.dispose();
+    // Disposed after the dialog's closing animation, which still uses them.
+    Future.delayed(const Duration(seconds: 1), () {
+      name.dispose();
+      address.dispose();
+    });
     if (result == null) return;
     setState(() {
       _places = [..._places];

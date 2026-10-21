@@ -408,7 +408,10 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
           if (_places.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
-              child: LocationRows(places: _places, onRemove: _removePlace),
+              child: LocationRows(
+                  places: _places,
+                  onRemove: _removePlace,
+                  onRename: _renamePlace),
             ),
           Padding(
             padding: const EdgeInsets.only(top: 4.0, bottom: 4.0),
@@ -658,6 +661,23 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
   void _addPlace(Place place) {
     if (!mounted) return;
     setState(() => _places = [..._places, place]);
+    _syncText();
+    _scheduleSave();
+    // A Maps link that came without its name: ask for one.
+    if (place.name == Places.unnamed) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _renamePlace(_places.length - 1));
+    }
+  }
+
+  Future<void> _renamePlace(int index) async {
+    if (!mounted || index < 0 || index >= _places.length) return;
+    final place = _places[index];
+    final name = await askPlaceName(context, place.name);
+    if (name == null || !mounted || index >= _places.length) return;
+    if (_places[index] != place) return;
+    setState(
+        () => _places = [..._places]..[index] = Place(name, place.address));
     _syncText();
     _scheduleSave();
   }

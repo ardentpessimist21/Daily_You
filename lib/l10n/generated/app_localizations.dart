@@ -2603,6 +2603,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{place}, open in Maps'**
   String locationOpenInMaps(String place);
+
+  /// No description provided for @locationNameTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Name this place'**
+  String get locationNameTitle;
+
+  /// No description provided for @locationNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Jollibee Taipei'**
+  String get locationNameHint;
 }
 
 class _AppLocalizationsDelegate

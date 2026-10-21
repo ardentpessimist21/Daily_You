@@ -818,5 +818,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "locationNameTitle": "Name this place",
+  "@locationNameTitle": {},
+  "locationNameHint": "e.g. Jollibee Taipei",
+  "@locationNameHint": {}
 }

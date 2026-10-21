@@ -1451,4 +1451,10 @@ class AppLocalizationsSv extends AppLocalizations {
   String locationOpenInMaps(String place) {
     return '$place, open in Maps';
   }
+
+  @override
+  String get locationNameTitle => 'Name this place';
+
+  @override
+  String get locationNameHint => 'e.g. Jollibee Taipei';
 }

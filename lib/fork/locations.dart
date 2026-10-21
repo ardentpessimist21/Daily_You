@@ -257,10 +257,17 @@ class TimelineLocationButton extends StatelessWidget {
 
 /// The editor's rows under the date: one per place, each with ✕.
 class LocationRows extends StatelessWidget {
-  const LocationRows({super.key, required this.places, required this.onRemove});
+  const LocationRows(
+      {super.key,
+      required this.places,
+      required this.onRemove,
+      required this.onRename});
 
   final List<Place> places;
   final void Function(int index) onRemove;
+
+  /// Tapping a row renames it.
+  final void Function(int index) onRename;
 
   @override
   Widget build(BuildContext context) {
@@ -275,30 +282,95 @@ class LocationRows extends StatelessWidget {
             child: Material(
               color: colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.only(left: 12),
-                child: Row(
-                  children: [
-                    Icon(Icons.place_rounded,
-                        size: 20, color: colorScheme.primary),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        places[i].name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => onRename(i),
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.place_rounded,
+                          size: 20, color: colorScheme.primary),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          places[i].name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                    IconButton(
-                      tooltip: l10n.locationRemove,
-                      icon: const Icon(Icons.close_rounded, size: 20),
-                      onPressed: () => onRemove(i),
-                    ),
-                  ],
+                      IconButton(
+                        tooltip: l10n.locationRemove,
+                        icon: const Icon(Icons.close_rounded, size: 20),
+                        onPressed: () => onRemove(i),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
+      ],
+    );
+  }
+}
+
+/// Asks for a place's name. Null when cancelled or left empty.
+Future<String?> askPlaceName(BuildContext context, String current) async {
+  final name = await showDialog<String>(
+    context: context,
+    builder: (context) =>
+        _PlaceNameDialog(initial: current == Places.unnamed ? '' : current),
+  );
+  final trimmed = name?.trim() ?? '';
+  return trimmed.isEmpty ? null : trimmed;
+}
+
+class _PlaceNameDialog extends StatefulWidget {
+  const _PlaceNameDialog({required this.initial});
+
+  final String initial;
+
+  @override
+  State<_PlaceNameDialog> createState() => _PlaceNameDialogState();
+}
+
+class _PlaceNameDialogState extends State<_PlaceNameDialog> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return AlertDialog(
+      title: Text(l10n.locationNameTitle),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        textCapitalization: TextCapitalization.words,
+        textInputAction: TextInputAction.done,
+        onSubmitted: (value) => Navigator.pop(context, value),
+        decoration: InputDecoration(
+          labelText: l10n.placeName,
+          hintText: l10n.locationNameHint,
+          border: const OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _controller.text),
+          child: Text(MaterialLocalizations.of(context).saveButtonLabel),
+        ),
       ],
     );
   }

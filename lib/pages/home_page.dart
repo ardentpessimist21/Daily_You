@@ -137,6 +137,16 @@ class _HomePageState extends State<HomePage>
     if (!mounted) return;
     // A place picked with "Find in Google Maps" goes back into the entry
     // that asked for it, without the "Choose a log" step.
+    final named = Places.nameShared(payload.text, payload.subject);
+    if (named != payload.text) {
+      payload = SharePayload(
+        text: named,
+        subject: payload.subject,
+        imagePaths: payload.imagePaths,
+        videoPaths: payload.videoPaths,
+        audioPaths: payload.audioPaths,
+      );
+    }
     if (!payload.hasMedia && Places.deliverShared(payload.text)) return;
     Navigator.of(context).popUntil((route) => route.isFirst);
     await Navigator.of(context).push(MaterialPageRoute(

@@ -10,12 +10,16 @@ import 'package:flutter/services.dart';
 
 class SharePayload {
   final String? text;
+
+  /// The share's subject or title, when the sending app gives one.
+  final String? subject;
   final List<String> imagePaths;
   final List<String> videoPaths;
   final List<String> audioPaths;
 
   const SharePayload({
     this.text,
+    this.subject,
     this.imagePaths = const [],
     this.videoPaths = const [],
     this.audioPaths = const [],
@@ -51,6 +55,7 @@ class SharePayload {
         ];
     final payload = SharePayload(
       text: map['text'] as String?,
+      subject: map['subject'] as String?,
       imagePaths: paths('imagePaths'),
       videoPaths: paths('videoPaths'),
       audioPaths: paths('audioPaths'),

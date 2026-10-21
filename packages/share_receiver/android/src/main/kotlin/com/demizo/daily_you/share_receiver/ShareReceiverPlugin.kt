@@ -92,11 +92,14 @@ class ShareReceiverPlugin : FlutterPlugin, ActivityAware, NewIntentListener, Met
             return
         }
         val text = share.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
+        // Some apps (e.g. Google Maps) put the place's name here, not in the text.
+        val subject = (share.getCharSequenceExtra(Intent.EXTRA_SUBJECT)
+            ?: share.getCharSequenceExtra(Intent.EXTRA_TITLE))?.toString()
         val uris = streamUris(share)
         CoroutineScope(Dispatchers.IO).launch {
             val pathsByKind = copyMediaToCache(uris)
             withContext(Dispatchers.Main) {
-                result.success(mapOf("text" to text) + pathsByKind.mapKeys { "${it.key}Paths" })
+                result.success(mapOf("text" to text, "subject" to subject) + pathsByKind.mapKeys { "${it.key}Paths" })
             }
         }
     }

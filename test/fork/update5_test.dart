@@ -146,6 +146,30 @@ void main() {
     });
   });
 
+  group('Maps share names', () {
+    test('the share subject names a bare Maps link', () {
+      expect(Places.nameShared('https://maps.app.goo.gl/q1', 'Jollibee Taipei'),
+          'Jollibee Taipei\nhttps://maps.app.goo.gl/q1');
+      expect(
+          Places.placeFromShared(Places.nameShared(
+              'https://maps.app.goo.gl/q1', 'Jollibee Taipei')!),
+          const Place('Jollibee Taipei', 'https://maps.app.goo.gl/q1'));
+    });
+
+    test('text that already names the place, or isn\'t a place, is kept', () {
+      const named = 'Mum\'s place\nhttps://maps.app.goo.gl/q1';
+      expect(Places.nameShared(named, 'Other'), named);
+      expect(Places.nameShared('Just a note', 'Subject'), 'Just a note');
+      expect(Places.nameShared('https://maps.app.goo.gl/q1', null),
+          'https://maps.app.goo.gl/q1');
+      expect(
+          Places.nameShared(
+              'https://maps.app.goo.gl/q1', 'https://maps.app.goo.gl/q1'),
+          'https://maps.app.goo.gl/q1');
+      expect(Places.nameShared(null, 'x'), isNull);
+    });
+  });
+
   group('Pasting in the editor', () {
     tearDown(() => Places.addToEditor = null);
 
@@ -264,6 +288,25 @@ void main() {
       Places.addToEditor!(_jollibee);
       await tester.pumpAndSettle();
       expect(find.text('Jollibee Taipei'), findsOneWidget);
+
+      // One that came without a name asks for it.
+      Places.addToEditor!(
+          const Place(Places.unnamed, 'https://maps.app.goo.gl/q'));
+      await tester.pumpAndSettle();
+      expect(find.text('Name this place'), findsOneWidget);
+      await tester.enterText(find.byType(TextField).last, 'Night market');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(find.text('Night market'), findsOneWidget);
+      expect(find.text(Places.unnamed), findsNothing);
+
+      // Tapping a row renames it.
+      await tester.tap(find.text('Uni'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).last, 'University');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(find.text('University'), findsOneWidget);
       expect(field.controller!.text, 'Lunch break');
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(seconds: 6));
