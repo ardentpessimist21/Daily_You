@@ -196,6 +196,18 @@ void main() {
           const Place('16.20000, 120.40000', 'geo:16.20000,120.40000'));
     });
 
+    test('re-importing adds a missing location once', () {
+      const place = Place('16.22171, 120.45906', 'geo:16.22171,120.45906');
+      expect(textWithImportedPlace('# Test\n\nHello', place),
+          '# Test\n\nHello\n\n📍 [16.22171, 120.45906](geo:16.22171,120.45906)');
+      // Keeps places you added, and adds after them
+      expect(textWithImportedPlace(EntryLocations.join('Hi', [_uni]), place),
+          'Hi\n\n📍 Uni · [16.22171, 120.45906](geo:16.22171,120.45906)');
+      // Already there: nothing to do
+      expect(textWithImportedPlace(EntryLocations.join('Hi', [place]), place),
+          isNull);
+    });
+
     test('no location gives nothing', () {
       expect(diariumPlace(0, 0), isNull);
       expect(diariumPlace(null, null), isNull);
