@@ -2615,6 +2615,126 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'e.g. Jollibee Taipei'**
   String get locationNameHint;
+
+  /// No description provided for @swipeAgainToExit.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe again to exit'**
+  String get swipeAgainToExit;
+
+  /// No description provided for @galleryShowList.
+  ///
+  /// In en, this message translates to:
+  /// **'Show as list'**
+  String get galleryShowList;
+
+  /// No description provided for @galleryShowGrid.
+  ///
+  /// In en, this message translates to:
+  /// **'Show as grid'**
+  String get galleryShowGrid;
+
+  /// No description provided for @unlockWelcomeBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Welcome back, {name}'**
+  String unlockWelcomeBack(String name);
+
+  /// No description provided for @forgotPasswordButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot password?'**
+  String get forgotPasswordButton;
+
+  /// No description provided for @forgotPasswordTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset your password'**
+  String get forgotPasswordTitle;
+
+  /// No description provided for @forgotPasswordUseFingerprint.
+  ///
+  /// In en, this message translates to:
+  /// **'Use fingerprint'**
+  String get forgotPasswordUseFingerprint;
+
+  /// No description provided for @forgotPasswordUseCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Use recovery code'**
+  String get forgotPasswordUseCode;
+
+  /// No description provided for @forgotPasswordNoWay.
+  ///
+  /// In en, this message translates to:
+  /// **'Fingerprint unlock is off and there\'s no recovery code, so the password can\'t be reset here.'**
+  String get forgotPasswordNoWay;
+
+  /// No description provided for @forgotPasswordNewPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Set a new password'**
+  String get forgotPasswordNewPassword;
+
+  /// No description provided for @recoveryCodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovery code'**
+  String get recoveryCodeLabel;
+
+  /// No description provided for @recoveryCodeWrong.
+  ///
+  /// In en, this message translates to:
+  /// **'That code doesn\'t match'**
+  String get recoveryCodeWrong;
+
+  /// No description provided for @recoveryCodeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your recovery code'**
+  String get recoveryCodeTitle;
+
+  /// No description provided for @recoveryCodeExplain.
+  ///
+  /// In en, this message translates to:
+  /// **'If you forget your password, this code lets you set a new one. It works once, and won\'t be shown again. Keep it somewhere safe away from this phone, like a password manager or on paper.'**
+  String get recoveryCodeExplain;
+
+  /// No description provided for @recoveryCodeCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get recoveryCodeCopy;
+
+  /// No description provided for @recoveryCodeCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Code copied'**
+  String get recoveryCodeCopied;
+
+  /// No description provided for @recoveryCodeSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'I\'ve saved it'**
+  String get recoveryCodeSaved;
+
+  /// No description provided for @recoveryCodeSetting.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovery code'**
+  String get recoveryCodeSetting;
+
+  /// No description provided for @recoveryCodeSettingHasCode.
+  ///
+  /// In en, this message translates to:
+  /// **'You have a code. Making a new one cancels the old one.'**
+  String get recoveryCodeSettingHasCode;
+
+  /// No description provided for @recoveryCodeSettingNoCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Make a one-time code to reset a forgotten password'**
+  String get recoveryCodeSettingNoCode;
 }
 
 class _AppLocalizationsDelegate

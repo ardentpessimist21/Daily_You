@@ -11,6 +11,7 @@ import 'package:daily_you/layouts/fast_page_view_scroll_physics.dart';
 import 'package:daily_you/pages/settings/notification_settings.dart';
 import 'package:daily_you/widgets/app_dialog.dart';
 import 'package:easy_debounce/easy_debounce.dart';
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/pages/statistics_page.dart';
@@ -345,6 +346,7 @@ class _MobileScaffoldState extends State<MobileScaffold> {
                 icon: const Icon(Icons.notifications_off_rounded),
                 onPressed: _showNotificationOnboardingPopup,
               ),
+            if (currentIndex == 1) const _GalleryViewToggle(),
             IconButton(
               icon: const Icon(Icons.settings_rounded),
               onPressed: _navigateToSettings,
@@ -423,6 +425,7 @@ class _MobileScaffoldState extends State<MobileScaffold> {
               icon: const Icon(Icons.notifications_off_rounded),
               onPressed: _showNotificationOnboardingPopup,
             ),
+          if (currentIndex == 1) const _GalleryViewToggle(),
         ],
       ),
       drawer: Drawer(
@@ -508,14 +511,71 @@ class _MobileScaffoldState extends State<MobileScaffold> {
       l10n.pageStatisticsTitle,
     ];
 
-    return LayoutBuilder(builder: (context, constraints) {
-      if (constraints.maxWidth >= 1100) {
-        return _buildDesktopLayout(context, configProvider, pageTitles, l10n);
-      } else if (constraints.maxWidth >= 600) {
-        return _buildTabletLayout(context, configProvider, pageTitles, l10n);
-      } else {
-        return _buildMobileLayout(context, configProvider, pageTitles, l10n);
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _onBack(l10n);
+      },
+      child: LayoutBuilder(builder: (context, constraints) {
+        if (constraints.maxWidth >= 1100) {
+          return _buildDesktopLayout(context, configProvider, pageTitles, l10n);
+        } else if (constraints.maxWidth >= 600) {
+          return _buildTabletLayout(context, configProvider, pageTitles, l10n);
+        } else {
+          return _buildMobileLayout(context, configProvider, pageTitles, l10n);
+        }
+      }),
+    );
+  }
+
+  DateTime? _lastBackOnHome;
+
+  /// Back on Gallery or Statistics goes to Home. On Home, the first back
+  /// only shows "Swipe again to exit", so the app never closes by accident.
+  void _onBack(AppLocalizations l10n) {
+    if (currentIndex != 0) {
+      EasyDebounce.cancel("page-change");
+      setState(() => currentIndex = 0);
+      if (_pageController.hasClients) {
+        _pageController.animateToPage(0,
+            duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
       }
-    });
+      return;
+    }
+    final now = DateTime.now();
+    final last = _lastBackOnHome;
+    if (last != null && now.difference(last) < exitWindow) {
+      _lastBackOnHome = null;
+      SystemNavigator.pop();
+      return;
+    }
+    _lastBackOnHome = now;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(l10n.swipeAgainToExit),
+        behavior: SnackBarBehavior.floating,
+        duration: exitWindow,
+      ));
+  }
+
+  static const Duration exitWindow = Duration(seconds: 2);
+}
+
+/// The Gallery's List/Grid switch, next to the gear.
+class _GalleryViewToggle extends StatelessWidget {
+  const _GalleryViewToggle();
+
+  @override
+  Widget build(BuildContext context) {
+    final config = Provider.of<ConfigProvider>(context);
+    final l10n = AppLocalizations.of(context)!;
+    final isList = config.get(Settings.galleryPageViewMode) == 'list';
+    return IconButton(
+      tooltip: isList ? l10n.galleryShowGrid : l10n.galleryShowList,
+      icon: Icon(isList ? Icons.grid_view_rounded : Icons.view_agenda_rounded),
+      onPressed: () =>
+          config.set(Settings.galleryPageViewMode, isList ? 'grid' : 'list'),
+    );
   }
 }

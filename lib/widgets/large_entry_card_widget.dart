@@ -160,7 +160,8 @@ class FullEntryCardWidget extends StatelessWidget {
                 EdgeInsets.fromLTRB(8.0, 4.0, 8.0, showPlaces ? 6.0 : 12.0),
             child: body.isNotEmpty
                 ? IgnorePointer(
-                    child: ScaledMarkdown(data: body, scaleFactor: 0.95),
+                    child: ScaledMarkdown(
+                        data: body, scaleFactor: 0.95, justify: true),
                   )
                 : Text(
                     AppLocalizations.of(context)!.writeSomethingHint,

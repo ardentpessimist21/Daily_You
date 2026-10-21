@@ -50,6 +50,64 @@ class AppPasswordStore extends PasswordStore {
   }
 }
 
+/// A one-time code that resets a forgotten app password, e.g.
+/// `K7M2-9XQ4-T8LP`. Only a scrambled (Argon2) version is kept, like the
+/// password itself, so the code can't be read back, even from a backup.
+class RecoveryCodeStore {
+  const RecoveryCodeStore._();
+
+  /// Letters and numbers that can't be mistaken for each other (no 0/O,
+  /// 1/I/L, 5/S, 2/Z, 8/B).
+  static const String alphabet = 'ACDEFGHJKMNPQRTUVWXY34679';
+  static const int groups = 3;
+  static const int groupLength = 4;
+
+  static bool get hasCode =>
+      ConfigProvider.instance.get(Settings.recoveryCodeHash).isNotEmpty;
+
+  /// Makes a new code, replacing any old one, and returns it to show once.
+  static Future<String> generate() async {
+    final bytes = secureRandomBytes(groups * groupLength * 2);
+    final characters = StringBuffer();
+    // Rejection sampling keeps every character equally likely.
+    final limit = 256 - 256 % alphabet.length;
+    var i = 0;
+    while (characters.length < groups * groupLength) {
+      if (i >= bytes.length) {
+        return generate();
+      }
+      final byte = bytes[i++];
+      if (byte < limit) characters.write(alphabet[byte % alphabet.length]);
+    }
+    final raw = characters.toString();
+    final code = [
+      for (var g = 0; g < groups; g++)
+        raw.substring(g * groupLength, (g + 1) * groupLength)
+    ].join('-');
+    await ConfigProvider.instance.set(
+        Settings.recoveryCodeHash, _Argon2Phc.hashPassword(normalize(code)));
+    return code;
+  }
+
+  /// Upper case, without spaces or dashes, so it can be typed loosely.
+  static String normalize(String code) =>
+      code.toUpperCase().replaceAll(RegExp(r'[\s-]'), '');
+
+  static Future<bool> validate(String code) async {
+    final stored = ConfigProvider.instance.get(Settings.recoveryCodeHash);
+    final normalized = normalize(code);
+    if (stored.isEmpty || normalized.length != groups * groupLength) {
+      return false;
+    }
+    final decoded = _Argon2Phc.tryDecode(stored);
+    return decoded != null && decoded.verify(normalized);
+  }
+
+  /// Codes work once: used, or the password is turned off.
+  static Future<void> clear() =>
+      ConfigProvider.instance.set(Settings.recoveryCodeHash, '');
+}
+
 class BackupPasswordStore extends PasswordStore {
   const BackupPasswordStore();
 

@@ -32,6 +32,10 @@ class ScaledMarkdown extends StatelessWidget {
   /// so the page can scroll to a match.
   final List<GlobalKey>? matchKeys;
 
+  /// Justifies ordinary paragraphs, for reading. Headings, lists,
+  /// checklists and quotes stay left-aligned.
+  final bool justify;
+
   const ScaledMarkdown({
     super.key,
     required this.data,
@@ -43,6 +47,7 @@ class ScaledMarkdown extends StatelessWidget {
     this.searchQuery,
     this.currentMatch,
     this.matchKeys,
+    this.justify = false,
   });
 
   @override
@@ -102,13 +107,31 @@ class ScaledMarkdown extends StatelessWidget {
         : SearchMatchCounter(query,
             current: currentMatch, blockKeys: matchKeys);
 
+    // Top-level paragraphs, by identity, so they can be justified.
+    final paragraphs = Set<InlineSpan>.identity();
+
     final markdown = MarkdownBlock(
       selectable: false,
       config: config,
       generator: MarkdownGenerator(
         inlineSyntaxList: [HighlightSyntax()],
         generators: [highlightGenerator(Colors.yellow.shade700)],
+        spanNodeBuilder: justify
+            ? (node) {
+                final built = node.build();
+                final span =
+                    built is TextSpan ? built : TextSpan(children: [built]);
+                // Each top-level block arrives wrapped in an empty node.
+                if (node is ElementNode &&
+                    node.children.length == 1 &&
+                    node.children.first is ParagraphNode) {
+                  paragraphs.add(span);
+                }
+                return span;
+              }
+            : null,
         richTextBuilder: (original) {
+          final justified = paragraphs.contains(original);
           // Matches are numbered here, in the order blocks are built.
           var span = original;
           GlobalKey? blockKey;
@@ -129,6 +152,7 @@ class ScaledMarkdown extends StatelessWidget {
 
             final child = Text.rich(
               span,
+              textAlign: justified ? TextAlign.justify : null,
               textScaler:
                   shouldIgnoreTextScaler ? TextScaler.noScaling : customScaler,
             );

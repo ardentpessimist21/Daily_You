@@ -369,6 +369,8 @@ class EntryDayCell extends StatelessWidget {
                         iconOnly: tagGoesCenter)
                     : const SizedBox.shrink(),
               ),
+              if (TimeManager.isSameDay(date, today))
+                IgnorePointer(child: _todayRing(colorScheme)),
             ],
           ),
         ),
@@ -399,6 +401,9 @@ class EntryDayCell extends StatelessWidget {
                     color: colorScheme.surfaceContainerLow,
                     borderRadius: BorderRadius.circular(8),
                   ),
+                  foregroundDecoration: TimeManager.isSameDay(date, today)
+                      ? _todayRingDecoration(colorScheme)
+                      : null,
                   child: Center(
                     child: Text(
                         '${isJalali ? TimeManager.jalaliDayNumber(date) : date.day}',
@@ -413,4 +418,19 @@ class EntryDayCell extends StatelessWidget {
               )));
     }
   }
+
+  /// An accent ring around today's square.
+  static BoxDecoration _todayRingDecoration(ColorScheme colorScheme) =>
+      BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+            color: colorScheme.primary,
+            width: 2.5,
+            strokeAlign: BorderSide.strokeAlignInside),
+      );
+
+  static Widget _todayRing(ColorScheme colorScheme) => Container(
+        margin: const EdgeInsets.all(2),
+        decoration: _todayRingDecoration(colorScheme),
+      );
 }

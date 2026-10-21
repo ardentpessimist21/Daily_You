@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/fork/password_recovery.dart';
+import 'package:daily_you/utils/password_store.dart';
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/device_info_service.dart';
 import 'package:daily_you/widgets/app_dialog.dart';
@@ -61,6 +63,9 @@ class SecuritySettingsPageState extends State<SecuritySettings> {
                                 ));
                         await configProvider.set(
                             Settings.requirePassword, setPassword);
+                        if (setPassword && context.mounted) {
+                          await PasswordRecovery.makeNewCode(context);
+                        }
                       } else {
                         await showAppDialog(
                             context: context,
@@ -73,6 +78,8 @@ class SecuritySettingsPageState extends State<SecuritySettings> {
                                   onSuccess: (_) {
                                     configProvider.set(
                                         Settings.requirePassword, false);
+                                    // No password, so no code to reset it.
+                                    RecoveryCodeStore.clear();
                                   },
                                 ));
                       }
@@ -84,6 +91,7 @@ class SecuritySettingsPageState extends State<SecuritySettings> {
                     .settingsSecurityChangePassword,
                 icon: Icon(Icons.edit_rounded),
                 onPressed: () async {
+                  var changed = false;
                   await showAppDialog(
                       context: context,
                       builder: (context) => AuthPopup(
@@ -92,8 +100,34 @@ class SecuritySettingsPageState extends State<SecuritySettings> {
                                 .settingsSecurityChangePassword,
                             showBiometrics: false,
                             dismissable: true,
-                            onSuccess: (_) {},
+                            onSuccess: (_) => changed = true,
                           ));
+                  if (changed && context.mounted) {
+                    await PasswordRecovery.makeNewCode(context);
+                  }
+                }),
+          if (configProvider.get(Settings.requirePassword))
+            SettingsIconAction(
+                title: AppLocalizations.of(context)!.recoveryCodeSetting,
+                hint: RecoveryCodeStore.hasCode
+                    ? AppLocalizations.of(context)!.recoveryCodeSettingHasCode
+                    : AppLocalizations.of(context)!.recoveryCodeSettingNoCode,
+                icon: const Icon(Icons.password_rounded),
+                onPressed: () async {
+                  var confirmed = false;
+                  await showAppDialog(
+                      context: context,
+                      builder: (context) => AuthPopup(
+                            mode: AuthPopupMode.unlock,
+                            title: AppLocalizations.of(context)!
+                                .settingsSecurityEnterPassword,
+                            showBiometrics: false,
+                            dismissable: true,
+                            onSuccess: (_) => confirmed = true,
+                          ));
+                  if (confirmed && context.mounted) {
+                    await PasswordRecovery.makeNewCode(context);
+                  }
                 }),
           if (configProvider.get(Settings.requirePassword) &&
               (DeviceInfoService().supportsBiometrics ?? false))

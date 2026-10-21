@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/fork/password_recovery.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -127,6 +128,8 @@ class _LaunchPageState extends State<LaunchPage> {
           builder: (context) => AuthPopup(
                 mode: AuthPopupMode.unlock,
                 title: AppLocalizations.of(context)!.unlockAppPrompt,
+                titleWidget: unlockTitle(context),
+                onForgotPassword: PasswordRecovery.forgot,
                 showBiometrics:
                     ConfigProvider.instance.get(Settings.biometricUnlock),
                 dismissable: false,

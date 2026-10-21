@@ -6,6 +6,7 @@ import 'package:daily_you/fork/locations.dart';
 import 'dart:io';
 
 import 'package:daily_you/fork/checklists.dart';
+import 'package:daily_you/fork/double_tap_to_edit.dart';
 import 'package:daily_you/database/attachment_storage.dart';
 import 'package:daily_you/fork/favourites.dart';
 import 'package:daily_you/fork/links.dart';
@@ -111,130 +112,136 @@ class _EntryViewPageState extends State<EntryViewPage> {
           _favouriteButton(context, entry),
         ],
       ),
-      body: ListView(
-        children: [
-          Align(
-            alignment: Alignment.topCenter,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 800),
-              child: Padding(
-                padding: const EdgeInsets.only(left: 8, right: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (attachments.isNotEmpty && attachments.length > 1)
-                      _attachmentsList(context, attachments),
-                    if (attachments.isNotEmpty && attachments.length == 1)
-                      GestureDetector(
-                        child: Center(
-                          child: SizedBox(
-                            height: 220,
-                            width: 220,
-                            child: Card.filled(
-                                clipBehavior: Clip.antiAlias,
-                                child: AttachmentTileBackground(
-                                    attachment: attachments.first)),
+      body: DoubleTapToEdit(
+        onDoubleTap: () => _openEditor(context, entry, attachments),
+        child: ListView(
+          children: [
+            Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 800),
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8, right: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (attachments.isNotEmpty && attachments.length > 1)
+                        _attachmentsList(context, attachments),
+                      if (attachments.isNotEmpty && attachments.length == 1)
+                        GestureDetector(
+                          child: Center(
+                            child: SizedBox(
+                              height: 220,
+                              width: 220,
+                              child: Card.filled(
+                                  clipBehavior: Clip.antiAlias,
+                                  child: AttachmentTileBackground(
+                                      attachment: attachments.first)),
+                            ),
+                          ),
+                          onTap: () async {
+                            await Navigator.of(context).push(
+                                AttachmentViewPage.route(
+                                    attachments: attachments, index: 0));
+                          },
+                        ),
+                      Card.filled(
+                        color: Theme.of(context).colorScheme.surfaceContainer,
+                        child: Padding(
+                          padding: const EdgeInsets.only(
+                              left: 8, top: 4, bottom: 4, right: 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              SizedBox(
+                                width: double.infinity,
+                                child: Wrap(
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  alignment: WrapAlignment.spaceBetween,
+                                  children: [
+                                    IntrinsicHeight(
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            TimeManager.formatDateWithWeekday(
+                                              entry.timeCreate,
+                                              context,
+                                            ),
+                                            style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold),
+                                          ),
+                                          VerticalDivider(
+                                            width: 16,
+                                            thickness: 2,
+                                            radius: BorderRadius.circular(4),
+                                          ),
+                                          Text(
+                                            TimeManager.localizedTimeFormat(
+                                                    context,
+                                                    TimeManager.currentLocale(
+                                                        context))
+                                                .format(entry.timeCreate),
+                                            style: TextStyle(
+                                                fontSize: 16,
+                                                color: theme.dividerColor),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    MoodIcon(
+                                      moodValue: entry.mood,
+                                      size: 24,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              EntryTagChips(
+                                entryId: entry.id!,
+                                padding:
+                                    const EdgeInsets.only(top: 2, bottom: 2),
+                                chipBuilder: (tag, entryTag) =>
+                                    TagChip(tag: tag, value: entryTag.value),
+                              ),
+                            ],
                           ),
                         ),
-                        onTap: () async {
-                          await Navigator.of(context).push(
-                              AttachmentViewPage.route(
-                                  attachments: attachments, index: 0));
-                        },
                       ),
-                    Card.filled(
-                      color: Theme.of(context).colorScheme.surfaceContainer,
-                      child: Padding(
+                      if (body.isNotEmpty)
+                        Card.filled(
+                            color:
+                                Theme.of(context).colorScheme.surfaceContainer,
+                            child: Padding(
+                                padding: const EdgeInsets.only(
+                                    left: 8, top: 4, bottom: 4, right: 8),
+                                child: ScaledMarkdown(
+                                  data: body,
+                                  selectable: false,
+                                  justify: true,
+                                  onCheckboxTap: (index) =>
+                                      Checklists.toggleInEntry(entry, index),
+                                  searchQuery: _query,
+                                  currentMatch: _currentMatch,
+                                  matchKeys: _matchKeys,
+                                ))),
+                      LocationButtons(places: places),
+                      Padding(
                         padding: const EdgeInsets.only(
-                            left: 8, top: 4, bottom: 4, right: 8),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            SizedBox(
-                              width: double.infinity,
-                              child: Wrap(
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                alignment: WrapAlignment.spaceBetween,
-                                children: [
-                                  IntrinsicHeight(
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          TimeManager.formatDateWithWeekday(
-                                            entry.timeCreate,
-                                            context,
-                                          ),
-                                          style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                        VerticalDivider(
-                                          width: 16,
-                                          thickness: 2,
-                                          radius: BorderRadius.circular(4),
-                                        ),
-                                        Text(
-                                          TimeManager.localizedTimeFormat(
-                                                  context,
-                                                  TimeManager.currentLocale(
-                                                      context))
-                                              .format(entry.timeCreate),
-                                          style: TextStyle(
-                                              fontSize: 16,
-                                              color: theme.dividerColor),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  MoodIcon(
-                                    moodValue: entry.mood,
-                                    size: 24,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            EntryTagChips(
-                              entryId: entry.id!,
-                              padding: const EdgeInsets.only(top: 2, bottom: 2),
-                              chipBuilder: (tag, entryTag) =>
-                                  TagChip(tag: tag, value: entryTag.value),
-                            ),
-                          ],
+                            left: 8, top: 4, bottom: 18, right: 8),
+                        child: Text(
+                          "${AppLocalizations.of(context)!.lastModified}: ${TimeManager.formatDateWithWeekday(entry.timeModified, context)} ${TimeManager.localizedTimeFormat(context, TimeManager.currentLocale(context)).format(entry.timeModified)}",
+                          style: TextStyle(
+                              fontSize: 12, color: theme.disabledColor),
                         ),
                       ),
-                    ),
-                    if (body.isNotEmpty)
-                      Card.filled(
-                          color: Theme.of(context).colorScheme.surfaceContainer,
-                          child: Padding(
-                              padding: const EdgeInsets.only(
-                                  left: 8, top: 4, bottom: 4, right: 8),
-                              child: ScaledMarkdown(
-                                data: body,
-                                selectable: false,
-                                onCheckboxTap: (index) =>
-                                    Checklists.toggleInEntry(entry, index),
-                                searchQuery: _query,
-                                currentMatch: _currentMatch,
-                                matchKeys: _matchKeys,
-                              ))),
-                    LocationButtons(places: places),
-                    Padding(
-                      padding: const EdgeInsets.only(
-                          left: 8, top: 4, bottom: 18, right: 8),
-                      child: Text(
-                        "${AppLocalizations.of(context)!.lastModified}: ${TimeManager.formatDateWithWeekday(entry.timeModified, context)} ${TimeManager.localizedTimeFormat(context, TimeManager.currentLocale(context)).format(entry.timeModified)}",
-                        style:
-                            TextStyle(fontSize: 12, color: theme.disabledColor),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -243,24 +250,34 @@ class _EntryViewPageState extends State<EntryViewPage> {
       BuildContext context, entry, List<EntryAttachment> attachments) {
     return IconButton(
         icon: const Icon(Icons.edit_rounded),
-        onPressed: () async {
-          await Navigator.of(context).push(PageRouteBuilder(
-            allowSnapshotting: false,
-            fullscreenDialog: true,
-            pageBuilder: (context, _, __) =>
-                AddEditEntryPage(entry: entry, attachments: attachments),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-              return FadeTransition(
-                opacity: animation,
-                child: child,
-              );
-            },
-            transitionDuration: const Duration(milliseconds: 200),
-          ));
+        onPressed: () => _openEditor(context, entry, attachments));
+  }
 
-          widget.onEntryEdited(entry.id);
-        });
+  bool _editorOpen = false;
+
+  Future<void> _openEditor(BuildContext context, Entry entry,
+      List<EntryAttachment> attachments) async {
+    if (_editorOpen) return;
+    _editorOpen = true;
+    try {
+      await Navigator.of(context).push(PageRouteBuilder(
+        allowSnapshotting: false,
+        fullscreenDialog: true,
+        pageBuilder: (context, _, __) =>
+            AddEditEntryPage(entry: entry, attachments: attachments),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+        transitionDuration: const Duration(milliseconds: 200),
+      ));
+
+      widget.onEntryEdited(entry.id!);
+    } finally {
+      _editorOpen = false;
+    }
   }
 
   /// Adds a new entry on the same day as the entry being viewed.

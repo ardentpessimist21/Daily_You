@@ -19,10 +19,19 @@ class AuthPopup extends StatefulWidget {
   final PasswordStore store;
   final void Function(String password)? onSuccess;
 
+  /// Shown instead of [title] when given, e.g. "Welcome back, Hanah".
+  final Widget? titleWidget;
+
+  /// Adds "Forgot password?" under the password box. True from it means a
+  /// new password was set, which unlocks the app.
+  final Future<bool> Function(BuildContext context)? onForgotPassword;
+
   const AuthPopup({
     super.key,
     required this.mode,
     required this.title,
+    this.titleWidget,
+    this.onForgotPassword,
     this.description,
     required this.showBiometrics,
     required this.dismissable,
@@ -202,7 +211,7 @@ class _AuthPopupState extends State<AuthPopup> {
               ),
             ),
             SizedBox(height: 4),
-            Text(widget.title),
+            widget.titleWidget ?? Text(widget.title),
           ],
         ),
         content: Form(
@@ -258,6 +267,19 @@ class _AuthPopupState extends State<AuthPopup> {
                       : null,
                 ),
               ),
+              if (widget.mode == AuthPopupMode.unlock &&
+                  widget.onForgotPassword != null)
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: TextButton(
+                    onPressed: () async {
+                      final reset = await widget.onForgotPassword!(context);
+                      if (reset) _succeed('');
+                    },
+                    child: Text(
+                        AppLocalizations.of(context)!.forgotPasswordButton),
+                  ),
+                ),
               if (_asksForNewPassword)
                 Padding(
                   padding: const EdgeInsets.all(8.0),
@@ -312,6 +334,14 @@ class _AuthPopupState extends State<AuthPopup> {
                         ? const CircularProgressIndicator()
                         : IconButton.filled(
                             onPressed: _handleSubmit,
+                            // The colour made to sit on the accent, so the
+                            // check is clear in light and dark mode.
+                            style: IconButton.styleFrom(
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.primary,
+                              foregroundColor:
+                                  Theme.of(context).colorScheme.onPrimary,
+                            ),
                             icon: Icon(Icons.check_rounded),
                             iconSize: 28,
                           ),

@@ -1459,4 +1459,70 @@ class AppLocalizationsOc extends AppLocalizations {
 
   @override
   String get locationNameHint => 'e.g. Jollibee Taipei';
+
+  @override
+  String get swipeAgainToExit => 'Swipe again to exit';
+
+  @override
+  String get galleryShowList => 'Show as list';
+
+  @override
+  String get galleryShowGrid => 'Show as grid';
+
+  @override
+  String unlockWelcomeBack(String name) {
+    return 'Welcome back, $name';
+  }
+
+  @override
+  String get forgotPasswordButton => 'Forgot password?';
+
+  @override
+  String get forgotPasswordTitle => 'Reset your password';
+
+  @override
+  String get forgotPasswordUseFingerprint => 'Use fingerprint';
+
+  @override
+  String get forgotPasswordUseCode => 'Use recovery code';
+
+  @override
+  String get forgotPasswordNoWay =>
+      'Fingerprint unlock is off and there\'s no recovery code, so the password can\'t be reset here.';
+
+  @override
+  String get forgotPasswordNewPassword => 'Set a new password';
+
+  @override
+  String get recoveryCodeLabel => 'Recovery code';
+
+  @override
+  String get recoveryCodeWrong => 'That code doesn\'t match';
+
+  @override
+  String get recoveryCodeTitle => 'Your recovery code';
+
+  @override
+  String get recoveryCodeExplain =>
+      'If you forget your password, this code lets you set a new one. It works once, and won\'t be shown again. Keep it somewhere safe away from this phone, like a password manager or on paper.';
+
+  @override
+  String get recoveryCodeCopy => 'Copy';
+
+  @override
+  String get recoveryCodeCopied => 'Code copied';
+
+  @override
+  String get recoveryCodeSaved => 'I\'ve saved it';
+
+  @override
+  String get recoveryCodeSetting => 'Recovery code';
+
+  @override
+  String get recoveryCodeSettingHasCode =>
+      'You have a code. Making a new one cancels the old one.';
+
+  @override
+  String get recoveryCodeSettingNoCode =>
+      'Make a one-time code to reset a forgotten password';
 }

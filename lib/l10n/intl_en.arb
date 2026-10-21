@@ -822,5 +822,51 @@
   "locationNameTitle": "Name this place",
   "@locationNameTitle": {},
   "locationNameHint": "e.g. Jollibee Taipei",
-  "@locationNameHint": {}
+  "@locationNameHint": {},
+  "swipeAgainToExit": "Swipe again to exit",
+  "@swipeAgainToExit": {},
+  "galleryShowList": "Show as list",
+  "@galleryShowList": {},
+  "galleryShowGrid": "Show as grid",
+  "@galleryShowGrid": {},
+  "unlockWelcomeBack": "Welcome back, {name}",
+  "@unlockWelcomeBack": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "forgotPasswordButton": "Forgot password?",
+  "@forgotPasswordButton": {},
+  "forgotPasswordTitle": "Reset your password",
+  "@forgotPasswordTitle": {},
+  "forgotPasswordUseFingerprint": "Use fingerprint",
+  "@forgotPasswordUseFingerprint": {},
+  "forgotPasswordUseCode": "Use recovery code",
+  "@forgotPasswordUseCode": {},
+  "forgotPasswordNoWay": "Fingerprint unlock is off and there's no recovery code, so the password can't be reset here.",
+  "@forgotPasswordNoWay": {},
+  "forgotPasswordNewPassword": "Set a new password",
+  "@forgotPasswordNewPassword": {},
+  "recoveryCodeLabel": "Recovery code",
+  "@recoveryCodeLabel": {},
+  "recoveryCodeWrong": "That code doesn't match",
+  "@recoveryCodeWrong": {},
+  "recoveryCodeTitle": "Your recovery code",
+  "@recoveryCodeTitle": {},
+  "recoveryCodeExplain": "If you forget your password, this code lets you set a new one. It works once, and won't be shown again. Keep it somewhere safe away from this phone, like a password manager or on paper.",
+  "@recoveryCodeExplain": {},
+  "recoveryCodeCopy": "Copy",
+  "@recoveryCodeCopy": {},
+  "recoveryCodeCopied": "Code copied",
+  "@recoveryCodeCopied": {},
+  "recoveryCodeSaved": "I've saved it",
+  "@recoveryCodeSaved": {},
+  "recoveryCodeSetting": "Recovery code",
+  "@recoveryCodeSetting": {},
+  "recoveryCodeSettingHasCode": "You have a code. Making a new one cancels the old one.",
+  "@recoveryCodeSettingHasCode": {},
+  "recoveryCodeSettingNoCode": "Make a one-time code to reset a forgotten password",
+  "@recoveryCodeSettingNoCode": {}
 }

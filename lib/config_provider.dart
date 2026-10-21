@@ -141,6 +141,8 @@ class Settings {
       Setting<bool>("biometricUnlock", false, secure: true);
   static const passwordHash =
       Setting<String>("passwordHash", "", secure: true, secretStore: true);
+  static const recoveryCodeHash =
+      Setting<String>("recoveryCodeHash", "", secure: true, secretStore: true);
   static const passwordIsPin =
       Setting<bool>("passwordIsPin", false, secure: true);
   static const backupPasswordEnabled =
@@ -236,6 +238,7 @@ class Settings {
     requirePassword,
     biometricUnlock,
     passwordHash,
+    recoveryCodeHash,
     passwordIsPin,
     backupPasswordEnabled,
     backupPassword,
