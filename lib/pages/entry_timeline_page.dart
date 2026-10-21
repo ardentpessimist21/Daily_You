@@ -365,6 +365,7 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
                 title: label,
                 entry: entry,
                 attachments: entryAttachments,
+                locationsEnabled: !_selecting,
               ),
             ),
           );
@@ -410,6 +411,8 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
                         title: label,
                         entry: entry,
                         attachments: entryAttachments,
+                        showLocations: true,
+                        locationsEnabled: !_selecting,
                       ),
                     ),
                   ),

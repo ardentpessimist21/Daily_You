@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/fork/locations.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/models/entry.dart';
@@ -27,7 +28,7 @@ class FlashbackCard extends StatelessWidget {
     final hideImages =
         ConfigProvider.instance.get(Settings.hideImagesInFlashbacks);
     final theme = Theme.of(context);
-    final text = entries.first.text;
+    final text = entries.first.body;
 
     final coverImages = hideImages
         ? <EntryAttachment>[]

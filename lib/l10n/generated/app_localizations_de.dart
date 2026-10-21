@@ -1439,5 +1439,23 @@ class AppLocalizationsDe extends AppLocalizations {
   String get placeHasMapSpot => 'Opens in Maps';
 
   @override
-  String get placeNoMapSpot => 'Text only';
+  String get placeNoMapSpot => 'Searches its name in Maps';
+
+  @override
+  String get settingsLocations => 'Locations';
+
+  @override
+  String get settingsShowLocationButtons => 'Show location buttons';
+
+  @override
+  String get settingsShowLocationButtonsHint =>
+      'In the entry view and the Timeline. Tap one to open it in Maps.';
+
+  @override
+  String get locationRemove => 'Remove location';
+
+  @override
+  String locationOpenInMaps(String place) {
+    return '$place, open in Maps';
+  }
 }

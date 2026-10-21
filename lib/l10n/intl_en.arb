@@ -801,6 +801,22 @@
   "@placeMapLinkHint": {},
   "placeHasMapSpot": "Opens in Maps",
   "@placeHasMapSpot": {},
-  "placeNoMapSpot": "Text only",
-  "@placeNoMapSpot": {}
+  "placeNoMapSpot": "Searches its name in Maps",
+  "@placeNoMapSpot": {},
+  "settingsLocations": "Locations",
+  "@settingsLocations": {},
+  "settingsShowLocationButtons": "Show location buttons",
+  "@settingsShowLocationButtons": {},
+  "settingsShowLocationButtonsHint": "In the entry view and the Timeline. Tap one to open it in Maps.",
+  "@settingsShowLocationButtonsHint": {},
+  "locationRemove": "Remove location",
+  "@locationRemove": {},
+  "locationOpenInMaps": "{place}, open in Maps",
+  "@locationOpenInMaps": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  }
 }

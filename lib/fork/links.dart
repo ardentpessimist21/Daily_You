@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'dart:async';
+
+import 'package:daily_you/fork/locations.dart';
 import 'package:daily_you/device_info_service.dart';
 import 'package:daily_you/fork/places.dart';
 import 'package:daily_you/fork/search_highlight.dart';
@@ -37,7 +40,7 @@ class EntryLinks {
 
   /// A short name for [entry]: its first heading or first few words.
   static String titleOf(Entry entry, {int maxWords = 6}) {
-    for (final rawLine in entry.text.split('\n')) {
+    for (final rawLine in entry.body.split('\n')) {
       final line = plainText(rawLine);
       if (line.isEmpty) continue;
       final words = line.split(RegExp(r'\s+'));
@@ -444,7 +447,7 @@ class _EntryPickerPageState extends State<EntryPickerPage> {
                       final when =
                           '${TimeManager.formatDateWithWeekday(entry.timeCreate, context)} · '
                           '${TimeManager.localizedTimeFormat(context, TimeManager.currentLocale(context)).format(entry.timeCreate)}';
-                      final snippet = matchSnippet(entry.text, query);
+                      final snippet = matchSnippet(entry.body, query);
                       return ListTile(
                         title: Text(
                           title.isEmpty ? l10n.writeSomethingHint : title,
@@ -542,10 +545,19 @@ class LinkPasteFormatter extends TextInputFormatter {
     final inserted = newValue.text.substring(start, newEnd);
     if (inserted.length < 4) return newValue;
 
-    final replacement = tidy(inserted,
-        selectedText: oldSelection.isCollapsed
-            ? ''
-            : oldSelection.textInside(oldValue.text));
+    final selectedText =
+        oldSelection.isCollapsed ? '' : oldSelection.textInside(oldValue.text);
+    // In an entry, a pasted Maps place (not over words) becomes one of the
+    // entry's places, under the date, instead of text.
+    final addPlace = Places.addToEditor;
+    if (addPlace != null && selectedText.trim().isEmpty) {
+      final place = Places.placeFromShared(inserted);
+      if (place != null) {
+        scheduleMicrotask(() => addPlace(place));
+        return oldValue;
+      }
+    }
+    final replacement = tidy(inserted, selectedText: selectedText);
     if (replacement == null) return newValue;
     final text = newValue.text.replaceRange(start, newEnd, replacement);
     return TextEditingValue(

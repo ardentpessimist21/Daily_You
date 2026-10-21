@@ -7,7 +7,6 @@ import 'package:daily_you/fork/editor_buttons.dart';
 import 'package:daily_you/fork/links.dart';
 import 'package:daily_you/fork/places.dart';
 import 'package:daily_you/models/entry.dart';
-import 'package:daily_you/pages/edit_entry_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -124,13 +123,6 @@ void main() {
       expect(Places.tidyShared('Meeting notes for tomorrow'),
           'Meeting notes for tomorrow');
       expect(Places.fromShared('https://example.com/maps'), isNull);
-    });
-
-    test('Maps text shared from outside is tidied in a new entry', () {
-      expect(
-          AddEditEntryPage.mergeSharedText(
-              '', 'Mum\'s place\nhttps://maps.app.goo.gl/q1'),
-          "[📍 Mum's place](https://maps.app.goo.gl/q1)");
     });
   });
 

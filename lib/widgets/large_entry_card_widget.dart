@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/fork/locations.dart';
 import 'package:daily_you/fork/search_highlight.dart';
 import 'package:daily_you/models/attachment.dart';
 import 'package:daily_you/time_manager.dart';
@@ -13,11 +14,14 @@ import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
 
 class LargeCard extends StatelessWidget {
-  const LargeCard({super.key, this.media, this.header, this.body});
+  const LargeCard({super.key, this.media, this.header, this.body, this.footer});
 
   final Widget? media;
   final Widget? header;
   final Widget? body;
+
+  /// Shown under the body, e.g. the Timeline's 📍 button.
+  final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
@@ -70,6 +74,11 @@ class LargeCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                  if (footer != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(8, 2, 8, 8),
+                      child: footer,
+                    ),
                 ],
               ),
             ),
@@ -100,16 +109,22 @@ class FullEntryCardWidget extends StatelessWidget {
     this.title,
     required this.entry,
     required this.attachments,
+    this.locationsEnabled = true,
   });
 
   final Entry entry;
   final List<EntryAttachment> attachments;
   final String? title;
 
+  /// False while selecting, so tapping the 📍 button selects the card.
+  final bool locationsEnabled;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final time = TimeManager.formatDate(entry.timeCreate, context);
+    final (body, places) = EntryLocations.split(entry.text);
+    final showPlaces = places.isNotEmpty && EntryLocations.showButtons;
     return Card.filled(
       color: theme.colorScheme.surfaceContainer,
       clipBehavior: Clip.antiAlias,
@@ -141,16 +156,23 @@ class FullEntryCardWidget extends StatelessWidget {
               ),
             ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(8.0, 4.0, 8.0, 12.0),
-            child: entry.text.isNotEmpty
+            padding:
+                EdgeInsets.fromLTRB(8.0, 4.0, 8.0, showPlaces ? 6.0 : 12.0),
+            child: body.isNotEmpty
                 ? IgnorePointer(
-                    child: ScaledMarkdown(data: entry.text, scaleFactor: 0.95),
+                    child: ScaledMarkdown(data: body, scaleFactor: 0.95),
                   )
                 : Text(
                     AppLocalizations.of(context)!.writeSomethingHint,
                     style: TextStyle(color: theme.disabledColor, fontSize: 16),
                   ),
           ),
+          if (showPlaces)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8.0, 0, 8.0, 10.0),
+              child: TimelineLocationButton(
+                  places: places, enabled: locationsEnabled),
+            ),
         ],
       ),
     );
@@ -165,12 +187,20 @@ class LargeEntryCardWidget extends StatelessWidget {
     required this.attachments,
     this.hideImage = false,
     this.searchQuery,
+    this.showLocations = false,
+    this.locationsEnabled = true,
   });
 
   final Entry entry;
   final List<EntryAttachment> attachments;
   final String? title;
   final bool hideImage;
+
+  /// Shows the 📍 button under the text (the Timeline does).
+  final bool showLocations;
+
+  /// False while selecting, so tapping the 📍 button selects the card.
+  final bool locationsEnabled;
 
   /// Gallery search text: matches are highlighted and counted.
   final String? searchQuery;
@@ -179,7 +209,8 @@ class LargeEntryCardWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final time = TimeManager.formatDate(entry.timeCreate, context);
-    final matches = SearchHighlight.count(entry.text, searchQuery ?? '');
+    final (body, places) = EntryLocations.split(entry.text);
+    final matches = SearchHighlight.count(body, searchQuery ?? '');
     final card = LargeCard(
       media: attachments.isNotEmpty && !hideImage
           ? AttachmentGrid(attachments: attachments)
@@ -193,12 +224,15 @@ class LargeEntryCardWidget extends StatelessWidget {
           fontWeight: FontWeight.bold,
         ),
       ),
-      body: entry.text.isNotEmpty
-          ? LargeCard.markdownBody(entry.text, searchQuery: searchQuery)
+      body: body.isNotEmpty
+          ? LargeCard.markdownBody(body, searchQuery: searchQuery)
           : Text(
               AppLocalizations.of(context)!.writeSomethingHint,
               style: TextStyle(color: theme.disabledColor, fontSize: 16),
             ),
+      footer: showLocations && places.isNotEmpty && EntryLocations.showButtons
+          ? TimelineLocationButton(places: places, enabled: locationsEnabled)
+          : null,
     );
     if (matches == 0) return card;
     return Stack(children: [

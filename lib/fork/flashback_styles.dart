@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/fork/locations.dart';
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/flashback_manager.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
@@ -103,7 +104,7 @@ String _subtitleFor(BuildContext context, Flashback flashback) {
         .toSet()
         .join(', ');
   }
-  final firstLine = flashback.firstEntry.text
+  final firstLine = flashback.firstEntry.body
       .split('\n')
       .map((line) => line.replaceAll(RegExp(r'[#*_=~>`\[\]]'), '').trim())
       .firstWhere((line) => line.isNotEmpty, orElse: () => '');

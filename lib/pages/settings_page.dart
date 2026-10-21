@@ -3,6 +3,7 @@
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
 import 'dart:io';
+import 'package:daily_you/fork/places.dart';
 import 'package:daily_you/pages/settings/about_settings.dart';
 import 'package:daily_you/pages/settings/appearance_settings.dart';
 import 'package:daily_you/pages/settings/backup_restore_settings.dart';
@@ -109,6 +110,10 @@ class _SettingsPageState extends State<SettingsPage> {
               title: AppLocalizations.of(context)!.settingsTemplatesTitle,
               icon: Icons.description_rounded,
               page: TemplateSettings()),
+          SettingsCategory(
+              title: AppLocalizations.of(context)!.settingsLocations,
+              icon: Icons.place_rounded,
+              page: const SavedPlacesPage()),
           SettingsCategory(
               title: AppLocalizations.of(context)!.flashbacksTitle,
               icon: Icons.history_rounded,

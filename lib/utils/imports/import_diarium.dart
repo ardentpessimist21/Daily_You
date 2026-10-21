@@ -9,6 +9,8 @@ import 'package:daily_you/database/attachment_storage.dart';
 import 'package:daily_you/database/app_database.dart';
 import 'package:daily_you/database/entry_tag_dao.dart';
 import 'package:daily_you/database/tag_dao.dart';
+import 'package:daily_you/fork/locations.dart';
+import 'package:daily_you/fork/places.dart';
 import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/models/attachment.dart';
 import 'package:daily_you/models/tag.dart';
@@ -95,10 +97,14 @@ Future<OperationOutcome> importFromDiarium(
       if (heading.isNotEmpty) parts.add("# $heading");
       if (body.isNotEmpty) parts.add(body);
 
+      final place = diariumPlace(entry['Latitude'], entry['Longitude']);
+
       if (!EntriesProvider.instance.hasEntryAtTimestamp(timestamp)) {
         final addedEntry = await EntriesProvider.instance.add(
             Entry(
-              text: parts.join('\n\n'),
+              text: EntryLocations.join(parts.join('\n\n'), [
+                if (place != null) place,
+              ]),
               mood: mood,
               timeCreate: timestamp,
               timeModified: timestamp,
@@ -141,6 +147,26 @@ Future<OperationOutcome> importFromDiarium(
   }
 
   return outcome;
+}
+
+/// Diarium keeps one spot per entry, as coordinates only (no place name).
+/// 0, 0 means none.
+Place? diariumPlace(Object? latitude, Object? longitude) {
+  double? read(Object? value) => switch (value) {
+        num number => number.toDouble(),
+        String text => double.tryParse(text.trim()),
+        _ => null,
+      };
+  final lat = read(latitude);
+  final lng = read(longitude);
+  if (lat == null || lng == null || !lat.isFinite || !lng.isFinite) {
+    return null;
+  }
+  if (lat == 0 && lng == 0) return null;
+  if (lat.abs() > 90 || lng.abs() > 180) return null;
+  final latText = lat.toStringAsFixed(5);
+  final lngText = lng.toStringAsFixed(5);
+  return Place('$latText, $lngText', 'geo:$latText,$lngText');
 }
 
 const int _diariumLabelTagType = 0;

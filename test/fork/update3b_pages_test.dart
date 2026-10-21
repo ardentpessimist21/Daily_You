@@ -74,21 +74,20 @@ void main() {
 
   testWidgets('a place shared back from Maps goes into the waiting editor',
       (tester) async {
-    final controller = TextEditingController(text: 'Lunch at ');
-    controller.selection = const TextSelection.collapsed(offset: 9);
+    final added = <Place>[];
     late BuildContext editorContext;
     await tester.pumpWidget(_app(Builder(builder: (context) {
       editorContext = context;
       return const SizedBox();
     })));
     // Maps can't open in a test; what matters is that the editor waits.
-    Places.waitForMapsPlace(editorContext, controller);
+    Places.waitForMapsPlace(editorContext, added.add);
     expect(Places.deliverShared('Just some text'), isFalse);
     expect(
         Places.deliverShared('Jollibee Taipei\nhttps://maps.app.goo.gl/x7Kq'),
         isTrue);
-    expect(controller.text,
-        'Lunch at [📍 Jollibee Taipei](https://maps.app.goo.gl/x7Kq)');
+    expect(added,
+        [const Place('Jollibee Taipei', 'https://maps.app.goo.gl/x7Kq')]);
     // Only once
     expect(Places.deliverShared('https://maps.app.goo.gl/x7Kq'), isFalse);
   });

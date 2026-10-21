@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/fork/locations.dart';
 import 'dart:math' as math;
 
 import 'package:daily_you/models/entry.dart';
@@ -21,7 +22,7 @@ const List<String> _weekdayKeys = [
 int totalWordCount(List<Entry> entries) {
   var total = 0;
   for (final entry in entries) {
-    total += wordsCount(entry.text);
+    total += wordsCount(entry.body);
   }
   return total;
 }

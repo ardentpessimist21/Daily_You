@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/fork/locations.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/fork/search_highlight.dart';
 import 'package:daily_you/models/attachment.dart';
@@ -34,7 +35,8 @@ class EntryCardWidget extends StatelessWidget {
     final theme = Theme.of(context);
     final time = TimeManager.formatDate(entry.timeCreate, context);
     final query = searchQuery ?? '';
-    final matches = SearchHighlight.count(entry.text, query);
+    final body = entry.body;
+    final matches = SearchHighlight.count(body, query);
     return Card.filled(
       color: Theme.of(context).colorScheme.surfaceContainer,
       clipBehavior: Clip.antiAlias,
@@ -57,7 +59,7 @@ class EntryCardWidget extends StatelessWidget {
                             child: SearchMatchBadge(count: matches),
                           ),
                         ]))
-                  : (entry.text.isNotEmpty)
+                  : (body.isNotEmpty)
                       ? ShaderMask(
                           shaderCallback: (Rect bounds) {
                             return const LinearGradient(
@@ -75,8 +77,7 @@ class EntryCardWidget extends StatelessWidget {
                                   child: SizedBox(
                                 width: double.maxFinite,
                                 child: ScaledMarkdown(
-                                  data: SearchHighlight.preview(
-                                      entry.text, query,
+                                  data: SearchHighlight.preview(body, query,
                                       visibleChars: 90),
                                   maxCharacters: 250,
                                   scaleFactor: 0.95,

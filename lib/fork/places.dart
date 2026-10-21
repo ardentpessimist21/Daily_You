@@ -8,34 +8,53 @@ import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/fork/links.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/utils/text_editing.dart';
+import 'package:daily_you/widgets/settings_toggle.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// A place you go often, e.g. Home or Work. [address] is an optional map
-/// link; without one the place is inserted as plain text.
-class SavedPlace {
-  const SavedPlace(this.name, [this.address = '']);
+/// A place: one of an entry's places, or a saved place you go often, e.g.
+/// Home or Work. [address] is an optional map link; without one the place
+/// is just its name.
+class Place {
+  const Place(this.name, [this.address = '']);
 
   final String name;
   final String address;
 
   Map<String, String> toJson() => {'name': name, 'address': address};
 
-  static SavedPlace? fromJson(Object? json) {
+  @override
+  bool operator ==(Object other) =>
+      other is Place && other.name == name && other.address == address;
+
+  @override
+  int get hashCode => Object.hash(name, address);
+
+  @override
+  String toString() => 'Place($name, $address)';
+
+  static Place? fromJson(Object? json) {
     if (json is! Map) return null;
     final name = json['name'];
     if (name is! String || name.trim().isEmpty) return null;
     final address = json['address'];
-    return SavedPlace(name.trim(), address is String ? address.trim() : '');
+    return Place(name.trim(), address is String ? address.trim() : '');
   }
 }
 
-/// 📍 places in entries, without location permission or internet: typed,
-/// pasted or shared from Google Maps, or saved places.
-/// Stored as ordinary text links, e.g. `[📍 Work](geo:-27.47,153.02)`.
+/// Saved places are ordinary places.
+typedef SavedPlace = Place;
+
+/// 📍 places, without location permission or internet: typed, pasted or
+/// shared from Google Maps, or saved places. An entry keeps them on a
+/// hidden last line (see EntryLocations).
 class Places {
   static const String pin = '📍';
+
+  /// Set by the open entry editor: where a picked place goes. Without one
+  /// (e.g. in a template) the place is written into the text as a link.
+  static void Function(Place place)? addToEditor;
 
   static final RegExp _mapsLink = RegExp(
     r'https?://(?:maps\.app\.goo\.gl|goo\.gl/maps|g\.co/kgs|(?:www\.)?google\.[a-z.]+/maps|maps\.google\.[a-z.]+)\S*',
@@ -52,8 +71,15 @@ class Places {
   }
 
   /// A typed place: tapping it searches the name in your map app.
-  static String typed(String name) =>
-      named(name, 'geo:0,0?q=${Uri.encodeQueryComponent(name.trim())}');
+  static String typed(String name) => markdownFor(typedPlace(name));
+
+  static Place typedPlace(String name) =>
+      Place(name.trim(), 'geo:0,0?q=${Uri.encodeQueryComponent(name.trim())}');
+
+  /// A place written into text: `[📍 name](address)`, or `📍 name`.
+  static String markdownFor(Place place) => place.address.isEmpty
+      ? '$pin ${place.name}'
+      : named(place.name, place.address);
 
   /// A spot on the map, shown as its coordinates.
   static String coordinates(double latitude, double longitude) {
@@ -62,9 +88,19 @@ class Places {
     return named('$lat, $lng', 'geo:$lat,$lng');
   }
 
-  static String saved(SavedPlace place) => place.address.isEmpty
-      ? '$pin ${place.name}'
-      : named(place.name, place.address);
+  static String saved(Place place) => markdownFor(place);
+
+  /// A place read from shared or copied map text.
+  static Place? placeFromShared(String text) {
+    final shared = fromShared(text);
+    if (shared == null) return null;
+    final (name, address, _) = shared;
+    if (name.isNotEmpty) return Place(name, address);
+    if (address.toLowerCase().startsWith('geo:')) {
+      return Place(_geoLabel(address), address);
+    }
+    return Place('Google Maps', address);
+  }
 
   /// Reads a place shared or copied from a map app: "Name\nhttps://maps…",
   /// a bare map link, or a geo: address. Returns (name, address, markdown).
@@ -129,18 +165,18 @@ class Places {
 
   // Saved places
 
-  static List<SavedPlace> savedPlaces() {
+  static List<Place> savedPlaces() {
     try {
       final decoded =
           jsonDecode(ConfigProvider.instance.get(Settings.savedPlaces));
       if (decoded is! List) return [];
-      return decoded.map(SavedPlace.fromJson).nonNulls.toList();
+      return decoded.map(Place.fromJson).nonNulls.toList();
     } catch (_) {
       return [];
     }
   }
 
-  static Future<void> saveSavedPlaces(List<SavedPlace> places) =>
+  static Future<void> saveSavedPlaces(List<Place> places) =>
       ConfigProvider.instance.set(Settings.savedPlaces,
           jsonEncode(places.map((place) => place.toJson()).toList()));
 
@@ -149,10 +185,10 @@ class Places {
   static _PendingPlace? _pending;
 
   /// Opens the map app. A place shared back to Daily You within 15 minutes
-  /// goes into [controller] while its editor is still open.
+  /// goes to [add] while its editor is still open.
   static Future<bool> findInMaps(
-      BuildContext context, TextEditingController controller) async {
-    waitForMapsPlace(context, controller);
+      BuildContext context, void Function(Place place) add) async {
+    waitForMapsPlace(context, add);
     try {
       return await launchUrl(Uri.parse('https://www.google.com/maps'),
           mode: LaunchMode.externalApplication);
@@ -162,23 +198,23 @@ class Places {
     }
   }
 
-  /// Marks [controller]'s editor as waiting for a place from Maps.
+  /// Marks an editor as waiting for a place from Maps.
   static void waitForMapsPlace(
-          BuildContext context, TextEditingController controller) =>
-      _pending = _PendingPlace(context, controller, DateTime.now());
+          BuildContext context, void Function(Place place) add) =>
+      _pending = _PendingPlace(context, add, DateTime.now());
 
   /// Called when text is shared into the app. True when it was a place for
   /// an editor waiting on Maps, and has been added there.
   static bool deliverShared(String? text) {
     final pending = _pending;
     if (pending == null || text == null) return false;
-    final place = fromShared(text);
+    final place = placeFromShared(text);
     if (place == null) return false;
     _pending = null;
     final fresh =
         DateTime.now().difference(pending.since) < const Duration(minutes: 15);
     if (!fresh || !pending.context.mounted) return false;
-    insertAtCursor(pending.controller, place.$3);
+    pending.add(place);
     return true;
   }
 
@@ -189,15 +225,24 @@ class Places {
     final copied =
         (await Clipboard.getData(Clipboard.kTextPlain))?.text?.trim() ?? '';
     if (!context.mounted) return;
-    final place = await showModalBottomSheet<String>(
+    void add(Place place) {
+      final sink = addToEditor;
+      if (sink != null) {
+        sink(place);
+      } else {
+        insertAtCursor(controller, markdownFor(place));
+      }
+    }
+
+    final place = await showModalBottomSheet<Place>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (sheetContext) => _PlaceSheet(
-        copiedPlace: fromShared(copied),
+        copiedPlace: placeFromShared(copied),
         onFindInMaps: () async {
           Navigator.pop(sheetContext);
-          final opened = await findInMaps(context, controller);
+          final opened = await findInMaps(context, add);
           if (!opened && context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content: Text(AppLocalizations.of(context)!.linkCannotOpen),
@@ -207,22 +252,22 @@ class Places {
         },
       ),
     );
-    if (place != null) insertAtCursor(controller, place);
+    if (place != null) add(place);
   }
 }
 
 class _PendingPlace {
-  _PendingPlace(this.context, this.controller, this.since);
+  _PendingPlace(this.context, this.add, this.since);
 
   final BuildContext context;
-  final TextEditingController controller;
+  final void Function(Place place) add;
   final DateTime since;
 }
 
 class _PlaceSheet extends StatefulWidget {
   const _PlaceSheet({required this.copiedPlace, required this.onFindInMaps});
 
-  final (String, String, String)? copiedPlace;
+  final Place? copiedPlace;
   final VoidCallback onFindInMaps;
 
   @override
@@ -241,7 +286,7 @@ class _PlaceSheetState extends State<_PlaceSheet> {
   void _addTyped() {
     final name = _typed.text.trim();
     if (name.isEmpty) return;
-    Navigator.pop(context, Places.typed(name));
+    Navigator.pop(context, Places.typedPlace(name));
   }
 
   @override
@@ -285,11 +330,9 @@ class _PlaceSheetState extends State<_PlaceSheet> {
                   leading: Icon(Icons.content_paste_rounded,
                       color: colorScheme.primary),
                   title: Text(l10n.placePasteCopied),
-                  subtitle: Text(
-                      '${Places.pin} ${copied.$1.isEmpty ? 'Google Maps' : copied.$1}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis),
-                  onTap: () => Navigator.pop(context, copied.$3),
+                  subtitle: Text('${Places.pin} ${copied.name}',
+                      maxLines: 1, overflow: TextOverflow.ellipsis),
+                  onTap: () => Navigator.pop(context, copied),
                 ),
               ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 4),
@@ -314,7 +357,7 @@ class _PlaceSheetState extends State<_PlaceSheet> {
                   title: Text(place.name),
                   subtitle:
                       place.address.isEmpty ? null : Text(l10n.placeHasMapSpot),
-                  onTap: () => Navigator.pop(context, Places.saved(place)),
+                  onTap: () => Navigator.pop(context, place),
                 ),
               ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 4),
@@ -335,7 +378,8 @@ class _PlaceSheetState extends State<_PlaceSheet> {
   }
 }
 
-/// Settings screen for your saved places.
+/// Settings → Locations: saved places, and whether entries show their
+/// location buttons.
 class SavedPlacesPage extends StatefulWidget {
   const SavedPlacesPage({super.key});
 
@@ -344,14 +388,14 @@ class SavedPlacesPage extends StatefulWidget {
 }
 
 class _SavedPlacesPageState extends State<SavedPlacesPage> {
-  late List<SavedPlace> _places = Places.savedPlaces();
+  late List<Place> _places = Places.savedPlaces();
 
   Future<void> _edit([int? index]) async {
     final l10n = AppLocalizations.of(context)!;
     final existing = index == null ? null : _places[index];
     final name = TextEditingController(text: existing?.name ?? '');
     final address = TextEditingController(text: existing?.address ?? '');
-    final result = await showDialog<SavedPlace>(
+    final result = await showDialog<Place>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
@@ -411,7 +455,7 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
                   ? null
                   : () => Navigator.pop(
                       context,
-                      SavedPlace(
+                      Place(
                           name.text.trim(),
                           Places.fromShared(address.text)?.$2 ??
                               address.text.trim())),
@@ -443,49 +487,69 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.placeSaved)),
+      appBar: AppBar(title: Text(l10n.settingsLocations)),
       floatingActionButton: FloatingActionButton(
         tooltip: l10n.placeNewSaved,
         onPressed: () => _edit(),
         child: const Icon(Icons.add_rounded),
       ),
-      body: _places.isEmpty
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Text(l10n.placeSavedEmpty, textAlign: TextAlign.center),
-              ),
-            )
-          : ReorderableListView.builder(
-              itemCount: _places.length,
-              onReorderItem: (from, to) async {
-                setState(() {
-                  _places = [..._places];
-                  final place = _places.removeAt(from);
-                  _places.insert(to, place);
-                });
-                await Places.saveSavedPlaces(_places);
-              },
-              itemBuilder: (context, index) {
-                final place = _places[index];
-                return ListTile(
-                  key: ValueKey('$index-${place.name}'),
-                  leading: const Icon(Icons.place_rounded),
-                  title: Text(place.name),
-                  subtitle: Text(place.address.isEmpty
-                      ? l10n.placeNoMapSpot
-                      : l10n.placeHasMapSpot),
-                  onTap: () => _edit(index),
-                  trailing: IconButton(
-                    tooltip:
-                        MaterialLocalizations.of(context).deleteButtonTooltip,
-                    icon: const Icon(Icons.delete_outline_rounded),
-                    onPressed: () => _delete(index),
-                  ),
-                );
-              },
+      body: ReorderableListView.builder(
+        padding: const EdgeInsets.only(bottom: 88),
+        header: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SettingsToggle(
+              title: l10n.settingsShowLocationButtons,
+              hint: l10n.settingsShowLocationButtonsHint,
+              setting: Settings.showLocationButtons,
+              onChanged: (value) => ConfigProvider.instance
+                  .set(Settings.showLocationButtons, value),
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+              child: Text(l10n.placeSaved,
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelLarge
+                      ?.copyWith(color: colorScheme.primary)),
+            ),
+            if (_places.isEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: Text(l10n.placeSavedEmpty,
+                    style: TextStyle(color: colorScheme.onSurfaceVariant)),
+              ),
+          ],
+        ),
+        itemCount: _places.length,
+        onReorderItem: (from, to) async {
+          setState(() {
+            _places = [..._places];
+            final place = _places.removeAt(from);
+            _places.insert(to, place);
+          });
+          await Places.saveSavedPlaces(_places);
+        },
+        itemBuilder: (context, index) {
+          final place = _places[index];
+          return ListTile(
+            key: ValueKey('$index-${place.name}'),
+            leading: const Icon(Icons.place_rounded),
+            title: Text(place.name),
+            subtitle: Text(place.address.isEmpty
+                ? l10n.placeNoMapSpot
+                : l10n.placeHasMapSpot),
+            onTap: () => _edit(index),
+            trailing: IconButton(
+              tooltip: MaterialLocalizations.of(context).deleteButtonTooltip,
+              icon: const Icon(Icons.delete_outline_rounded),
+              onPressed: () => _delete(index),
+            ),
+          );
+        },
+      ),
     );
   }
 }

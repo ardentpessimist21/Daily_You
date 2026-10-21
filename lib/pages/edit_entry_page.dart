@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:daily_you/fork/editor_buttons.dart';
+import 'package:daily_you/fork/locations.dart';
 import 'package:daily_you/fork/places.dart';
 import 'package:daily_you/fork/future_entries.dart';
 import 'package:daily_you/fork/writing_prompts.dart';
@@ -40,6 +41,7 @@ import 'package:daily_you/widgets/editor_action_bar/toolbar_menu_action.dart';
 import 'package:daily_you/widgets/entry_attachment_editable_list.dart';
 import 'package:daily_you/widgets/icons/svg_icon.dart';
 import 'package:easy_debounce/easy_debounce.dart';
+import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
@@ -66,9 +68,12 @@ class AddEditEntryPage extends StatefulWidget {
 
   static String mergeSharedText(String baseText, String? sharedText) {
     if (sharedText == null) return baseText;
-    // A place shared from Google Maps becomes a tidy 📍 link
-    final shared = Places.tidyShared(sharedText);
-    return baseText.isEmpty ? shared : '$baseText\n\n$shared';
+    // A place shared from Google Maps becomes one of the entry's places
+    final place = Places.placeFromShared(sharedText);
+    if (place != null) return EntryLocations.add(baseText, place);
+    final (body, places) = EntryLocations.split(baseText);
+    return EntryLocations.join(
+        body.isEmpty ? sharedText : '$body\n\n$sharedText', places);
   }
 
   @override
@@ -81,7 +86,14 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
 
   late Entry _entry;
   int id = -1;
+
+  /// The whole entry text as saved: what's in the editor, plus the hidden
+  /// location line.
   String text = "";
+
+  /// What the editor shows: [text] without the location line.
+  String _bodyText = "";
+  List<Place> _places = [];
   int? mood;
   DateTime? entryDate;
   late List<EntryAttachment> _currentAttachments;
@@ -157,8 +169,12 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
     entryDate = _entry.timeCreate;
     EditorButtons.editingEntryId = _entry.id;
     text = _entry.text;
+    final (body, places) = EntryLocations.split(_entry.text);
+    _bodyText = body;
+    _places = [...places];
+    Places.addToEditor = _addPlace;
     _textEditingController.addListener(() {
-      text = _textEditingController.text;
+      _syncText();
       _scheduleSave();
     });
     setState(() {
@@ -195,6 +211,7 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
     if (EditorButtons.editingEntryId == _entry.id) {
       EditorButtons.editingEntryId = null;
     }
+    if (Places.addToEditor == _addPlace) Places.addToEditor = null;
     WidgetsBinding.instance.removeObserver(this);
     _scrollController.dispose();
     _focusNode.dispose();
@@ -388,6 +405,11 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
             width: double.infinity,
             child: _buildDateTimeButtons(context, theme),
           ),
+          if (_places.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+              child: LocationRows(places: _places, onRemove: _removePlace),
+            ),
           Padding(
             padding: const EdgeInsets.only(top: 4.0, bottom: 4.0),
             child: EntryMoodPicker(
@@ -565,7 +587,7 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
                 Expanded(
                   child: StatefulBuilder(
                     builder: (context, setState) => EntryTextEditor(
-                      text: text,
+                      text: _bodyText,
                       focusNode: _focusNode,
                       textEditingController: _textEditingController,
                       undoHistoryController: _undoController,
@@ -621,6 +643,29 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
       minute: pickedTime.minute,
     );
     await _saveEntry();
+  }
+
+  /// Rebuilds [text] from the editor and the places. Unchanged parts keep
+  /// the saved text exactly, so opening an entry never counts as an edit.
+  void _syncText() {
+    final body = _textEditingController.text;
+    final (savedBody, savedPlaces) = EntryLocations.split(_entry.text);
+    text = body == savedBody && listEquals(_places, savedPlaces)
+        ? _entry.text
+        : EntryLocations.join(body, _places);
+  }
+
+  void _addPlace(Place place) {
+    if (!mounted) return;
+    setState(() => _places = [..._places, place]);
+    _syncText();
+    _scheduleSave();
+  }
+
+  void _removePlace(int index) {
+    setState(() => _places = [..._places]..removeAt(index));
+    _syncText();
+    _scheduleSave();
   }
 
   void _scheduleSave() {

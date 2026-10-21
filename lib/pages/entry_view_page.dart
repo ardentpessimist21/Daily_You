@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/fork/locations.dart';
 import 'dart:io';
 
 import 'package:daily_you/fork/checklists.dart';
@@ -97,7 +98,8 @@ class _EntryViewPageState extends State<EntryViewPage> {
     if (entry == null) return const Scaffold();
 
     final attachments = entryAttachmentsProvider.getForEntry(entry);
-    final matchTotal = SearchHighlight.count(entry.text, _query);
+    final (body, places) = EntryLocations.split(entry.text);
+    final matchTotal = SearchHighlight.count(body, _query);
     return Scaffold(
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       floatingActionButton: _matchNavigator(matchTotal),
@@ -202,14 +204,14 @@ class _EntryViewPageState extends State<EntryViewPage> {
                         ),
                       ),
                     ),
-                    if (entry.text.isNotEmpty)
+                    if (body.isNotEmpty)
                       Card.filled(
                           color: Theme.of(context).colorScheme.surfaceContainer,
                           child: Padding(
                               padding: const EdgeInsets.only(
                                   left: 8, top: 4, bottom: 4, right: 8),
                               child: ScaledMarkdown(
-                                data: entry.text,
+                                data: body,
                                 selectable: false,
                                 onCheckboxTap: (index) =>
                                     Checklists.toggleInEntry(entry, index),
@@ -217,6 +219,7 @@ class _EntryViewPageState extends State<EntryViewPage> {
                                 currentMatch: _currentMatch,
                                 matchKeys: _matchKeys,
                               ))),
+                    LocationButtons(places: places),
                     Padding(
                       padding: const EdgeInsets.only(
                           left: 8, top: 4, bottom: 18, right: 8),
@@ -341,8 +344,14 @@ class _EntryViewPageState extends State<EntryViewPage> {
     }
     // Links to other entries only work inside Daily You, so they're shared
     // as their words.
-    final text = entry.text.replaceAllMapped(
+    final (body, places) = EntryLocations.split(entry.text);
+    var text = body.replaceAllMapped(
         RegExp(r'\[([^\]\n]*)\]\(entry:\d+\)'), (match) => match[1]!);
+    // Places are shared as words with a Maps link.
+    if (places.isNotEmpty) {
+      final line = EntryLocations.shareLine(places);
+      text = text.isEmpty ? line : '$text\n\n$line';
+    }
     sharedText =
         "$sharedText${TimeManager.formatDateWithWeekday(entry.timeCreate, context)}\n$text";
 

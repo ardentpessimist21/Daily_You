@@ -2571,8 +2571,38 @@ abstract class AppLocalizations {
   /// No description provided for @placeNoMapSpot.
   ///
   /// In en, this message translates to:
-  /// **'Text only'**
+  /// **'Searches its name in Maps'**
   String get placeNoMapSpot;
+
+  /// No description provided for @settingsLocations.
+  ///
+  /// In en, this message translates to:
+  /// **'Locations'**
+  String get settingsLocations;
+
+  /// No description provided for @settingsShowLocationButtons.
+  ///
+  /// In en, this message translates to:
+  /// **'Show location buttons'**
+  String get settingsShowLocationButtons;
+
+  /// No description provided for @settingsShowLocationButtonsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'In the entry view and the Timeline. Tap one to open it in Maps.'**
+  String get settingsShowLocationButtonsHint;
+
+  /// No description provided for @locationRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove location'**
+  String get locationRemove;
+
+  /// No description provided for @locationOpenInMaps.
+  ///
+  /// In en, this message translates to:
+  /// **'{place}, open in Maps'**
+  String locationOpenInMaps(String place);
 }
 
 class _AppLocalizationsDelegate

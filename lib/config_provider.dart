@@ -119,6 +119,7 @@ class Settings {
   static const writingPrompts = Setting<bool>("writingPrompts", true);
   static const allowFutureEntries = Setting<bool>("allowFutureEntries", false);
   static const savedPlaces = Setting<String>("savedPlaces", "[]");
+  static const showLocationButtons = Setting<bool>("showLocationButtons", true);
   static const timelineOldestFirst =
       Setting<bool>("timelineOldestFirst", false);
   static const lastDismissedSupportBannerDate =
@@ -222,6 +223,7 @@ class Settings {
     writingPrompts,
     allowFutureEntries,
     savedPlaces,
+    showLocationButtons,
     lastDismissedSupportBannerDate,
     calendarShowMood,
     calendarTagOverlay,
