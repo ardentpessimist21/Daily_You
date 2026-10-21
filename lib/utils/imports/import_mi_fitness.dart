@@ -36,12 +36,11 @@ Future<OperationOutcome> importFromMiFitness(
     if (bytes == null) return const OperationOutcome.failed();
 
     final workout = parseGpxWorkout(utf8.decode(bytes, allowMalformed: true));
-    final startedAt = workout.start.toLocal();
 
     await addImportedEntries([
       ImportedEntry(Entry(
         text: workoutEntryText(workout),
-        timeCreate: startedAt,
+        timeCreate: workout.start,
         timeModified: DateTime.now(),
       )),
     ], updateStatus);

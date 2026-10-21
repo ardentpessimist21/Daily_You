@@ -24,7 +24,11 @@ import 'package:share_receiver/share_receiver.dart';
 class SharePage extends StatefulWidget {
   final SharePayload payload;
 
-  const SharePage({super.key, required this.payload});
+  /// When what was shared happened, such as a workout's start. A new entry
+  /// on that day is created at this time rather than the current time.
+  final DateTime? suggestedTime;
+
+  const SharePage({super.key, required this.payload, this.suggestedTime});
 
   @override
   State<SharePage> createState() => _SharePageState();
@@ -110,8 +114,7 @@ class _SharePageState extends State<SharePage> {
 
     final page = entry == null
         ? AddEditEntryPage(
-            overrideCreateDate: TimeManager.currentTimeOnDifferentDate(day)
-                .copyWith(isUtc: false),
+            overrideCreateDate: _newEntryTime(day),
             attachments: EntryAttachment.appendRanked(const [], newAttachments,
                 entryId: -1),
             sharedText: widget.payload.text,
@@ -128,6 +131,14 @@ class _SharePageState extends State<SharePage> {
       allowSnapshotting: false,
       builder: (context) => page,
     ));
+  }
+
+  DateTime _newEntryTime(DateTime day) {
+    final suggested = widget.suggestedTime;
+    if (suggested != null && TimeManager.isSameDay(suggested, day)) {
+      return suggested;
+    }
+    return TimeManager.currentTimeOnDifferentDate(day).copyWith(isUtc: false);
   }
 
   Widget _previewTile(String path) {

@@ -15,6 +15,7 @@ import 'package:daily_you/notification_manager.dart';
 import 'package:daily_you/providers/entries_provider.dart';
 import 'package:daily_you/providers/entry_attachments_provider.dart';
 import 'package:daily_you/pages/share_page.dart';
+import 'package:daily_you/utils/imports/workout_share.dart';
 import 'package:share_receiver/share_receiver.dart';
 import 'package:daily_you/time_manager.dart';
 import 'package:daily_you/widgets/expressive_fab_menu.dart';
@@ -132,11 +133,25 @@ class _HomePageState extends State<HomePage>
   }
 
   Future<void> _handleShare(SharePayload payload) async {
+    final resolved = await resolveWorkoutShare(payload);
     if (!mounted) return;
+    if (resolved.isEmpty) {
+      // Nothing usable arrived, e.g. a GPX file that could not be read.
+      resolved.payload.deleteMedia();
+      if (resolved.failedGpx > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content:
+                Text(AppLocalizations.of(context)!.importErrorDescription)));
+      }
+      return;
+    }
     Navigator.of(context).popUntil((route) => route.isFirst);
     await Navigator.of(context).push(MaterialPageRoute(
       allowSnapshotting: false,
-      builder: (context) => SharePage(payload: payload),
+      builder: (context) => SharePage(
+        payload: resolved.payload,
+        suggestedTime: resolved.workoutStart,
+      ),
     ));
   }
 

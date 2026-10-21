@@ -10,15 +10,11 @@ import 'package:xml/xml.dart';
 /// GPS fixes closer together than this are treated as jitter, not movement.
 const double _minHopMeters = 10;
 
-/// A hop slower than this (10 m in more than a minute) counts as standing.
-const Duration _maxMovingHop = Duration(seconds: 60);
-
 class GpxTrackPoint {
-  const GpxTrackPoint(this.lat, this.lon, this.time);
+  const GpxTrackPoint(this.lat, this.lon);
 
   final double lat;
   final double lon;
-  final DateTime time;
 }
 
 /// A single workout read from a GPX export (such as Mi Fitness).
@@ -28,34 +24,23 @@ class GpxWorkout {
     required this.start,
     required this.end,
     required this.distanceMeters,
-    required this.movingTime,
-    required this.kmSplits,
-    required this.pointCount,
+    this.source,
   });
 
   /// Human readable activity, e.g. "Walking" or "Outdoor Running".
   final String activity;
 
-  /// Start and end of the recording, in UTC.
+  /// Start and end of the recording as local wall-clock times.
   final DateTime start;
   final DateTime end;
 
-  /// The distance the app recorded, or one computed from the track.
+  /// The distance the app recorded, or one measured from the track.
   final double distanceMeters;
-  final Duration movingTime;
 
-  /// Time taken for each completed kilometre, in order.
-  final List<Duration> kmSplits;
-  final int pointCount;
+  /// The app that exported the file, when the file says so.
+  final String? source;
 
-  Duration get elapsed => end.difference(start);
-
-  /// Average time per kilometre over the whole recording.
-  Duration? get averagePace => distanceMeters < 1
-      ? null
-      : Duration(
-          milliseconds:
-              (elapsed.inMilliseconds / (distanceMeters / 1000)).round());
+  Duration get duration => end.difference(start);
 }
 
 double haversineMeters(GpxTrackPoint a, GpxTrackPoint b) {
@@ -80,56 +65,60 @@ String activityFromName(String? name) {
       .replaceAll('_', ' ');
 }
 
+/// Mi Fitness writes the watch's local time but labels it as UTC ("Z"), so
+/// its times are read as they are written. Other GPX files use real UTC.
+DateTime _wallClock(DateTime parsed, {required bool labelledLocalAsUtc}) {
+  if (!labelledLocalAsUtc) return parsed.toLocal();
+  return DateTime(parsed.year, parsed.month, parsed.day, parsed.hour,
+      parsed.minute, parsed.second, parsed.millisecond);
+}
+
 GpxWorkout parseGpxWorkout(String gpxText) {
   final document = XmlDocument.parse(gpxText);
 
+  final description =
+      document.findAllElements('desc').firstOrNull?.innerText ?? '';
+  final isMiFitness = description.contains('Mi Fitness');
+
   final points = <GpxTrackPoint>[];
+  DateTime? first;
+  DateTime? last;
   for (final element in document.findAllElements('trkpt')) {
     final lat = double.tryParse(element.getAttribute('lat') ?? '');
     final lon = double.tryParse(element.getAttribute('lon') ?? '');
     final timeText = element.getElement('time')?.innerText;
     final time = timeText == null ? null : DateTime.tryParse(timeText.trim());
     if (lat == null || lon == null || time == null) continue;
-    points.add(GpxTrackPoint(lat, lon, time.toUtc()));
+    points.add(GpxTrackPoint(lat, lon));
+    if (first == null || time.isBefore(first)) first = time;
+    if (last == null || time.isAfter(last)) last = time;
   }
-  if (points.length < 2) {
+  if (points.length < 2 || first == null || last == null) {
     throw const FormatException('The GPX file has no recorded track.');
   }
-  points.sort((a, b) => a.time.compareTo(b.time));
 
-  // Walk the track hop by hop, ignoring jitter smaller than _minHopMeters.
+  // Measure hop by hop, ignoring jitter smaller than _minHopMeters.
   var anchor = points.first;
-  var computedMeters = 0.0;
-  var moving = Duration.zero;
-  final splits = <Duration>[];
-  var lastSplitTime = points.first.time;
+  var measuredMeters = 0.0;
   for (final point in points.skip(1)) {
     final hop = haversineMeters(anchor, point);
     if (hop < _minHopMeters) continue;
-    final hopTime = point.time.difference(anchor.time);
-    if (hopTime <= _maxMovingHop) moving += hopTime;
-    computedMeters += hop;
+    measuredMeters += hop;
     anchor = point;
-    while (computedMeters >= (splits.length + 1) * 1000) {
-      splits.add(point.time.difference(lastSplitTime));
-      lastSplitTime = point.time;
-    }
   }
 
-  final metadataName = document.findAllElements('name').firstOrNull?.innerText;
   final reported = double.tryParse(
       document.findAllElements('totalDistance').firstOrNull?.innerText.trim() ??
           '');
 
   return GpxWorkout(
-    activity: activityFromName(metadataName),
-    start: points.first.time,
-    end: points.last.time,
+    activity: activityFromName(
+        document.findAllElements('name').firstOrNull?.innerText),
+    start: _wallClock(first, labelledLocalAsUtc: isMiFitness),
+    end: _wallClock(last, labelledLocalAsUtc: isMiFitness),
     distanceMeters:
-        reported != null && reported > 0 ? reported : computedMeters,
-    movingTime: moving,
-    kmSplits: splits,
-    pointCount: points.length,
+        reported != null && reported > 0 ? reported : measuredMeters,
+    source: isMiFitness ? 'Mi Fitness' : null,
   );
 }
 
@@ -143,59 +132,36 @@ String _emojiFor(String activity) {
   return '🏅';
 }
 
-/// "1 h 45 min" or "42 min".
+/// "1 h 45 min" or "42 min", rounded to the nearest minute.
 String formatLongDuration(Duration duration) {
-  final hours = duration.inHours;
-  final minutes = duration.inMinutes % 60;
+  final totalMinutes = (duration.inSeconds / 60).round();
+  final hours = totalMinutes ~/ 60;
+  final minutes = totalMinutes % 60;
   return hours > 0 ? '$hours h $minutes min' : '$minutes min';
 }
 
-/// "10:07".
-String formatPace(Duration pace) {
-  final minutes = pace.inMinutes;
-  final seconds = (pace.inSeconds % 60).toString().padLeft(2, '0');
-  return '$minutes:$seconds';
-}
-
 /// The Markdown text of the journal entry for [workout].
-///
-/// Times are shown in the device's zone unless [toDisplayTime] says otherwise.
 String workoutEntryText(GpxWorkout workout,
-    {DateFormat? timeFormat,
-    DateTime Function(DateTime utc)? toDisplayTime,
-    String source = 'Mi Fitness'}) {
-  final format = timeFormat ?? DateFormat.jm();
-  final local = toDisplayTime ?? (DateTime utc) => utc.toLocal();
+    {DateFormat? dateFormat, DateFormat? timeFormat}) {
+  final date = dateFormat ?? DateFormat.yMMMMEEEEd();
+  final time = timeFormat ?? DateFormat.jm();
   final km = (workout.distanceMeters / 1000).toStringAsFixed(2);
 
   final buffer = StringBuffer()
     ..writeln('## ${_emojiFor(workout.activity)} ${workout.activity}')
-    ..writeln();
-
-  final headline =
-      StringBuffer('**$km km** in ${formatLongDuration(workout.elapsed)}');
-  final pace = workout.averagePace;
-  if (pace != null) headline.write(' · ${formatPace(pace)} /km');
-  buffer
-    ..writeln(headline)
     ..writeln()
-    ..writeln('- Started ${format.format(local(workout.start))}, '
-        'finished ${format.format(local(workout.end))}')
-    ..writeln('- Moving time ${formatLongDuration(workout.movingTime)}');
+    ..writeln('- **Date:** ${date.format(workout.start)}')
+    ..writeln('- **Distance:** $km km')
+    ..writeln('- **Duration:** ${formatLongDuration(workout.duration)}')
+    ..writeln('- **Start:** ${time.format(workout.start)}')
+    ..write('- **End:** ${time.format(workout.end)}');
 
-  if (workout.kmSplits.isNotEmpty) {
-    var fastest = 0;
-    for (var i = 1; i < workout.kmSplits.length; i++) {
-      if (workout.kmSplits[i] < workout.kmSplits[fastest]) fastest = i;
-    }
+  final source = workout.source;
+  if (source != null) {
     buffer
-      ..writeln('- Fastest km: ${formatPace(workout.kmSplits[fastest])} '
-          '(km ${fastest + 1})')
-      ..writeln('- Splits: ${workout.kmSplits.map(formatPace).join(' · ')}');
+      ..writeln()
+      ..writeln()
+      ..write('_Imported from ${source}_');
   }
-
-  buffer
-    ..writeln()
-    ..write('_Imported from ${source}_');
   return buffer.toString();
 }

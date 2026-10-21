@@ -9,6 +9,17 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('SharePayload.fromMap', () {
+    test('keeps a share that only carries GPX files', () {
+      final payload = SharePayload.fromMap({
+        'text': null,
+        'imagePaths': <Object?>[],
+        'gpxPaths': <Object?>['/cache/walk.gpx'],
+      });
+
+      expect(payload?.gpxPaths, ['/cache/walk.gpx']);
+      expect(payload?.hasMedia, isFalse);
+    });
+
     test('returns null when nothing is pending', () {
       expect(SharePayload.fromMap(null), isNull);
     });

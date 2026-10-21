@@ -6,45 +6,7 @@ import 'package:daily_you/utils/imports/mi_fitness_gpx.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 
-/// Metres per degree of latitude used to lay out the synthetic track.
-const double _metresPerDegree = 6371000 * 3.141592653589793 / 180;
-
-/// A Mi Fitness style export walking due north at 2 m/s, with a minute's
-/// stop after the first kilometre and sub-metre GPS jitter while stopped.
-String _gpx({String name = '20261015Walking', String? totalDistance}) {
-  final start = DateTime.utc(2026, 10, 15, 16, 54, 7);
-  final points = StringBuffer();
-  var seconds = 0;
-  var metres = 0.0;
-  void add() {
-    final lat = 16.2 + metres / _metresPerDegree;
-    final time = start.add(Duration(seconds: seconds)).toIso8601String();
-    points.write('<trkpt lat="$lat" lon="120.45"><time>$time</time></trkpt>');
-  }
-
-  for (; metres <= 1000; metres += 2, seconds += 1) {
-    add();
-  }
-  metres -= 2;
-  for (var i = 0; i < 60; i++, seconds += 1) {
-    final saved = metres;
-    metres += (i.isEven ? 0.5 : -0.5);
-    add();
-    metres = saved;
-  }
-  for (; metres <= 2050; metres += 2, seconds += 1) {
-    add();
-  }
-
-  final extensions = totalDistance == null
-      ? ''
-      : '<extensions><totalDistance>$totalDistance</totalDistance>'
-          '<cumulativeClimb>0.0</cumulativeClimb></extensions>';
-  return "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?>"
-      '<gpx version="1.0" xmlns="http://www.topografix.com/GPX/1/1">'
-      '<name>$name</name><desc>Export from Mi Fitness</desc>'
-      '<trk>$extensions<trkseg>$points</trkseg></trk></gpx>';
-}
+import '../../support/gpx_fixture.dart';
 
 void main() {
   group('activityFromName', () {
@@ -63,35 +25,37 @@ void main() {
   });
 
   group('parseGpxWorkout', () {
-    test('reads the start, end and activity', () {
-      final workout = parseGpxWorkout(_gpx());
+    test('reads Mi Fitness times as the local time they were recorded', () {
+      // Mi Fitness labels local wall-clock time as UTC; the app showed this
+      // walk as starting at 4:54 PM on 15 October.
+      final workout = parseGpxWorkout(gpxFixture());
 
       expect(workout.activity, 'Walking');
-      expect(workout.start, DateTime.utc(2026, 10, 15, 16, 54, 7));
-      expect(workout.start.isUtc, isTrue);
-      expect(workout.elapsed, greaterThan(const Duration(minutes: 17)));
+      expect(workout.source, 'Mi Fitness');
+      expect(workout.start, DateTime(2026, 10, 15, 16, 54, 7));
+      expect(workout.start.isUtc, isFalse);
+      expect(workout.end, DateTime(2026, 10, 15, 17, 12, 13));
+    });
+
+    test('converts real UTC times from other apps to local time', () {
+      final workout =
+          parseGpxWorkout(gpxFixture(description: 'Export from Strava'));
+
+      expect(workout.source, isNull);
+      expect(workout.start, DateTime.utc(2026, 10, 15, 16, 54, 7).toLocal());
     });
 
     test('prefers the distance Mi Fitness recorded', () {
-      final workout = parseGpxWorkout(_gpx(totalDistance: '10374'));
+      final workout = parseGpxWorkout(gpxFixture(totalDistance: '10374'));
 
       expect(workout.distanceMeters, 10374);
     });
 
-    test('measures the track when no distance is recorded', () {
-      final workout = parseGpxWorkout(_gpx());
+    test('measures the track when no distance is recorded, ignoring jitter',
+        () {
+      final workout = parseGpxWorkout(gpxFixture());
 
       expect(workout.distanceMeters, closeTo(2050, 15));
-    });
-
-    test('ignores jitter and stops when timing', () {
-      final workout = parseGpxWorkout(_gpx());
-
-      expect(workout.movingTime.inSeconds, closeTo(1025, 10));
-      expect(workout.kmSplits, hasLength(2));
-      expect(workout.kmSplits.first.inSeconds, closeTo(500, 5));
-      // The second kilometre includes the one-minute stop.
-      expect(workout.kmSplits.last.inSeconds, closeTo(560, 10));
     });
 
     test('rejects a file without a track', () {
@@ -102,18 +66,34 @@ void main() {
     });
   });
 
-  group('workoutEntryText', () {
-    test('summarises the workout in Markdown', () {
-      final workout = parseGpxWorkout(_gpx(totalDistance: '2000'));
-      final text = workoutEntryText(workout,
-          timeFormat: DateFormat('HH:mm'),
-          toDisplayTime: (utc) => utc.add(const Duration(hours: 8)));
+  group('formatLongDuration', () {
+    test('rounds to the nearest minute like Mi Fitness', () {
+      expect(
+          formatLongDuration(
+              const Duration(hours: 1, minutes: 44, seconds: 58)),
+          '1 h 45 min');
+      expect(formatLongDuration(const Duration(minutes: 42, seconds: 10)),
+          '42 min');
+    });
+  });
 
-      expect(text, startsWith('## 🚶 Walking\n'));
-      expect(text, contains('**2.00 km** in 18 min'));
-      expect(text, contains('- Started 00:54, finished 01:12'));
-      expect(text, matches(RegExp(r'- Fastest km: 8:2\d \(km 1\)')));
-      expect(text, endsWith('_Imported from Mi Fitness_'));
+  group('workoutEntryText', () {
+    test('lists the date, distance, duration, start and end', () {
+      final workout = parseGpxWorkout(gpxFixture(totalDistance: '2000'));
+      final text = workoutEntryText(workout,
+          dateFormat: DateFormat('d MMM y'), timeFormat: DateFormat('HH:mm'));
+
+      expect(
+          text,
+          '## 🚶 Walking\n'
+          '\n'
+          '- **Date:** 15 Oct 2026\n'
+          '- **Distance:** 2.00 km\n'
+          '- **Duration:** 18 min\n'
+          '- **Start:** 16:54\n'
+          '- **End:** 17:12\n'
+          '\n'
+          '_Imported from Mi Fitness_');
     });
   });
 }

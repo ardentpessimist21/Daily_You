@@ -14,18 +14,30 @@ class SharePayload {
   final List<String> videoPaths;
   final List<String> audioPaths;
 
+  /// GPX tracks, such as workouts shared from Mi Fitness.
+  final List<String> gpxPaths;
+
   const SharePayload({
     this.text,
     this.imagePaths = const [],
     this.videoPaths = const [],
     this.audioPaths = const [],
+    this.gpxPaths = const [],
   });
 
   bool get hasMedia =>
       imagePaths.isNotEmpty || videoPaths.isNotEmpty || audioPaths.isNotEmpty;
 
+  SharePayload copyWith({String? text, List<String>? gpxPaths}) => SharePayload(
+        text: text ?? this.text,
+        imagePaths: imagePaths,
+        videoPaths: videoPaths,
+        audioPaths: audioPaths,
+        gpxPaths: gpxPaths ?? this.gpxPaths,
+      );
+
   void deleteMedia() {
-    final paths = [...imagePaths, ...videoPaths, ...audioPaths];
+    final paths = [...imagePaths, ...videoPaths, ...audioPaths, ...gpxPaths];
     for (final path in paths) {
       try {
         File(path).deleteSync();
@@ -54,8 +66,11 @@ class SharePayload {
       imagePaths: paths('imagePaths'),
       videoPaths: paths('videoPaths'),
       audioPaths: paths('audioPaths'),
+      gpxPaths: paths('gpxPaths'),
     );
-    if (payload.text == null && !payload.hasMedia) return null;
+    if (payload.text == null && !payload.hasMedia && payload.gpxPaths.isEmpty) {
+      return null;
+    }
     return payload;
   }
 }

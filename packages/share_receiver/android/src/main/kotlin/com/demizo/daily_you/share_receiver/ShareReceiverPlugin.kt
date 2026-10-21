@@ -113,12 +113,12 @@ class ShareReceiverPlugin : FlutterPlugin, ActivityAware, NewIntentListener, Met
         val root = File(context.cacheDir, "shared_media")
         deleteStaleShares(root)
         val directory by lazy { File(root, UUID.randomUUID().toString()).also { it.mkdirs() } }
-        val pathsByKind = MEDIA_KINDS.associateWith { mutableListOf<String>() }
+        val pathsByKind = SHARED_KINDS.associateWith { mutableListOf<String>() }
         for ((index, uri) in uris.withIndex()) {
             try {
                 val displayName = displayName(uri)
                 val mimeType = mimeType(uri, displayName) ?: continue
-                val kind = MEDIA_KINDS.firstOrNull { mimeType.startsWith("$it/") } ?: continue
+                val kind = sharedKind(displayName, mimeType) ?: continue
                 val target = File(File(directory, index.toString()).also { it.mkdirs() }, fileName(displayName, mimeType))
                 context.contentResolver.openInputStream(uri)?.use { input ->
                     target.outputStream().use { output -> input.copyTo(output) }
@@ -129,6 +129,14 @@ class ShareReceiverPlugin : FlutterPlugin, ActivityAware, NewIntentListener, Met
             }
         }
         return pathsByKind
+    }
+
+    private fun sharedKind(displayName: String?, mimeType: String): String? {
+        // Android has no standard type for GPX, so apps often send it as a generic file.
+        val isGpx = mimeType == GPX_MIME_TYPE ||
+            displayName?.lowercase()?.endsWith(".gpx") == true
+        if (isGpx) return GPX_KIND
+        return MEDIA_KINDS.firstOrNull { mimeType.startsWith("$it/") }
     }
 
     private fun deleteStaleShares(root: File) {
@@ -160,6 +168,10 @@ class ShareReceiverPlugin : FlutterPlugin, ActivityAware, NewIntentListener, Met
         const val STALE_SHARE_MILLISECONDS = 24 * 60 * 60 * 1000L
         const val GENERIC_MIME_TYPE = "application/octet-stream"
 
+        const val GPX_KIND = "gpx"
+        const val GPX_MIME_TYPE = "application/gpx+xml"
+
         val MEDIA_KINDS = listOf("image", "video", "audio")
+        val SHARED_KINDS = MEDIA_KINDS + GPX_KIND
     }
 }
