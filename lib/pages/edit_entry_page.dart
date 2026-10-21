@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:daily_you/fork/editor_buttons.dart';
+import 'package:daily_you/fork/links.dart';
 import 'package:daily_you/fork/locations.dart';
 import 'package:daily_you/fork/places.dart';
 import 'package:daily_you/fork/future_entries.dart';
@@ -87,6 +88,14 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
   late Entry _entry;
   int id = -1;
 
+  /// A web link shared from another app, as (words, address): it goes in
+  /// through the "Add link" box instead of being pasted as a bare address.
+  late final (String, String)? _sharedLink =
+      EntryLinks.sharedWebLink(widget.sharedText);
+
+  String? get _sharedTextToMerge =>
+      _sharedLink == null ? widget.sharedText : null;
+
   /// The whole entry text as saved: what's in the editor, plus the hidden
   /// location line.
   String text = "";
@@ -137,7 +146,7 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
       _tagSource = TagAttachmentSource(
           supportsValues: true, initialTagIds: defaultTagIds);
       _entry = Entry(
-        text: AddEditEntryPage.mergeSharedText(templateText, widget.sharedText),
+        text: AddEditEntryPage.mergeSharedText(templateText, _sharedTextToMerge),
         mood: null,
         timeCreate: createTime,
         timeModified: DateTime.now(),
@@ -151,10 +160,10 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
       _tagSource = TagAttachmentSource.fromEntryTags(
           TagsProvider.instance.getEntryTagsForEntry(id));
       dirtyTrackerBaselineText = _entry.text;
-      if (widget.sharedText != null) {
+      if (_sharedTextToMerge != null) {
         _entry = _entry.copy(
-          text:
-              AddEditEntryPage.mergeSharedText(_entry.text, widget.sharedText),
+          text: AddEditEntryPage.mergeSharedText(
+              _entry.text, _sharedTextToMerge),
         );
       }
     }
@@ -186,6 +195,7 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
         if (!mounted) return;
         _textEditingController.selection =
             TextSelection.collapsed(offset: _textEditingController.text.length);
+        _askForSharedLink();
       });
     }
 
@@ -686,6 +696,26 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
     setState(() => _places = [..._places]..removeAt(index));
     _syncText();
     _scheduleSave();
+  }
+
+  /// Opens "Add link" with the shared link filled in. Cancelling still keeps
+  /// the link, pasted as it came.
+  Future<void> _askForSharedLink() async {
+    final link = _sharedLink;
+    if (link == null || !mounted) return;
+    final body = _textEditingController.text;
+    final prefix = body.trim().isEmpty || body.endsWith('\n\n')
+        ? ''
+        : (body.endsWith('\n') ? '\n' : '\n\n');
+    await EntryLinks.showAddLinkDialog(
+      context,
+      _textEditingController,
+      currentEntryId: _entry.id,
+      initialAddress: link.$2,
+      initialText: link.$1,
+      fallback: widget.sharedText!.trim(),
+      prefix: prefix,
+    );
   }
 
   void _scheduleSave() {

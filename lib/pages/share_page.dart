@@ -4,7 +4,9 @@
 
 import 'dart:io';
 
+import 'package:daily_you/fork/links.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
+import 'package:intl/intl.dart';
 import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/models/attachment.dart';
 import 'package:daily_you/pages/edit_entry_page.dart';
@@ -64,13 +66,7 @@ class _SharePageState extends State<SharePage> {
         for (final entry in entries)
           PopupMenuItem(
             value: (entry: entry),
-            child: Row(
-              children: [
-                const Icon(Icons.edit_note_rounded),
-                const SizedBox(width: 12),
-                Text(timeFormat.format(entry.timeCreate)),
-              ],
-            ),
+            child: _entryChoice(dayContext, entry, timeFormat, day),
           ),
         PopupMenuItem(
           value: (entry: null),
@@ -81,6 +77,52 @@ class _SharePageState extends State<SharePage> {
               Text(TimeManager.formatDate(day, dayContext)),
             ],
           ),
+        ),
+      ],
+    );
+  }
+
+  /// [title] cut to [maxChars] letters (spaces don't count), with "…".
+  static String _clip(String title, int maxChars) {
+    var count = 0;
+    for (var i = 0; i < title.length; i++) {
+      if (title[i].trim().isEmpty) continue;
+      if (++count > maxChars) {
+        return '${title.substring(0, i).trimRight()}…';
+      }
+    }
+    return title;
+  }
+
+  /// A log in the day menu: its heading or first words, no longer than the
+  /// day's date below it, with its time underneath.
+  Widget _entryChoice(BuildContext context, Entry entry, DateFormat timeFormat,
+      DateTime day) {
+    final theme = Theme.of(context);
+    final time = timeFormat.format(entry.timeCreate);
+    final dateLength = TimeManager.formatDate(day, context)
+        .replaceAll(RegExp(r'\s'), '')
+        .length;
+    final title = _clip(EntryLinks.titleOf(entry), dateLength);
+    return Row(
+      children: [
+        const Icon(Icons.edit_note_rounded),
+        const SizedBox(width: 12),
+        Flexible(
+          child: title.isEmpty
+              ? Text(time)
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(
+                      time,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
         ),
       ],
     );
