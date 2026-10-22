@@ -4,6 +4,10 @@
 
 /// Opening the editor from the entry view starts where you were reading.
 class ReadingPosition {
+  /// Off for now: opening the keyboard while the editor fades in made it
+  /// stutter. The code stays so it can be turned back on later.
+  static const bool enabled = false;
+
   /// The start of the line [fraction] (0–1) of the way through [body].
   static int lineStart(String body, double fraction) {
     final rough =

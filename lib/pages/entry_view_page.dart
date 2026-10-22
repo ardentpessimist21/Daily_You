@@ -297,7 +297,7 @@ class _EntryViewPageState extends State<EntryViewPage> {
     if (_editorOpen) return;
     _editorOpen = true;
     final (body, _) = EntryLocations.split(entry.text);
-    final startAt = _readingOffset(body);
+    final startAt = ReadingPosition.enabled ? _readingOffset(body) : null;
     final scrolledTo =
         _scrollController.hasClients ? _scrollController.offset : 0.0;
     try {
@@ -318,6 +318,7 @@ class _EntryViewPageState extends State<EntryViewPage> {
       widget.onEntryEdited(entry.id!);
       // Back to where you were reading
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!ReadingPosition.enabled) return;
         if (!mounted || !_scrollController.hasClients) return;
         final position = _scrollController.position;
         _scrollController.jumpTo(scrolledTo.clamp(
