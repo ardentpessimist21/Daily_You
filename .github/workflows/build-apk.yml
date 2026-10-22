@@ -90,7 +90,7 @@ jobs:
             echo "::warning::Generated translation files were out of date; built with freshly generated ones."
           fi
 
-      # Each build gets its own number: version name 3.6.1.<run> (shown in
+      # Each build gets its own number: version name 3.7.0.<run> (shown in
       # Settings > About), and a version code that always goes up so new
       # builds install over older ones, including Build #5 (3006001).
       - name: Work out version

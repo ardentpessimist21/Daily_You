@@ -1098,6 +1098,72 @@ abstract class AppLocalizations {
   /// **'Reset to default'**
   String get editorButtonsReset;
 
+  /// No description provided for @editorButtonsCustomHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Your own buttons insert text or Markdown with one tap. Tap one to edit it.'**
+  String get editorButtonsCustomHint;
+
+  /// No description provided for @editorCustomButtonAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Add custom button'**
+  String get editorCustomButtonAdd;
+
+  /// No description provided for @editorCustomButtonEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit button'**
+  String get editorCustomButtonEdit;
+
+  /// No description provided for @editorCustomButtonName.
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get editorCustomButtonName;
+
+  /// No description provided for @editorCustomButtonNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. Gratitude'**
+  String get editorCustomButtonNameHint;
+
+  /// No description provided for @editorCustomButtonSymbol.
+  ///
+  /// In en, this message translates to:
+  /// **'Button shows'**
+  String get editorCustomButtonSymbol;
+
+  /// No description provided for @editorCustomButtonSymbolHint.
+  ///
+  /// In en, this message translates to:
+  /// **'An emoji or 1–2 letters, e.g. 🙏'**
+  String get editorCustomButtonSymbolHint;
+
+  /// No description provided for @editorCustomButtonText.
+  ///
+  /// In en, this message translates to:
+  /// **'Inserts'**
+  String get editorCustomButtonText;
+
+  /// No description provided for @editorCustomButtonTextHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Text or Markdown, e.g. ## Grateful for'**
+  String get editorCustomButtonTextHint;
+
+  /// No description provided for @editorCustomButtonDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete button'**
+  String get editorCustomButtonDelete;
+
+  /// No description provided for @editorCustomButtonUnnamed.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom button'**
+  String get editorCustomButtonUnnamed;
+
   /// No description provided for @settingsWritingPrompts.
   ///
   /// In en, this message translates to:

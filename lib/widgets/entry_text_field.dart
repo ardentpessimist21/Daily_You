@@ -5,6 +5,7 @@
 import 'dart:ui';
 
 import 'package:daily_you/fork/editor_buttons.dart';
+import 'package:daily_you/fork/selection_menu.dart';
 import 'package:daily_you/fork/links.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/utils/markdown_preview_styles.dart';
@@ -90,18 +91,16 @@ class _EntryTextFieldState extends State<EntryTextField> {
               ? const <ContextMenuButtonItem>[]
               : EditorButtons.popupMenuItems(
                   context, widget.controller, editor.hideToolbar);
-          if (formatting.isEmpty) {
-            return AdaptiveTextSelectionToolbar.editableText(
-                editableTextState: editor);
-          }
+          // Anchored inside the visible area, so after Select all on a long
+          // entry the whole popup, ⋮ included, can still be reached
           return AdaptiveTextSelectionToolbar.buttonItems(
-            anchors: editor.contextMenuAnchors,
+            anchors: SelectionMenu.of(context, editor.contextMenuAnchors),
             buttonItems: [...formatting, ...editor.contextMenuButtonItems],
           );
         }
         return SpellCheckSuggestionsToolbar(
           anchor: SpellCheckSuggestionsToolbar.getToolbarAnchor(
-              editor.contextMenuAnchors),
+              SelectionMenu.of(context, editor.contextMenuAnchors)),
           buttonItems: suggestions,
         );
       },
@@ -113,6 +112,13 @@ class _EntryTextFieldState extends State<EntryTextField> {
         contentPadding: widget.contentPadding,
         hintText:
             widget.hintText ?? AppLocalizations.of(context)!.writeSomethingHint,
+        // A writing prompt reads as a gentle suggestion, not written text
+        hintStyle: widget.hintText == null
+            ? null
+            : baseStyle.copyWith(
+                fontStyle: FontStyle.italic,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
       ),
     );
 

@@ -146,7 +146,8 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
       _tagSource = TagAttachmentSource(
           supportsValues: true, initialTagIds: defaultTagIds);
       _entry = Entry(
-        text: AddEditEntryPage.mergeSharedText(templateText, _sharedTextToMerge),
+        text:
+            AddEditEntryPage.mergeSharedText(templateText, _sharedTextToMerge),
         mood: null,
         timeCreate: createTime,
         timeModified: DateTime.now(),
@@ -162,8 +163,8 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
       dirtyTrackerBaselineText = _entry.text;
       if (_sharedTextToMerge != null) {
         _entry = _entry.copy(
-          text: AddEditEntryPage.mergeSharedText(
-              _entry.text, _sharedTextToMerge),
+          text:
+              AddEditEntryPage.mergeSharedText(_entry.text, _sharedTextToMerge),
         );
       }
     }
@@ -578,6 +579,13 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
             ),
           ],
         ],
+      ),
+      // 📍 sits with the entry's other extras: in the + menu while typing,
+      // and on the bottom bar with the keyboard down
+      ToolbarAction(
+        icon: const Icon(Icons.place_rounded),
+        onPressed: () => Places.showPlaceSheet(context, _textEditingController),
+        mayLeaveApp: true,
       ),
     ];
   }

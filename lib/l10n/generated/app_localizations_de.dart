@@ -602,6 +602,41 @@ class AppLocalizationsDe extends AppLocalizations {
   String get editorButtonsReset => 'Reset to default';
 
   @override
+  String get editorButtonsCustomHint =>
+      'Your own buttons insert text or Markdown with one tap. Tap one to edit it.';
+
+  @override
+  String get editorCustomButtonAdd => 'Add custom button';
+
+  @override
+  String get editorCustomButtonEdit => 'Edit button';
+
+  @override
+  String get editorCustomButtonName => 'Name';
+
+  @override
+  String get editorCustomButtonNameHint => 'e.g. Gratitude';
+
+  @override
+  String get editorCustomButtonSymbol => 'Button shows';
+
+  @override
+  String get editorCustomButtonSymbolHint => 'An emoji or 1–2 letters, e.g. 🙏';
+
+  @override
+  String get editorCustomButtonText => 'Inserts';
+
+  @override
+  String get editorCustomButtonTextHint =>
+      'Text or Markdown, e.g. ## Grateful for';
+
+  @override
+  String get editorCustomButtonDelete => 'Delete button';
+
+  @override
+  String get editorCustomButtonUnnamed => 'Custom button';
+
+  @override
   String get settingsWritingPrompts => 'Writing Prompts';
 
   @override

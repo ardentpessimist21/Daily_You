@@ -163,20 +163,22 @@ void main() {
   group('Toolbar', () {
     useTemporaryConfig();
 
-    test('📍 sits second by default', () {
-      expect(EditorButtons.toolbarOrder().take(2),
-          [EditorButton.timestamp, EditorButton.place]);
+    // Update B moved 📍 to the + menu and the bottom bar
+    test('📍 is not a formatting button any more', () {
+      expect(
+          EditorButtons.toolbarOrder()
+              .contains(const ToolbarItem.builtIn(EditorButton.place)),
+          isFalse);
     });
 
-    test('📍 joins a saved order after 🕒', () async {
+    test('a saved order that still has 📍 drops it', () async {
       await ConfigProvider.instance
-          .set(Settings.editorToolbarOrder, 'bold,timestamp,italic');
+          .set(Settings.editorToolbarOrder, 'bold,timestamp,place,italic');
       final order = EditorButtons.toolbarOrder();
-      expect(order.take(4), [
-        EditorButton.bold,
-        EditorButton.timestamp,
-        EditorButton.place,
-        EditorButton.italic,
+      expect(order.take(3), const [
+        ToolbarItem.builtIn(EditorButton.bold),
+        ToolbarItem.builtIn(EditorButton.timestamp),
+        ToolbarItem.builtIn(EditorButton.italic),
       ]);
       expect(order.toSet().length, order.length);
     });

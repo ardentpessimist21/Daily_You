@@ -3,6 +3,7 @@
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/fork/links.dart';
@@ -32,11 +33,104 @@ enum EditorButton {
   link,
 }
 
+/// A button the user made in Settings > Editor buttons: tapping it inserts
+/// [text] (plain words or Markdown) at the cursor.
+@immutable
+class CustomEditorButton {
+  const CustomEditorButton({
+    required this.id,
+    required this.name,
+    required this.symbol,
+    required this.text,
+  });
+
+  /// Stable, never reused, so the saved order and hidden list can find it.
+  final String id;
+
+  /// Shown in settings and when the button is long-pressed.
+  final String name;
+
+  /// What the button shows on the toolbar: an emoji or a couple of letters.
+  final String symbol;
+
+  /// What a tap inserts.
+  final String text;
+
+  /// The button's token in the saved toolbar order.
+  String get token => '${EditorButtons.customPrefix}$id';
+
+  Map<String, String> toJson() =>
+      {'id': id, 'name': name, 'symbol': symbol, 'text': text};
+
+  static CustomEditorButton? fromJson(Object? json) {
+    if (json is! Map) return null;
+    final id = json['id'];
+    final text = json['text'];
+    if (id is! String || id.isEmpty || text is! String) return null;
+    final name = json['name'];
+    final symbol = json['symbol'];
+    return CustomEditorButton(
+      id: id,
+      name: name is String ? name : '',
+      symbol: symbol is String ? symbol : '',
+      text: text,
+    );
+  }
+
+  CustomEditorButton copyWith({String? name, String? symbol, String? text}) =>
+      CustomEditorButton(
+        id: id,
+        name: name ?? this.name,
+        symbol: symbol ?? this.symbol,
+        text: text ?? this.text,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is CustomEditorButton &&
+      other.id == id &&
+      other.name == name &&
+      other.symbol == symbol &&
+      other.text == text;
+
+  @override
+  int get hashCode => Object.hash(id, name, symbol, text);
+}
+
+/// One slot on the toolbar: a built-in button or one of the user's own.
+@immutable
+class ToolbarItem {
+  const ToolbarItem.builtIn(EditorButton this.builtIn) : custom = null;
+  const ToolbarItem.custom(CustomEditorButton this.custom) : builtIn = null;
+
+  final EditorButton? builtIn;
+  final CustomEditorButton? custom;
+
+  /// How this slot is saved in the toolbar order and hidden list.
+  String get token => builtIn?.name ?? custom!.token;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ToolbarItem && other.token == token;
+
+  @override
+  int get hashCode => token.hashCode;
+}
+
 class EditorButtons {
   /// The entry open in the editor, so the link picker can leave it out.
   static int? editingEntryId;
 
-  static const List<EditorButton> defaultToolbar = EditorButton.values;
+  /// Saved tokens starting with this mark one of the user's own buttons.
+  static const String customPrefix = 'custom:';
+
+  /// 📍 lives with Tags, Attach and Camera (the + menu with the keyboard
+  /// up, the bottom bar with it down), so it's never a formatting button.
+  static bool _isFormatting(EditorButton button) =>
+      button != EditorButton.place;
+
+  static final List<EditorButton> defaultToolbar =
+      EditorButton.values.where(_isFormatting).toList(growable: false);
   static const List<EditorButton> defaultPopup = [
     EditorButton.bold,
     EditorButton.italic,
@@ -44,10 +138,12 @@ class EditorButtons {
     EditorButton.link,
   ];
 
-  static List<EditorButton> _parse(String stored) => stored
-      .split(',')
+  static List<String> _tokens(String stored) =>
+      stored.split(',').where((token) => token.isNotEmpty).toList();
+
+  static List<EditorButton> _parse(String stored) => _tokens(stored)
       .map((name) => EditorButton.values
-          .where((button) => button.name == name)
+          .where((button) => button.name == name && _isFormatting(button))
           .firstOrNull)
       .nonNulls
       .toList();
@@ -55,27 +151,92 @@ class EditorButtons {
   static String _store(Iterable<EditorButton> buttons) =>
       buttons.map((button) => button.name).join(',');
 
-  /// Toolbar order, including hidden buttons. Buttons added in later
-  /// versions are appended so they're never lost.
-  static List<EditorButton> toolbarOrder() {
-    final stored =
-        _parse(ConfigProvider.instance.get(Settings.editorToolbarOrder));
-    if (stored.isEmpty) return List.of(defaultToolbar);
-    final order = [...stored];
-    // 📍 joins a saved order second, after 🕒, as it does by default.
-    if (!order.contains(EditorButton.place)) {
-      final after = order.indexOf(EditorButton.timestamp);
-      order.insert(after + 1, EditorButton.place);
+  /// The user's own buttons, in the order they were made.
+  static List<CustomEditorButton> customButtons() {
+    final stored = ConfigProvider.instance.get(Settings.editorCustomButtons);
+    try {
+      final decoded = jsonDecode(stored);
+      if (decoded is! List) return [];
+      return decoded.map(CustomEditorButton.fromJson).nonNulls.toList();
+    } catch (_) {
+      return [];
     }
-    return [
-      ...order,
-      for (final button in defaultToolbar)
-        if (!order.contains(button)) button,
-    ];
   }
 
-  static Set<EditorButton> toolbarHidden() =>
-      _parse(ConfigProvider.instance.get(Settings.editorToolbarHidden)).toSet();
+  static Future<void> _saveCustom(List<CustomEditorButton> buttons) =>
+      ConfigProvider.instance.set(Settings.editorCustomButtons,
+          jsonEncode([for (final button in buttons) button.toJson()]));
+
+  /// A new button with an id no other button has had.
+  static CustomEditorButton newCustomButton(
+      {required String name, required String symbol, required String text}) {
+    final taken = customButtons().map((button) => button.id).toSet();
+    var id = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+    while (taken.contains(id)) {
+      id = '${id}x';
+    }
+    return CustomEditorButton(id: id, name: name, symbol: symbol, text: text);
+  }
+
+  /// Adds [button], or replaces the button with the same id. New buttons
+  /// go to the end of the toolbar.
+  static Future<void> saveCustomButton(CustomEditorButton button) async {
+    final buttons = customButtons();
+    final index = buttons.indexWhere((existing) => existing.id == button.id);
+    if (index == -1) {
+      buttons.add(button);
+    } else {
+      buttons[index] = button;
+    }
+    await _saveCustom(buttons);
+  }
+
+  /// Removes the button, and its place in the toolbar order.
+  static Future<void> deleteCustomButton(CustomEditorButton button) async {
+    await _saveCustom(
+        customButtons().where((existing) => existing.id != button.id).toList());
+    final config = ConfigProvider.instance;
+    String without(String stored) =>
+        _tokens(stored).where((token) => token != button.token).join(',');
+    await config.set(Settings.editorToolbarOrder,
+        without(config.get(Settings.editorToolbarOrder)));
+    await config.set(Settings.editorToolbarHidden,
+        without(config.get(Settings.editorToolbarHidden)));
+  }
+
+  /// Toolbar order, including hidden buttons. Buttons added later (new
+  /// built-ins, or buttons the user just made) are appended so they're
+  /// never lost.
+  static List<ToolbarItem> toolbarOrder() {
+    final custom = {
+      for (final button in customButtons()) button.token: button,
+    };
+    final order = <ToolbarItem>[];
+    for (final token
+        in _tokens(ConfigProvider.instance.get(Settings.editorToolbarOrder))) {
+      final item = custom.containsKey(token)
+          ? ToolbarItem.custom(custom[token]!)
+          : switch (_parse(token)) {
+              [final button] => ToolbarItem.builtIn(button),
+              _ => null,
+            };
+      if (item != null && !order.contains(item)) order.add(item);
+    }
+    for (final button in defaultToolbar) {
+      final item = ToolbarItem.builtIn(button);
+      if (!order.contains(item)) order.add(item);
+    }
+    for (final button in custom.values) {
+      final item = ToolbarItem.custom(button);
+      if (!order.contains(item)) order.add(item);
+    }
+    return order;
+  }
+
+  /// Tokens of the hidden toolbar slots.
+  static Set<String> toolbarHidden() =>
+      _tokens(ConfigProvider.instance.get(Settings.editorToolbarHidden))
+          .toSet();
 
   static List<EditorButton> popupItems() {
     final stored = ConfigProvider.instance.get(Settings.editorPopupItems);
@@ -84,16 +245,18 @@ class EditorButtons {
   }
 
   static Future<void> saveToolbar(
-      List<EditorButton> order, Set<EditorButton> hidden) async {
+      List<ToolbarItem> order, Set<String> hidden) async {
+    await ConfigProvider.instance.set(
+        Settings.editorToolbarOrder, order.map((item) => item.token).join(','));
     await ConfigProvider.instance
-        .set(Settings.editorToolbarOrder, _store(order));
-    await ConfigProvider.instance
-        .set(Settings.editorToolbarHidden, _store(hidden));
+        .set(Settings.editorToolbarHidden, hidden.join(','));
   }
 
   static Future<void> savePopup(List<EditorButton> items) =>
       ConfigProvider.instance.set(Settings.editorPopupItems, _store(items));
 
+  /// Puts the order, hidden buttons and popup back to how they started.
+  /// The user's own buttons stay, at the end of the toolbar.
   static Future<void> resetAll() async {
     await ConfigProvider.instance.set(Settings.editorToolbarOrder, '');
     await ConfigProvider.instance.set(Settings.editorToolbarHidden, '');
@@ -138,10 +301,10 @@ class EditorButtons {
         EditorButton.list => l10n.editorNumberedList,
         EditorButton.checklist => l10n.editorTickedCheckbox,
         EditorButton.heading => l10n.editorHeading1,
-        EditorButton.bold => l10n.editorItalic,
         EditorButton.highlight => l10n.editorStrikethrough,
         EditorButton.quote => l10n.editorDivider,
         EditorButton.link => l10n.editorPasteLink,
+        EditorButton.bold ||
         EditorButton.italic ||
         EditorButton.strikethrough ||
         EditorButton.place =>
@@ -191,14 +354,13 @@ class EditorButtons {
         insertLinePrefix(controller, '- [x]');
       case EditorButton.heading:
         insertLinePrefix(controller, '#');
-      case EditorButton.bold:
-        wrapSelection(controller, '_');
       case EditorButton.highlight:
         wrapSelection(controller, '~~');
       case EditorButton.quote:
         insertOnOwnLine(controller, '---');
       case EditorButton.link:
         await pasteLink(controller);
+      case EditorButton.bold:
       case EditorButton.italic:
       case EditorButton.strikethrough:
       case EditorButton.place:
@@ -207,8 +369,8 @@ class EditorButtons {
   }
 
   /// Inserts the time on its own line, e.g. "11:55 AM", and leaves the
-  /// cursor on the line below. Adds the date when the entry isn't from today
-  /// (or [alwaysDate] is set), e.g. "Oct 18 · 9:10 AM".
+  /// cursor on the line below. Adds the date, with its year, when the entry
+  /// isn't from today (or [alwaysDate] is set), e.g. "Oct 18, 2026 · 9:10 AM".
   static void insertTimestamp(
       BuildContext context, TextEditingController controller,
       {DateTime? entryDate, bool alwaysDate = false}) {
@@ -217,10 +379,13 @@ class EditorButtons {
     final time = TimeManager.localizedTimeFormat(context, locale).format(now);
     final showDate = alwaysDate ||
         (entryDate != null && !TimeManager.isSameDay(entryDate, now));
-    final stamp =
-        showDate ? '${DateFormat.MMMd(locale).format(now)} · $time' : time;
+    final stamp = showDate ? '${dateWithYear(now, locale)} · $time' : time;
     insertOnOwnLine(controller, stamp);
   }
+
+  /// The date part of a timestamp, e.g. "Oct 18, 2026".
+  static String dateWithYear(DateTime date, String? locale) =>
+      DateFormat.yMMMd(locale).format(date);
 
   /// Inserts [line] as a line of its own at the cursor.
   static void insertOnOwnLine(TextEditingController controller, String line) {
@@ -287,18 +452,85 @@ class EditorButtons {
     final l10n = AppLocalizations.of(context)!;
     final hidden = toolbarHidden();
     return [
-      for (final button in toolbarOrder())
-        if (!hidden.contains(button))
-          ToolbarAction(
-            icon: icon(button),
-            onPressed: () =>
-                tap(button, context, controller, entryDate: entryDate?.call()),
-            longPressLabel: holdLabel(l10n, button),
-            onLongPress: holdLabel(l10n, button) == null
-                ? null
-                : () => hold(button, context, controller,
+      for (final item in toolbarOrder())
+        if (!hidden.contains(item.token))
+          switch (item) {
+            ToolbarItem(builtIn: final button?) => ToolbarAction(
+                icon: icon(button),
+                onPressed: () => tap(button, context, controller,
                     entryDate: entryDate?.call()),
-          ),
+                longPressLabel: holdLabel(l10n, button),
+                onLongPress: holdLabel(l10n, button) == null
+                    ? null
+                    : () => hold(button, context, controller,
+                        entryDate: entryDate?.call()),
+              ),
+            ToolbarItem(custom: final custom?) => ToolbarAction(
+                icon: CustomButtonIcon(custom),
+                onPressed: () => insertCustom(controller, custom),
+              ),
+            _ => throw StateError('Empty toolbar slot'),
+          },
     ];
+  }
+
+  /// Inserts a custom button's text at the cursor, replacing any selection.
+  static void insertCustom(
+      TextEditingController controller, CustomEditorButton button) {
+    if (button.text.isEmpty) return;
+    insertAtCursor(controller, button.text);
+  }
+
+  /// A slot's icon, for settings rows.
+  static Widget itemIcon(ToolbarItem item) => switch (item) {
+        ToolbarItem(builtIn: final button?) => icon(button),
+        ToolbarItem(custom: final custom?) => CustomButtonIcon(custom),
+        _ => const SizedBox.shrink(),
+      };
+
+  /// A slot's name, for settings rows.
+  static String itemLabel(AppLocalizations l10n, ToolbarItem item) =>
+      switch (item) {
+        ToolbarItem(builtIn: final button?) => label(l10n, button),
+        ToolbarItem(custom: final custom?) => custom.name.trim().isEmpty
+            ? l10n.editorCustomButtonUnnamed
+            : custom.name.trim(),
+        _ => '',
+      };
+}
+
+/// A custom button's symbol, drawn like an icon: same colour, about the
+/// same size, and never wider than the button.
+class CustomButtonIcon extends StatelessWidget {
+  const CustomButtonIcon(this.button, {super.key});
+
+  final CustomEditorButton button;
+
+  @override
+  Widget build(BuildContext context) {
+    final iconTheme = IconTheme.of(context);
+    final size = iconTheme.size ?? 24;
+    final symbol = button.symbol.trim().isNotEmpty
+        ? button.symbol.trim()
+        : (button.name.trim().isNotEmpty
+            ? button.name.trim().characters.first.toUpperCase()
+            : '•');
+    return SizedBox(
+      width: size,
+      height: size,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          symbol,
+          maxLines: 1,
+          style: TextStyle(
+            color: iconTheme.color,
+            fontSize: size * 0.8,
+            fontWeight: FontWeight.w600,
+            height: 1,
+          ),
+        ),
+      ),
+    );
   }
 }
