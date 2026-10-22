@@ -45,14 +45,23 @@ class ThemeModeProvider with ChangeNotifier {
       _accentColor = Color(ConfigProvider.instance.get(Settings.accentColor));
     }
 
-    final configTheme = ConfigProvider.instance.get(Settings.theme);
-    if (configTheme == 'dark' || configTheme == 'amoled') {
-      _themeMode = ThemeMode.dark;
-    } else if (configTheme == 'light') {
-      _themeMode = ThemeMode.light;
-    }
+    _themeMode = _modeFromConfig();
     notifyListeners();
   }
+
+  /// Re-reads the theme and accent colour from settings, e.g. after
+  /// settings were restored from a backup.
+  void reloadFromConfig() {
+    _themeMode = _modeFromConfig();
+    updateAccentColor();
+  }
+
+  static ThemeMode _modeFromConfig() =>
+      switch (ConfigProvider.instance.get(Settings.theme)) {
+        'dark' || 'amoled' => ThemeMode.dark,
+        'light' => ThemeMode.light,
+        _ => ThemeMode.system,
+      };
 
   ThemeMode get currentThemeMode {
     return _themeMode;

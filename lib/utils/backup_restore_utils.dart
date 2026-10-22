@@ -7,6 +7,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:daily_you/config_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:daily_you/theme_mode_provider.dart';
 import 'package:daily_you/database/app_database.dart';
 import 'package:daily_you/database/attachment_storage.dart';
 import 'package:daily_you/models/attachment.dart';
@@ -325,6 +327,27 @@ class BackupRestoreUtils {
     }
   }
 
+  /// Settings read once at startup (theme, accent colour, reminder alarms)
+  /// are picked up again, so restored settings show straight away.
+  static Future<void> _applyRestoredSettings(BuildContext context) async {
+    Provider.of<ThemeModeProvider>(context, listen: false).reloadFromConfig();
+    if (!Platform.isAndroid) return;
+    final config = ConfigProvider.instance;
+    final notifications = NotificationManager.instance;
+    try {
+      await notifications.stopDailyReminders();
+      if (config.get(Settings.dailyReminders)) {
+        await notifications.startScheduledDailyReminders();
+      }
+      await notifications.stopOnThisDayNotifications();
+      if (config.get(Settings.onThisDayNotifications)) {
+        await notifications.startOnThisDayNotifications();
+      }
+    } catch (_) {
+      // Reminders are set again the next time the app opens
+    }
+  }
+
   /// "Restore settings too?" — true to bring back the backup's settings.
   static Future<bool> _askRestoreSettings(BuildContext context) async {
     final l10n = AppLocalizations.of(context)!;
@@ -428,10 +451,14 @@ class BackupRestoreUtils {
         await tempImportFile.rename(tempZipFile.path);
       }
 
+      var settingsRestored = false;
       outcome = await restoreFromArchive(
           tempZipFile, restoreFolder, localizations, updateStatus,
-          restoreSettings: () async =>
+          restoreSettings: () async => settingsRestored =
               context.mounted && await _askRestoreSettings(context));
+      if (settingsRestored && context.mounted) {
+        await _applyRestoredSettings(context);
+      }
     } on _RestoreCancelled {
       outcome = const OperationOutcome.cancelled();
     } catch (error) {
