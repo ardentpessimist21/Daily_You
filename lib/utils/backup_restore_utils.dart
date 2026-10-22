@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 
@@ -72,10 +73,17 @@ class BackupRestoreUtils {
         throw Exception('Failed to create a consistent database snapshot');
       }
 
+      // Settings travel with the backup, so a reinstall gets them back
+      final settingsSnapshot =
+          File(join(snapshotDir.path, ConfigProvider.backupSettingsFileName));
+      await settingsSnapshot.writeAsString(
+          json.encode(ConfigProvider.instance.settingsForBackup()),
+          flush: true);
+
       onCompress(0);
       await ZipUtils.compress(
           stagedArchive.path,
-          [databaseSnapshot.path],
+          [databaseSnapshot.path, settingsSnapshot.path],
           [
             for (final type in AttachmentType.values)
               await AttachmentStorage.instance.getInternalFolder(type)
@@ -317,6 +325,30 @@ class BackupRestoreUtils {
     }
   }
 
+  /// "Restore settings too?" — true to bring back the backup's settings.
+  static Future<bool> _askRestoreSettings(BuildContext context) async {
+    final l10n = AppLocalizations.of(context)!;
+    final answer = await showAppDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.restoreSettingsTitle),
+        content: Text(l10n.restoreSettingsBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(l10n.restoreSettingsLogsOnly),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(l10n.restoreSettingsYes),
+          ),
+        ],
+      ),
+    );
+    return answer ?? false;
+  }
+
   static Future<String?> _promptForBackupPassword(BuildContext context) async {
     String? password;
     await showAppDialog(
@@ -397,7 +429,9 @@ class BackupRestoreUtils {
       }
 
       outcome = await restoreFromArchive(
-          tempZipFile, restoreFolder, localizations, updateStatus);
+          tempZipFile, restoreFolder, localizations, updateStatus,
+          restoreSettings: () async =>
+              context.mounted && await _askRestoreSettings(context));
     } on _RestoreCancelled {
       outcome = const OperationOutcome.cancelled();
     } catch (error) {
@@ -424,7 +458,8 @@ class BackupRestoreUtils {
       File archive,
       Directory restoreFolder,
       AppLocalizations localizations,
-      void Function(String) updateStatus) async {
+      void Function(String) updateStatus,
+      {Future<bool> Function()? restoreSettings}) async {
     updateStatus(localizations.restoringBackupStatus("0"));
 
     await _extractBackup(archive, restoreFolder, (percent) {
@@ -440,6 +475,20 @@ class BackupRestoreUtils {
 
     await AppDatabase.instance.replaceDatabase(restoredDatabase);
     await AppDatabase.instance.updateExternalDatabase();
+
+    // Backups made since settings were added carry them; ask before using
+    final savedSettings =
+        File(join(restoreFolder.path, ConfigProvider.backupSettingsFileName));
+    if (restoreSettings != null &&
+        await savedSettings.exists() &&
+        await restoreSettings()) {
+      try {
+        await ConfigProvider.instance.restoreSettingsFromBackup(
+            json.decode(await savedSettings.readAsString()));
+      } catch (_) {
+        // A damaged settings file never stops the logs from restoring
+      }
+    }
 
     final failedFiles = <String>[];
     for (final type in AttachmentType.values) {

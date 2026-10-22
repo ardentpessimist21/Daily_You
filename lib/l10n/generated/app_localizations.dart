@@ -1050,6 +1050,30 @@ abstract class AppLocalizations {
   /// **'Paste copied link'**
   String get editorPasteLink;
 
+  /// No description provided for @restoreSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore settings too?'**
+  String get restoreSettingsTitle;
+
+  /// No description provided for @restoreSettingsBody.
+  ///
+  /// In en, this message translates to:
+  /// **'This backup also has your settings: theme, editor buttons, mood icons and more. Passwords, app lock and backup or sync folders aren\'t included.'**
+  String get restoreSettingsBody;
+
+  /// No description provided for @restoreSettingsYes.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore settings'**
+  String get restoreSettingsYes;
+
+  /// No description provided for @restoreSettingsLogsOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs only'**
+  String get restoreSettingsLogsOnly;
+
   /// No description provided for @editorTime.
   ///
   /// In en, this message translates to:

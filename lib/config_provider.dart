@@ -546,6 +546,61 @@ class ConfigProvider with ChangeNotifier {
     });
   }
 
+  /// Name of the settings file inside a backup.
+  static const String backupSettingsFileName = 'settings.json';
+
+  /// Settings that stay out of backups: passwords and app lock, and
+  /// anything tied to this device (sync and auto-backup folders, and the
+  /// switches that need them), plus bookkeeping.
+  static final Set<String> _notBackedUp = {
+    ..._secureKeys,
+    Settings.configVersion.key,
+    Settings.syncLogs.key,
+    Settings.syncImages.key,
+    Settings.syncVideo.key,
+    Settings.syncAudio.key,
+    Settings.logSyncFolderUri.key,
+    Settings.imageSyncFolderUri.key,
+    Settings.videoSyncFolderUri.key,
+    Settings.audioSyncFolderUri.key,
+    Settings.autoBackupEnabled.key,
+    Settings.autoBackupLocationUri.key,
+  };
+
+  /// The settings a backup carries, as saved in its settings file.
+  Map<String, dynamic> settingsForBackup() {
+    final declared = {for (final setting in Settings.all) setting.key};
+    return {
+      for (final entry in _config.entries)
+        if (declared.contains(entry.key) && !_notBackedUp.contains(entry.key))
+          entry.key: entry.value,
+    };
+  }
+
+  /// Applies settings from a backup's settings file. Unknown keys and
+  /// settings that never go in backups are ignored. Returns how many
+  /// settings were applied.
+  Future<int> restoreSettingsFromBackup(Object? saved) async {
+    if (saved is! Map) return 0;
+    final declared = {for (final setting in Settings.all) setting.key};
+    var applied = 0;
+    for (final entry in saved.entries) {
+      final key = entry.key;
+      if (key is! String ||
+          !declared.contains(key) ||
+          _notBackedUp.contains(key)) {
+        continue;
+      }
+      _config[key] = entry.value;
+      applied++;
+    }
+    if (applied > 0) {
+      notifyListeners();
+      await writeConfig();
+    }
+    return applied;
+  }
+
   bool is24HourFormat() {
     if (PlatformDispatcher.instance.alwaysUse24HourFormat) return true;
     String formattedTime =

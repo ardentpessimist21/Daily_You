@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/database/app_database.dart';
 import 'package:daily_you/database/attachment_storage.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
@@ -271,5 +273,101 @@ CREATE TABLE template_tags (
     expect(File(join(images.path, 'current.jpg')).existsSync(), isTrue);
     expect(File(join(supportDirectory.path, 'Audio', 'voice.m4a')).existsSync(),
         isTrue);
+  });
+
+  group('Update S: settings in backups', () {
+    Future<File> backupWithSettings(Map<String, Object?> settings) async {
+      final archive = await backupWith([(2, 'first.jpg', 0)]);
+      // Rebuild the archive with a settings file next to the database
+      final staged = await Directory(join(root.path, 'with_settings')).create();
+      await ZipUtils.extract(archive.path, staged.path);
+      final settingsFile =
+          File(join(staged.path, ConfigProvider.backupSettingsFileName));
+      await settingsFile.writeAsString(json.encode(settings));
+      final rebuilt = join(root.path, 'backup_with_settings.zip');
+      await ZipUtils.compress(
+          rebuilt,
+          [join(staged.path, AppDatabase.databaseFileName), settingsFile.path],
+          [join(staged.path, 'Images')]);
+      return File(rebuilt);
+    }
+
+    Future<OperationOutcome> restoreAsking(File archive, bool answer) async {
+      var asked = false;
+      final outcome = await BackupRestoreUtils.restoreFromArchive(
+          archive,
+          Directory(join(temporaryDirectory.path, 'Restore')),
+          await AppLocalizations.delegate.load(const Locale('en')),
+          (_) {}, restoreSettings: () async {
+        asked = true;
+        return answer;
+      });
+      expect(asked, isTrue, reason: 'should ask before restoring settings');
+      return outcome;
+    }
+
+    test('a backup leaves out passwords and device folders', () async {
+      final config = ConfigProvider.instance;
+      await config.set(Settings.theme, 'dark');
+      await config.set(Settings.autoBackupLocationUri, 'content://folder');
+      await config.set(Settings.logSyncFolderUri, 'content://sync');
+      final saved = config.settingsForBackup();
+      expect(saved[Settings.theme.key], 'dark');
+      expect(saved.containsKey(Settings.autoBackupLocationUri.key), isFalse);
+      expect(saved.containsKey(Settings.logSyncFolderUri.key), isFalse);
+      expect(saved.containsKey(Settings.requirePassword.key), isFalse);
+      expect(saved.containsKey(Settings.passwordHash.key), isFalse);
+      expect(saved.containsKey(Settings.backupPassword.key), isFalse);
+    });
+
+    test('restores settings when you choose to', () async {
+      await startWithCurrentLibrary();
+      final archive = await backupWithSettings({
+        Settings.theme.key: 'dark',
+        Settings.veryHappyIcon.key: '🤩',
+        Settings.requirePassword.key: true,
+        Settings.autoBackupLocationUri.key: 'content://old-phone',
+        'notARealSetting': 1,
+      });
+
+      final outcome = await restoreAsking(archive, true);
+
+      expect(outcome.succeeded, isTrue);
+      final config = ConfigProvider.instance;
+      expect(config.get(Settings.theme), 'dark');
+      expect(config.get(Settings.veryHappyIcon), '🤩');
+      expect(config.get(Settings.requirePassword), isFalse);
+      expect(config.get(Settings.autoBackupLocationUri), '');
+      expect(
+          (await AppDatabase.instance.database!.query('entries'))
+              .single['text'],
+          'backed up entry');
+    });
+
+    test('"Logs only" leaves settings as they are', () async {
+      await startWithCurrentLibrary();
+      final archive = await backupWithSettings({Settings.theme.key: 'dark'});
+
+      final outcome = await restoreAsking(archive, false);
+
+      expect(outcome.succeeded, isTrue);
+      expect(ConfigProvider.instance.get(Settings.theme), 'system');
+    });
+
+    test('older backups without settings restore as before', () async {
+      await startWithCurrentLibrary();
+      final archive = await backupWith([(2, 'first.jpg', 0)]);
+      var asked = false;
+      final outcome = await BackupRestoreUtils.restoreFromArchive(
+          archive,
+          Directory(join(temporaryDirectory.path, 'Restore')),
+          await AppLocalizations.delegate.load(const Locale('en')),
+          (_) {}, restoreSettings: () async {
+        asked = true;
+        return true;
+      });
+      expect(outcome.succeeded, isTrue);
+      expect(asked, isFalse);
+    });
   });
 }

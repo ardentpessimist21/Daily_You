@@ -573,6 +573,19 @@ class AppLocalizationsNb extends AppLocalizations {
   String get editorPasteLink => 'Paste copied link';
 
   @override
+  String get restoreSettingsTitle => 'Restore settings too?';
+
+  @override
+  String get restoreSettingsBody =>
+      'This backup also has your settings: theme, editor buttons, mood icons and more. Passwords, app lock and backup or sync folders aren\'t included.';
+
+  @override
+  String get restoreSettingsYes => 'Restore settings';
+
+  @override
+  String get restoreSettingsLogsOnly => 'Logs only';
+
+  @override
   String get editorTime => 'Time';
 
   @override
