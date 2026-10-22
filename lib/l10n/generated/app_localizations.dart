@@ -1050,6 +1050,84 @@ abstract class AppLocalizations {
   /// **'Paste copied link'**
   String get editorPasteLink;
 
+  /// No description provided for @editorTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Time'**
+  String get editorTime;
+
+  /// No description provided for @editorBulletList.
+  ///
+  /// In en, this message translates to:
+  /// **'Bullet list'**
+  String get editorBulletList;
+
+  /// No description provided for @editorHeading2.
+  ///
+  /// In en, this message translates to:
+  /// **'Heading 2'**
+  String get editorHeading2;
+
+  /// No description provided for @editorHeadingMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a heading (H1–H6)'**
+  String get editorHeadingMenu;
+
+  /// No description provided for @editorAddLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Add link'**
+  String get editorAddLink;
+
+  /// No description provided for @editorNothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing'**
+  String get editorNothing;
+
+  /// No description provided for @editorButtonsTapHold.
+  ///
+  /// In en, this message translates to:
+  /// **'tap: {tap} · hold: {hold}'**
+  String editorButtonsTapHold(String tap, String hold);
+
+  /// No description provided for @editorButtonsActionsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a button to choose what a tap and a long-press do.'**
+  String get editorButtonsActionsHint;
+
+  /// No description provided for @editorButtonTap.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap'**
+  String get editorButtonTap;
+
+  /// No description provided for @editorButtonHold.
+  ///
+  /// In en, this message translates to:
+  /// **'Long-press'**
+  String get editorButtonHold;
+
+  /// No description provided for @editorButtonDefaults.
+  ///
+  /// In en, this message translates to:
+  /// **'Use defaults'**
+  String get editorButtonDefaults;
+
+  /// No description provided for @editorCustomButtonPickIcon.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick an icon'**
+  String get editorCustomButtonPickIcon;
+
+  /// No description provided for @editorCustomButtonIcon.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon'**
+  String get editorCustomButtonIcon;
+
   /// No description provided for @settingsEditorButtons.
   ///
   /// In en, this message translates to:

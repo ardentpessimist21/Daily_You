@@ -574,6 +574,48 @@ class AppLocalizationsTa extends AppLocalizations {
   String get editorPasteLink => 'Paste copied link';
 
   @override
+  String get editorTime => 'Time';
+
+  @override
+  String get editorBulletList => 'Bullet list';
+
+  @override
+  String get editorHeading2 => 'Heading 2';
+
+  @override
+  String get editorHeadingMenu => 'Pick a heading (H1–H6)';
+
+  @override
+  String get editorAddLink => 'Add link';
+
+  @override
+  String get editorNothing => 'Nothing';
+
+  @override
+  String editorButtonsTapHold(String tap, String hold) {
+    return 'tap: $tap · hold: $hold';
+  }
+
+  @override
+  String get editorButtonsActionsHint =>
+      'Tap a button to choose what a tap and a long-press do.';
+
+  @override
+  String get editorButtonTap => 'Tap';
+
+  @override
+  String get editorButtonHold => 'Long-press';
+
+  @override
+  String get editorButtonDefaults => 'Use defaults';
+
+  @override
+  String get editorCustomButtonPickIcon => 'Pick an icon';
+
+  @override
+  String get editorCustomButtonIcon => 'Icon';
+
+  @override
   String get settingsEditorButtons => 'Editor Buttons';
 
   @override

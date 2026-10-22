@@ -118,6 +118,8 @@ class Settings {
       Setting<String>("editorPopupItems", "default");
   static const editorCustomButtons =
       Setting<String>("editorCustomButtons", "[]");
+  static const editorButtonActions =
+      Setting<String>("editorButtonActions", "{}");
   static const writingPrompts = Setting<bool>("writingPrompts", true);
   static const allowFutureEntries = Setting<bool>("allowFutureEntries", false);
   static const savedPlaces = Setting<String>("savedPlaces", "[]");
@@ -226,6 +228,7 @@ class Settings {
     editorToolbarHidden,
     editorPopupItems,
     editorCustomButtons,
+    editorButtonActions,
     writingPrompts,
     allowFutureEntries,
     savedPlaces,

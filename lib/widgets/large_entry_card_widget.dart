@@ -148,7 +148,8 @@ class FullEntryCardWidget extends StatelessWidget {
           ),
           if (attachments.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              padding: EdgeInsets.fromLTRB(
+                  8.0, 0, 8.0, body.isEmpty && !showPlaces ? 8.0 : 0),
               child: AspectRatio(
                 aspectRatio: 16 / 9,
                 child: ClipRRect(
@@ -157,22 +158,26 @@ class FullEntryCardWidget extends StatelessWidget {
                 ),
               ),
             ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(justify ? 6.0 : 8.0, 4.0,
-                justify ? 6.0 : 8.0, showPlaces ? 6.0 : 12.0),
-            child: body.isNotEmpty
-                ? IgnorePointer(
-                    child: ScaledMarkdown(
-                        data: body, scaleFactor: 0.95, justify: justify),
-                  )
-                : Text(
-                    AppLocalizations.of(context)!.writeSomethingHint,
-                    style: TextStyle(color: theme.disabledColor, fontSize: 16),
-                  ),
-          ),
+          // A day with only photos or places needs no "Write something…"
+          if (body.isNotEmpty || (attachments.isEmpty && !showPlaces))
+            Padding(
+              padding: EdgeInsets.fromLTRB(justify ? 6.0 : 8.0, 4.0,
+                  justify ? 6.0 : 8.0, showPlaces ? 6.0 : 12.0),
+              child: body.isNotEmpty
+                  ? IgnorePointer(
+                      child: ScaledMarkdown(
+                          data: body, scaleFactor: 0.95, justify: justify),
+                    )
+                  : Text(
+                      AppLocalizations.of(context)!.writeSomethingHint,
+                      style:
+                          TextStyle(color: theme.disabledColor, fontSize: 16),
+                    ),
+            ),
           if (showPlaces)
             Padding(
-              padding: const EdgeInsets.fromLTRB(8.0, 0, 8.0, 10.0),
+              padding:
+                  EdgeInsets.fromLTRB(8.0, body.isEmpty ? 8.0 : 0, 8.0, 10.0),
               child: TimelineLocationButton(
                   places: places, enabled: locationsEnabled),
             ),
@@ -229,10 +234,16 @@ class LargeEntryCardWidget extends StatelessWidget {
       ),
       body: body.isNotEmpty
           ? LargeCard.markdownBody(body, searchQuery: searchQuery)
-          : Text(
-              AppLocalizations.of(context)!.writeSomethingHint,
-              style: TextStyle(color: theme.disabledColor, fontSize: 16),
-            ),
+          // A day with only photos or places needs no "Write something…"
+          : (attachments.isNotEmpty && !hideImage) ||
+                  (showLocations &&
+                      places.isNotEmpty &&
+                      EntryLocations.showButtons)
+              ? null
+              : Text(
+                  AppLocalizations.of(context)!.writeSomethingHint,
+                  style: TextStyle(color: theme.disabledColor, fontSize: 16),
+                ),
       footer: showLocations && places.isNotEmpty && EntryLocations.showButtons
           ? TimelineLocationButton(places: places, enabled: locationsEnabled)
           : null,

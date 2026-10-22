@@ -10,6 +10,7 @@ import 'package:daily_you/fork/links.dart';
 import 'package:daily_you/fork/places.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/time_manager.dart';
+import 'package:daily_you/utils/generated/tag_icon_registry.dart';
 import 'package:daily_you/utils/text_editing.dart';
 import 'package:daily_you/widgets/editor_action_bar/toolbar_actions.dart';
 import 'package:daily_you/widgets/icons/svg_icon.dart';
@@ -33,6 +34,31 @@ enum EditorButton {
   link,
 }
 
+/// Everything a toolbar button can do on a tap or a long-press. Each
+/// built-in button has a default pair (see [EditorButtons.defaultTap] and
+/// [EditorButtons.defaultHold]) that can be changed in Settings › Editor
+/// buttons.
+enum EditorAction {
+  time,
+  dateAndTime,
+  bulletList,
+  numberedList,
+  checkbox,
+  tickedCheckbox,
+  heading1,
+  heading2,
+  headingMenu,
+  bold,
+  italic,
+  highlight,
+  strikethrough,
+  quote,
+  divider,
+  addLink,
+  pasteLink,
+  none,
+}
+
 /// A button the user made in Settings > Editor buttons: tapping it inserts
 /// [text] (plain words or Markdown) at the cursor.
 @immutable
@@ -42,6 +68,7 @@ class CustomEditorButton {
     required this.name,
     required this.symbol,
     required this.text,
+    this.materialIcon = false,
   });
 
   /// Stable, never reused, so the saved order and hidden list can find it.
@@ -56,11 +83,20 @@ class CustomEditorButton {
   /// What a tap inserts.
   final String text;
 
+  /// When set, [symbol] is a Material icon's key (from the tag icon list)
+  /// instead of an emoji or letters.
+  final bool materialIcon;
+
   /// The button's token in the saved toolbar order.
   String get token => '${EditorButtons.customPrefix}$id';
 
-  Map<String, String> toJson() =>
-      {'id': id, 'name': name, 'symbol': symbol, 'text': text};
+  Map<String, Object> toJson() => {
+        'id': id,
+        'name': name,
+        'symbol': symbol,
+        'text': text,
+        if (materialIcon) 'icon': 'material',
+      };
 
   static CustomEditorButton? fromJson(Object? json) {
     if (json is! Map) return null;
@@ -74,15 +110,18 @@ class CustomEditorButton {
       name: name is String ? name : '',
       symbol: symbol is String ? symbol : '',
       text: text,
+      materialIcon: json['icon'] == 'material',
     );
   }
 
-  CustomEditorButton copyWith({String? name, String? symbol, String? text}) =>
+  CustomEditorButton copyWith(
+          {String? name, String? symbol, String? text, bool? materialIcon}) =>
       CustomEditorButton(
         id: id,
         name: name ?? this.name,
         symbol: symbol ?? this.symbol,
         text: text ?? this.text,
+        materialIcon: materialIcon ?? this.materialIcon,
       );
 
   @override
@@ -91,10 +130,11 @@ class CustomEditorButton {
       other.id == id &&
       other.name == name &&
       other.symbol == symbol &&
-      other.text == text;
+      other.text == text &&
+      other.materialIcon == materialIcon;
 
   @override
-  int get hashCode => Object.hash(id, name, symbol, text);
+  int get hashCode => Object.hash(id, name, symbol, text, materialIcon);
 }
 
 /// One slot on the toolbar: a built-in button or one of the user's own.
@@ -169,13 +209,21 @@ class EditorButtons {
 
   /// A new button with an id no other button has had.
   static CustomEditorButton newCustomButton(
-      {required String name, required String symbol, required String text}) {
+      {required String name,
+      required String symbol,
+      required String text,
+      bool materialIcon = false}) {
     final taken = customButtons().map((button) => button.id).toSet();
     var id = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
     while (taken.contains(id)) {
       id = '${id}x';
     }
-    return CustomEditorButton(id: id, name: name, symbol: symbol, text: text);
+    return CustomEditorButton(
+        id: id,
+        name: name,
+        symbol: symbol,
+        text: text,
+        materialIcon: materialIcon);
   }
 
   /// Adds [button], or replaces the button with the same id. New buttons
@@ -261,6 +309,7 @@ class EditorButtons {
     await ConfigProvider.instance.set(Settings.editorToolbarOrder, '');
     await ConfigProvider.instance.set(Settings.editorToolbarHidden, '');
     await ConfigProvider.instance.set(Settings.editorPopupItems, 'default');
+    await ConfigProvider.instance.set(Settings.editorButtonActions, '{}');
   }
 
   static Widget icon(EditorButton button) => switch (button) {
@@ -279,6 +328,14 @@ class EditorButtons {
         EditorButton.link => const Icon(Icons.link_rounded),
       };
 
+  /// A button's toolbar icon: its own, or its tap action's when that was
+  /// changed in settings.
+  static Widget buttonIcon(EditorButton button) {
+    if (button == EditorButton.place) return icon(button);
+    final tap = tapAction(button);
+    return tap == defaultTap(button) ? icon(button) : actionIcon(tap);
+  }
+
   static String label(AppLocalizations l10n, EditorButton button) =>
       switch (button) {
         EditorButton.timestamp => l10n.editorTimestamp,
@@ -294,76 +351,217 @@ class EditorButtons {
         EditorButton.link => l10n.editorLink,
       };
 
-  /// What a long-press does instead, or null when a button has no pair.
-  static String? holdLabel(AppLocalizations l10n, EditorButton button) =>
-      switch (button) {
-        EditorButton.timestamp => l10n.editorDateAndTime,
-        EditorButton.list => l10n.editorNumberedList,
-        EditorButton.checklist => l10n.editorTickedCheckbox,
-        EditorButton.heading => l10n.editorHeading1,
-        EditorButton.highlight => l10n.editorStrikethrough,
-        EditorButton.quote => l10n.editorDivider,
-        EditorButton.link => l10n.editorPasteLink,
+  /// What a tap does unless changed in settings.
+  static EditorAction defaultTap(EditorButton button) => switch (button) {
+        EditorButton.timestamp => EditorAction.time,
+        EditorButton.place => EditorAction.none,
+        EditorButton.list => EditorAction.bulletList,
+        EditorButton.checklist => EditorAction.checkbox,
+        EditorButton.heading => EditorAction.heading1,
+        EditorButton.bold => EditorAction.bold,
+        EditorButton.italic => EditorAction.italic,
+        EditorButton.highlight => EditorAction.highlight,
+        EditorButton.strikethrough => EditorAction.strikethrough,
+        EditorButton.quote => EditorAction.quote,
+        EditorButton.link => EditorAction.addLink,
+      };
+
+  /// What a long-press does unless changed in settings.
+  static EditorAction defaultHold(EditorButton button) => switch (button) {
+        EditorButton.timestamp => EditorAction.dateAndTime,
+        EditorButton.list => EditorAction.numberedList,
+        EditorButton.checklist => EditorAction.tickedCheckbox,
+        EditorButton.heading => EditorAction.headingMenu,
+        EditorButton.highlight => EditorAction.strikethrough,
+        EditorButton.quote => EditorAction.divider,
+        EditorButton.link => EditorAction.pasteLink,
         EditorButton.bold ||
         EditorButton.italic ||
         EditorButton.strikethrough ||
         EditorButton.place =>
-          null,
+          EditorAction.none,
       };
+
+  /// Actions a tap can be set to (a tap always does something).
+  static final List<EditorAction> tapChoices = EditorAction.values
+      .where((action) => action != EditorAction.none)
+      .toList(growable: false);
+
+  /// Actions a long-press can be set to, starting with "Nothing".
+  static final List<EditorAction> holdChoices = [
+    EditorAction.none,
+    ...tapChoices,
+  ];
+
+  static Map<String, dynamic> _savedActions() {
+    try {
+      final decoded =
+          jsonDecode(ConfigProvider.instance.get(Settings.editorButtonActions));
+      return decoded is Map<String, dynamic> ? decoded : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  static EditorAction? _saved(EditorButton button, String which) {
+    final entry = _savedActions()[button.name];
+    if (entry is! Map) return null;
+    final name = entry[which];
+    return EditorAction.values.where((a) => a.name == name).firstOrNull;
+  }
+
+  /// What tapping [button] does, as set in settings.
+  static EditorAction tapAction(EditorButton button) {
+    if (button == EditorButton.place) return EditorAction.none;
+    final saved = _saved(button, 'tap');
+    return saved == null || saved == EditorAction.none
+        ? defaultTap(button)
+        : saved;
+  }
+
+  /// What long-pressing [button] does, as set in settings.
+  static EditorAction holdAction(EditorButton button) {
+    if (button == EditorButton.place) return EditorAction.none;
+    return _saved(button, 'hold') ?? defaultHold(button);
+  }
+
+  /// Saves what a tap and a long-press on [button] do. Defaults aren't
+  /// stored, so changing a default later still reaches untouched buttons.
+  static Future<void> saveActions(
+      EditorButton button, EditorAction tap, EditorAction hold) async {
+    final saved = _savedActions();
+    final entry = <String, String>{
+      if (tap != defaultTap(button)) 'tap': tap.name,
+      if (hold != defaultHold(button)) 'hold': hold.name,
+    };
+    if (entry.isEmpty) {
+      saved.remove(button.name);
+    } else {
+      saved[button.name] = entry;
+    }
+    await ConfigProvider.instance
+        .set(Settings.editorButtonActions, jsonEncode(saved));
+  }
+
+  /// Whether [button]'s tap or long-press was changed in settings.
+  static bool actionsChanged(EditorButton button) =>
+      tapAction(button) != defaultTap(button) ||
+      holdAction(button) != defaultHold(button);
+
+  static Widget actionIcon(EditorAction action) => switch (action) {
+        EditorAction.time ||
+        EditorAction.dateAndTime =>
+          const Icon(Icons.schedule_rounded),
+        EditorAction.bulletList =>
+          const Icon(Icons.format_list_bulleted_rounded),
+        EditorAction.numberedList =>
+          const Icon(Icons.format_list_numbered_rounded),
+        EditorAction.checkbox => const Icon(Icons.checklist_rounded),
+        EditorAction.tickedCheckbox => const Icon(Icons.check_box_rounded),
+        EditorAction.heading1 ||
+        EditorAction.heading2 ||
+        EditorAction.headingMenu =>
+          const Icon(Icons.text_fields_rounded),
+        EditorAction.bold => const Icon(Icons.format_bold_rounded),
+        EditorAction.italic => const Icon(Icons.format_italic_rounded),
+        EditorAction.highlight =>
+          const SvgIcon('assets/icons/format_ink_highlighter.svg'),
+        EditorAction.strikethrough =>
+          const Icon(Icons.format_strikethrough_rounded),
+        EditorAction.quote => const Icon(Icons.format_quote_rounded),
+        EditorAction.divider => const Icon(Icons.horizontal_rule_rounded),
+        EditorAction.addLink => const Icon(Icons.link_rounded),
+        EditorAction.pasteLink => const Icon(Icons.content_paste_rounded),
+        EditorAction.none => const Icon(Icons.block_rounded),
+      };
+
+  static String actionLabel(AppLocalizations l10n, EditorAction action) =>
+      switch (action) {
+        EditorAction.time => l10n.editorTime,
+        EditorAction.dateAndTime => l10n.editorDateAndTime,
+        EditorAction.bulletList => l10n.editorBulletList,
+        EditorAction.numberedList => l10n.editorNumberedList,
+        EditorAction.checkbox => l10n.editorChecklist,
+        EditorAction.tickedCheckbox => l10n.editorTickedCheckbox,
+        EditorAction.heading1 => l10n.editorHeading1,
+        EditorAction.heading2 => l10n.editorHeading2,
+        EditorAction.headingMenu => l10n.editorHeadingMenu,
+        EditorAction.bold => l10n.editorBold,
+        EditorAction.italic => l10n.editorItalic,
+        EditorAction.highlight => l10n.editorHighlight,
+        EditorAction.strikethrough => l10n.editorStrikethrough,
+        EditorAction.quote => l10n.editorQuote,
+        EditorAction.divider => l10n.editorDivider,
+        EditorAction.addLink => l10n.editorAddLink,
+        EditorAction.pasteLink => l10n.editorPasteLink,
+        EditorAction.none => l10n.editorNothing,
+      };
+
+  /// What a long-press does instead, or null when it does nothing.
+  static String? holdLabel(AppLocalizations l10n, EditorButton button) {
+    final action = holdAction(button);
+    return action == EditorAction.none ? null : actionLabel(l10n, action);
+  }
 
   static Future<void> tap(EditorButton button, BuildContext context,
       TextEditingController controller,
       {DateTime? entryDate}) async {
-    switch (button) {
-      case EditorButton.timestamp:
-        insertTimestamp(context, controller, entryDate: entryDate);
-      case EditorButton.place:
-        await Places.showPlaceSheet(context, controller);
-      case EditorButton.list:
-        insertLinePrefix(controller, '-');
-      case EditorButton.checklist:
-        insertLinePrefix(controller, '- [ ]');
-      case EditorButton.heading:
-        await insertHeader(context, controller);
-      case EditorButton.bold:
-        wrapSelection(controller, '**');
-      case EditorButton.italic:
-        wrapSelection(controller, '_');
-      case EditorButton.highlight:
-        wrapSelection(controller, '==');
-      case EditorButton.strikethrough:
-        wrapSelection(controller, '~~');
-      case EditorButton.quote:
-        insertLinePrefix(controller, '>');
-      case EditorButton.link:
-        await EntryLinks.showAddLinkDialog(context, controller,
-            currentEntryId: editingEntryId);
+    if (button == EditorButton.place) {
+      await Places.showPlaceSheet(context, controller);
+      return;
     }
+    await run(tapAction(button), context, controller, entryDate: entryDate);
   }
 
   static Future<void> hold(EditorButton button, BuildContext context,
+          TextEditingController controller,
+          {DateTime? entryDate}) =>
+      run(holdAction(button), context, controller, entryDate: entryDate);
+
+  static Future<void> run(EditorAction action, BuildContext context,
       TextEditingController controller,
       {DateTime? entryDate}) async {
-    switch (button) {
-      case EditorButton.timestamp:
+    switch (action) {
+      case EditorAction.time:
+        insertTimestamp(context, controller, entryDate: entryDate);
+      case EditorAction.dateAndTime:
         insertTimestamp(context, controller,
             entryDate: entryDate, alwaysDate: true);
-      case EditorButton.list:
+      case EditorAction.bulletList:
+        insertLinePrefix(controller, '-');
+      case EditorAction.numberedList:
         insertLinePrefix(controller, '1.');
-      case EditorButton.checklist:
+      case EditorAction.checkbox:
+        insertLinePrefix(controller, '- [ ]');
+      case EditorAction.tickedCheckbox:
         insertLinePrefix(controller, '- [x]');
-      case EditorButton.heading:
+      case EditorAction.heading1:
         insertLinePrefix(controller, '#');
-      case EditorButton.highlight:
+      case EditorAction.heading2:
+        insertLinePrefix(controller, '##');
+      case EditorAction.headingMenu:
+        await insertHeader(context, controller);
+      case EditorAction.bold:
+        wrapSelection(controller, '**');
+      case EditorAction.italic:
+        wrapSelection(controller, '_');
+      case EditorAction.highlight:
+        wrapSelection(controller, '==');
+      case EditorAction.strikethrough:
         wrapSelection(controller, '~~');
-      case EditorButton.quote:
+      case EditorAction.quote:
+        insertLinePrefix(controller, '>');
+      case EditorAction.divider:
         insertOnOwnLine(controller, '---');
-      case EditorButton.link:
-        await pasteLink(controller);
-      case EditorButton.bold:
-      case EditorButton.italic:
-      case EditorButton.strikethrough:
-      case EditorButton.place:
+      case EditorAction.addLink:
+        await EntryLinks.showAddLinkDialog(context, controller,
+            currentEntryId: editingEntryId);
+      case EditorAction.pasteLink:
+        if (!await pasteLink(controller) && context.mounted) {
+          await EntryLinks.showAddLinkDialog(context, controller,
+              currentEntryId: editingEntryId);
+        }
+      case EditorAction.none:
         break;
     }
   }
@@ -406,11 +604,12 @@ class EditorButtons {
   }
 
   /// Turns the selection (or nothing) into a link to a copied address. A
-  /// copied entry link or Maps place keeps its name.
-  static Future<void> pasteLink(TextEditingController controller) async {
+  /// copied entry link or Maps place keeps its name. Returns false, and
+  /// changes nothing, when the clipboard doesn't hold a link.
+  static Future<bool> pasteLink(TextEditingController controller) async {
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final copied = data?.text?.trim() ?? '';
-    if (copied.isEmpty) return;
+    if (!isCopiedLink(copied)) return false;
     final selection = controller.selection;
     final selected = selection.isValid && !selection.isCollapsed
         ? selection.textInside(controller.text)
@@ -418,14 +617,24 @@ class EditorButtons {
     final tidied = LinkPasteFormatter.tidy(copied, selectedText: selected);
     if (tidied != null) {
       insertAtCursor(controller, tidied);
-      return;
+      return true;
     }
-    if (EntryLinks.parseMarkdownLink(copied) != null ||
-        !EntryLinks.looksLikeAddress(copied)) {
+    if (EntryLinks.parseMarkdownLink(copied) != null) {
       insertAtCursor(controller, copied);
-      return;
+      return true;
     }
     wrapSelection(controller, '[', ']($copied)');
+    return true;
+  }
+
+  /// Whether copied text is a link: a web or entry address, a Markdown
+  /// link, or a place shared from Maps. Ordinary words aren't.
+  static bool isCopiedLink(String copied) {
+    if (copied.isEmpty) return false;
+    if (EntryLinks.parseMarkdownLink(copied) != null) return true;
+    if (Places.placeFromShared(copied) != null) return true;
+    return !copied.contains(RegExp(r'\s')) &&
+        EntryLinks.looksLikeAddress(copied);
   }
 
   /// Formatting items for the text selection popup, in the user's order.
@@ -456,7 +665,7 @@ class EditorButtons {
         if (!hidden.contains(item.token))
           switch (item) {
             ToolbarItem(builtIn: final button?) => ToolbarAction(
-                icon: icon(button),
+                icon: buttonIcon(button),
                 onPressed: () => tap(button, context, controller,
                     entryDate: entryDate?.call()),
                 longPressLabel: holdLabel(l10n, button),
@@ -483,7 +692,7 @@ class EditorButtons {
 
   /// A slot's icon, for settings rows.
   static Widget itemIcon(ToolbarItem item) => switch (item) {
-        ToolbarItem(builtIn: final button?) => icon(button),
+        ToolbarItem(builtIn: final button?) => buttonIcon(button),
         ToolbarItem(custom: final custom?) => CustomButtonIcon(custom),
         _ => const SizedBox.shrink(),
       };
@@ -510,6 +719,10 @@ class CustomButtonIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final iconTheme = IconTheme.of(context);
     final size = iconTheme.size ?? 24;
+    if (button.materialIcon) {
+      return Icon(lookupTagIcon(button.symbol) ?? Icons.label_rounded,
+          size: size, color: iconTheme.color);
+    }
     final symbol = button.symbol.trim().isNotEmpty
         ? button.symbol.trim()
         : (button.name.trim().isNotEmpty

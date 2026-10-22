@@ -4,7 +4,10 @@
 
 import 'package:daily_you/fork/editor_buttons.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
+import 'package:daily_you/models/tag_icon_type.dart';
+import 'package:daily_you/utils/generated/tag_icon_registry.dart';
 import 'package:daily_you/widgets/app_dialog.dart';
+import 'package:daily_you/widgets/icon_picker_dialog.dart';
 import 'package:daily_you/widgets/settings_header.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -63,14 +66,30 @@ class _EditorButtonsSettingsPageState extends State<EditorButtonsSettingsPage> {
     } else {
       final button = existing == null
           ? EditorButtons.newCustomButton(
-              name: result.name, symbol: result.symbol, text: result.text)
+              name: result.name,
+              symbol: result.symbol,
+              text: result.text,
+              materialIcon: result.materialIcon)
           : existing.copyWith(
-              name: result.name, symbol: result.symbol, text: result.text);
+              name: result.name,
+              symbol: result.symbol,
+              text: result.text,
+              materialIcon: result.materialIcon);
       await EditorButtons.saveCustomButton(button);
       // Keep the order saved so a new button stays where it lands
       await EditorButtons.saveToolbar(
           EditorButtons.toolbarOrder(), EditorButtons.toolbarHidden());
     }
+    if (mounted) setState(_load);
+  }
+
+  Future<void> _editActions(EditorButton button) async {
+    final result = await showAppDialog<(EditorAction, EditorAction)>(
+      context: context,
+      builder: (_) => _ButtonActionsDialog(button: button),
+    );
+    if (result == null || !mounted) return;
+    await EditorButtons.saveActions(button, result.$1, result.$2);
     if (mounted) setState(_load);
   }
 
@@ -104,7 +123,8 @@ class _EditorButtonsSettingsPageState extends State<EditorButtonsSettingsPage> {
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Text(l10n.editorButtonsToolbarHint,
+            child: Text(
+                '${l10n.editorButtonsToolbarHint} ${l10n.editorButtonsActionsHint}',
                 style: TextStyle(color: muted)),
           ),
           ReorderableListView(
@@ -193,6 +213,16 @@ class _EditorButtonsSettingsPageState extends State<EditorButtonsSettingsPage> {
     final builtIn = item.builtIn;
     final hold =
         builtIn == null ? null : EditorButtons.holdLabel(l10n, builtIn);
+    final tapChanged = builtIn != null &&
+        EditorButtons.tapAction(builtIn) != EditorButtons.defaultTap(builtIn);
+    final String? actions = builtIn == null
+        ? null
+        : tapChanged
+            ? l10n.editorButtonsTapHold(
+                EditorButtons.actionLabel(
+                    l10n, EditorButtons.tapAction(builtIn)),
+                hold ?? l10n.editorNothing)
+            : (hold == null ? null : l10n.editorButtonsHold(hold));
     return ListTile(
       key: ValueKey('toolbar-${item.token}'),
       leading: ReorderableDragStartListener(
@@ -210,8 +240,10 @@ class _EditorButtonsSettingsPageState extends State<EditorButtonsSettingsPage> {
       subtitle: custom != null
           ? Text(custom.text.replaceAll('\n', ' ⏎ '),
               maxLines: 1, overflow: TextOverflow.ellipsis)
-          : (hold == null ? null : Text(l10n.editorButtonsHold(hold))),
-      onTap: custom == null ? null : () => _editCustom(custom),
+          : (actions == null ? null : Text(actions)),
+      onTap: custom != null
+          ? () => _editCustom(custom)
+          : () => _editActions(builtIn!),
       trailing: IconButton(
         tooltip: EditorButtons.itemLabel(l10n, item),
         icon: Icon(
@@ -227,17 +259,100 @@ class _EditorButtonsSettingsPageState extends State<EditorButtonsSettingsPage> {
 }
 
 class _CustomButtonResult {
-  const _CustomButtonResult(this.name, this.symbol, this.text) : delete = false;
+  const _CustomButtonResult(this.name, this.symbol, this.text,
+      {this.materialIcon = false})
+      : delete = false;
   const _CustomButtonResult.delete()
       : name = '',
         symbol = '',
         text = '',
+        materialIcon = false,
         delete = true;
 
   final String name;
   final String symbol;
   final String text;
+  final bool materialIcon;
   final bool delete;
+}
+
+/// Chooses what a tap and a long-press on one built-in button do.
+class _ButtonActionsDialog extends StatefulWidget {
+  const _ButtonActionsDialog({required this.button});
+
+  final EditorButton button;
+
+  @override
+  State<_ButtonActionsDialog> createState() => _ButtonActionsDialogState();
+}
+
+class _ButtonActionsDialogState extends State<_ButtonActionsDialog> {
+  late EditorAction _tap = EditorButtons.tapAction(widget.button);
+  late EditorAction _hold = EditorButtons.holdAction(widget.button);
+
+  Widget _picker(AppLocalizations l10n, String label, EditorAction value,
+          List<EditorAction> choices, ValueChanged<EditorAction> onChanged) =>
+      DropdownButtonFormField<EditorAction>(
+        initialValue: value,
+        isExpanded: true,
+        decoration: InputDecoration(labelText: label),
+        items: [
+          for (final action in choices)
+            DropdownMenuItem(
+              value: action,
+              child: Row(children: [
+                SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: Center(child: EditorButtons.actionIcon(action))),
+                const SizedBox(width: 12),
+                Flexible(
+                  child: Text(EditorButtons.actionLabel(l10n, action),
+                      overflow: TextOverflow.ellipsis),
+                ),
+              ]),
+            ),
+        ],
+        onChanged: (action) {
+          if (action != null) setState(() => onChanged(action));
+        },
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final button = widget.button;
+    return AlertDialog(
+      title: Text(EditorButtons.label(l10n, button)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _picker(l10n, l10n.editorButtonTap, _tap, EditorButtons.tapChoices,
+              (action) => _tap = action),
+          const SizedBox(height: 16),
+          _picker(l10n, l10n.editorButtonHold, _hold, EditorButtons.holdChoices,
+              (action) => _hold = action),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, (
+            EditorButtons.defaultTap(button),
+            EditorButtons.defaultHold(button)
+          )),
+          child: Text(l10n.editorButtonDefaults),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, (_tap, _hold)),
+          child: Text(MaterialLocalizations.of(context).saveButtonLabel),
+        ),
+      ],
+    );
+  }
 }
 
 /// Makes or edits one custom button: its name, what it shows, and the
@@ -258,6 +373,26 @@ class _CustomButtonDialogState extends State<_CustomButtonDialog> {
       TextEditingController(text: widget.existing?.symbol ?? '');
   late final TextEditingController _text =
       TextEditingController(text: widget.existing?.text ?? '');
+  // A picked Material icon's key; null when the button shows _symbol text
+  late String? _iconKey =
+      widget.existing?.materialIcon == true ? widget.existing!.symbol : null;
+
+  Future<void> _pickIcon() async {
+    final result = await showAppDialog<IconPickerResult>(
+      context: context,
+      builder: (context) => IconPickerDialog(
+          previewColor: Theme.of(context).colorScheme.onSurface),
+    );
+    if (result == null || !mounted) return;
+    setState(() {
+      if (result.type == TagIconType.materialIcon) {
+        _iconKey = result.value;
+      } else {
+        _iconKey = null;
+        _symbol.text = result.value;
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -295,14 +430,43 @@ class _CustomButtonDialogState extends State<_CustomButtonDialog> {
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _symbol,
-              maxLength: 4,
-              decoration: InputDecoration(
-                labelText: l10n.editorCustomButtonSymbol,
-                hintText: l10n.editorCustomButtonSymbolHint,
+            if (_iconKey != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: InputDecorator(
+                  decoration:
+                      InputDecoration(labelText: l10n.editorCustomButtonIcon),
+                  child: Row(children: [
+                    Icon(lookupTagIcon(_iconKey) ?? Icons.label_rounded),
+                    const Spacer(),
+                    IconButton(
+                      tooltip: l10n.editorCustomButtonPickIcon,
+                      icon: const Icon(Icons.edit_rounded),
+                      onPressed: _pickIcon,
+                    ),
+                    IconButton(
+                      tooltip:
+                          MaterialLocalizations.of(context).deleteButtonTooltip,
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => setState(() => _iconKey = null),
+                    ),
+                  ]),
+                ),
+              )
+            else
+              TextField(
+                controller: _symbol,
+                maxLength: 4,
+                decoration: InputDecoration(
+                  labelText: l10n.editorCustomButtonSymbol,
+                  hintText: l10n.editorCustomButtonSymbolHint,
+                  suffixIcon: IconButton(
+                    tooltip: l10n.editorCustomButtonPickIcon,
+                    icon: const Icon(Icons.interests_rounded),
+                    onPressed: _pickIcon,
+                  ),
+                ),
               ),
-            ),
             const SizedBox(height: 4),
             TextField(
               controller: _text,
@@ -333,8 +497,9 @@ class _CustomButtonDialogState extends State<_CustomButtonDialog> {
               ? null
               : () => Navigator.pop(
                   context,
-                  _CustomButtonResult(
-                      _name.text.trim(), _symbol.text.trim(), _text.text)),
+                  _CustomButtonResult(_name.text.trim(),
+                      _iconKey ?? _symbol.text.trim(), _text.text,
+                      materialIcon: _iconKey != null)),
           child: Text(MaterialLocalizations.of(context).saveButtonLabel),
         ),
       ],

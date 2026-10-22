@@ -33,6 +33,8 @@ import 'package:daily_you/widgets/tag_grouped_chip_list.dart';
 import 'package:daily_you/widgets/tag_picker_dialog.dart';
 import 'package:daily_you/widgets/tag_chip.dart';
 import 'package:daily_you/time_manager.dart';
+import 'package:daily_you/fork/shared_entry_text.dart';
+import 'package:intl/intl.dart' show Intl;
 import 'package:provider/provider.dart';
 import 'package:daily_you/pages/audio_recorder_page.dart';
 import 'package:daily_you/pages/full_screen_text_editor_page.dart';
@@ -58,6 +60,10 @@ class AddEditEntryPage extends StatefulWidget {
   final List<EntryAttachment> attachments;
   final String? sharedText;
 
+  /// Where in the text to put the cursor on opening (from the entry view,
+  /// so editing starts where you were reading). Null leaves it as usual.
+  final int? startAt;
+
   const AddEditEntryPage({
     super.key,
     this.entry,
@@ -65,16 +71,26 @@ class AddEditEntryPage extends StatefulWidget {
     this.openCamera = false,
     this.attachments = const <EntryAttachment>[],
     this.sharedText,
+    this.startAt,
   });
 
-  static String mergeSharedText(String baseText, String? sharedText) {
+  static String mergeSharedText(String baseText, String? sharedText,
+      {String locale = 'en'}) {
     if (sharedText == null) return baseText;
     // A place shared from Google Maps becomes one of the entry's places
     final place = Places.placeFromShared(sharedText);
     if (place != null) return EntryLocations.add(baseText, place);
+    // An entry shared from Daily You keeps its lines and places, without
+    // its date line
+    final (sharedBody, sharedPlaces) =
+        SharedEntryText.parse(sharedText, locale: locale);
     final (body, places) = EntryLocations.split(baseText);
-    return EntryLocations.join(
-        body.isEmpty ? sharedText : '$body\n\n$sharedText', places);
+    final merged = body.isEmpty
+        ? sharedBody
+        : sharedBody.isEmpty
+            ? body
+            : '$body\n\n$sharedBody';
+    return EntryLocations.join(merged, [...places, ...sharedPlaces]);
   }
 
   @override
@@ -146,8 +162,8 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
       _tagSource = TagAttachmentSource(
           supportsValues: true, initialTagIds: defaultTagIds);
       _entry = Entry(
-        text:
-            AddEditEntryPage.mergeSharedText(templateText, _sharedTextToMerge),
+        text: AddEditEntryPage.mergeSharedText(templateText, _sharedTextToMerge,
+            locale: Intl.getCurrentLocale()),
         mood: null,
         timeCreate: createTime,
         timeModified: DateTime.now(),
@@ -163,8 +179,9 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
       dirtyTrackerBaselineText = _entry.text;
       if (_sharedTextToMerge != null) {
         _entry = _entry.copy(
-          text:
-              AddEditEntryPage.mergeSharedText(_entry.text, _sharedTextToMerge),
+          text: AddEditEntryPage.mergeSharedText(
+              _entry.text, _sharedTextToMerge,
+              locale: Intl.getCurrentLocale()),
         );
       }
     }
@@ -197,6 +214,18 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
         _textEditingController.selection =
             TextSelection.collapsed(offset: _textEditingController.text.length);
         _askForSharedLink();
+      });
+    }
+
+    final startAt = widget.startAt;
+    if (startAt != null && widget.sharedText == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final offset = startAt.clamp(0, _textEditingController.text.length);
+        _textEditingController.selection =
+            TextSelection.collapsed(offset: offset);
+        // Focusing scrolls the cursor into view
+        _focusNode.requestFocus();
       });
     }
 

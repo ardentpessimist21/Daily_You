@@ -163,6 +163,18 @@ class EntryLinks {
     final matches = _webAddress.allMatches(trimmed).toList();
     if (matches.length != 1) return null;
     final address = matches.single.group(0)!;
+    // Several lines, 📍 places or formatting mean an entry or a passage
+    // (e.g. one shared from Daily You), not a page title: keep it as text.
+    final rest =
+        trimmed.replaceRange(matches.single.start, matches.single.end, '');
+    final restLines =
+        rest.split('\n').where((line) => line.trim().isNotEmpty).length;
+    if (restLines > 2 ||
+        rest.contains(Places.pin) ||
+        RegExp(r'\*\*|__|==|~~|^\s*([-*+>#]|\d+[.)])\s', multiLine: true)
+            .hasMatch(rest)) {
+      return null;
+    }
     final words = trimmed
         .replaceRange(matches.single.start, matches.single.end, ' ')
         .replaceAll(RegExp(r'\s+'), ' ')
