@@ -5,7 +5,6 @@
 import 'package:daily_you/fork/editor_buttons.dart';
 import 'package:daily_you/fork/links.dart';
 import 'package:daily_you/fork/locations.dart';
-import 'package:daily_you/fork/reading_position.dart';
 import 'package:daily_you/fork/shared_entry_text.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/pages/edit_entry_page.dart';
@@ -105,20 +104,6 @@ void main() {
           {'id': 'b', 'name': 'Pray', 'symbol': '🙏', 'text': 'x'});
       expect(back!.materialIcon, isFalse);
       expect(back.symbol, '🙏');
-    });
-  });
-
-  group('Entry view: editing starts where you were reading', () {
-    test('snaps to the start of the line', () {
-      const body = 'one\ntwo two\nthree three three\nfour';
-      expect(ReadingPosition.lineStart(body, 0), 0);
-      expect(ReadingPosition.lineStart(body, 0.5), body.indexOf('three'));
-      expect(ReadingPosition.lineStart(body, 1), body.indexOf('four'));
-    });
-
-    test('out-of-range fractions are clamped', () {
-      expect(ReadingPosition.lineStart('abc', -1), 0);
-      expect(ReadingPosition.lineStart('a\nb', 5), 2);
     });
   });
 

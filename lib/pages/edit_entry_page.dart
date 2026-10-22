@@ -60,10 +60,6 @@ class AddEditEntryPage extends StatefulWidget {
   final List<EntryAttachment> attachments;
   final String? sharedText;
 
-  /// Where in the text to put the cursor on opening (from the entry view,
-  /// so editing starts where you were reading). Null leaves it as usual.
-  final int? startAt;
-
   const AddEditEntryPage({
     super.key,
     this.entry,
@@ -71,7 +67,6 @@ class AddEditEntryPage extends StatefulWidget {
     this.openCamera = false,
     this.attachments = const <EntryAttachment>[],
     this.sharedText,
-    this.startAt,
   });
 
   static String mergeSharedText(String baseText, String? sharedText,
@@ -217,46 +212,10 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
       });
     }
 
-    final startAt = widget.startAt;
-    if (startAt != null && widget.sharedText == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        // Wait for the editor to finish fading in: opening the keyboard and
-        // scrolling during the fade makes it stutter.
-        _afterOpening(() {
-          if (!mounted) return;
-          final offset = startAt.clamp(0, _textEditingController.text.length);
-          _textEditingController.selection =
-              TextSelection.collapsed(offset: offset);
-          // Focusing scrolls the cursor into view
-          _focusNode.requestFocus();
-        });
-      });
-    }
-
     if (widget.openCamera && !_openedCamera) {
       _openedCamera = true;
       _importAttachments(EntryAttachmentActions.takePhoto());
     }
-  }
-
-  /// Runs [action] once this page's opening animation has finished.
-  void _afterOpening(VoidCallback action) {
-    final animation = ModalRoute.of(context)?.animation;
-    if (animation == null || animation.status == AnimationStatus.completed) {
-      action();
-      return;
-    }
-    late final AnimationStatusListener listener;
-    listener = (status) {
-      if (status == AnimationStatus.completed) {
-        animation.removeStatusListener(listener);
-        action();
-      } else if (status == AnimationStatus.dismissed) {
-        animation.removeStatusListener(listener);
-      }
-    };
-    animation.addStatusListener(listener);
   }
 
   @override

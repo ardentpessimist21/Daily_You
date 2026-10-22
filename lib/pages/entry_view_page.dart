@@ -11,7 +11,6 @@ import 'package:daily_you/fork/hyphenation.dart';
 import 'package:daily_you/database/attachment_storage.dart';
 import 'package:daily_you/fork/favourites.dart';
 import 'package:daily_you/fork/links.dart';
-import 'package:daily_you/fork/reading_position.dart';
 import 'package:daily_you/fork/search_highlight.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
@@ -55,33 +54,6 @@ class _EntryViewPageState extends State<EntryViewPage> {
   int _currentMatch = 0;
   final List<GlobalKey> _matchKeys = [];
   bool _jumpedToFirst = false;
-  final ScrollController _scrollController = ScrollController();
-  final GlobalKey _bodyKey = GlobalKey();
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  /// Roughly where in [body] the reader is: the start of the line near the
-  /// top of the screen. Null when the text hasn't been scrolled into.
-  int? _readingOffset(String body) {
-    final box = _bodyKey.currentContext?.findRenderObject() as RenderBox?;
-    final scrollBox = context.findRenderObject() as RenderBox?;
-    if (box == null || !box.hasSize || scrollBox == null || body.isEmpty) {
-      return null;
-    }
-    final bodyTop = box.localToGlobal(Offset.zero).dy;
-    final viewTop = scrollBox.localToGlobal(Offset.zero).dy +
-        MediaQuery.paddingOf(context).top +
-        kToolbarHeight;
-    // A little below the top edge, where the eye usually is
-    final readingY = viewTop + 48 - bodyTop;
-    if (readingY <= 0) return null;
-    final fraction = (readingY / box.size.height).clamp(0.0, 1.0);
-    return ReadingPosition.lineStart(body, fraction);
-  }
 
   void _showMatch(int index) {
     if (_matchKeys.isEmpty) return;
@@ -147,7 +119,6 @@ class _EntryViewPageState extends State<EntryViewPage> {
       body: DoubleTapToEdit(
         onDoubleTap: () => _openEditor(context, entry, attachments),
         child: ListView(
-          controller: _scrollController,
           children: [
             Align(
               alignment: Alignment.topCenter,
@@ -243,7 +214,6 @@ class _EntryViewPageState extends State<EntryViewPage> {
                       ),
                       if (body.isNotEmpty)
                         Card.filled(
-                            key: _bodyKey,
                             color:
                                 Theme.of(context).colorScheme.surfaceContainer,
                             child: Padding(
@@ -296,16 +266,12 @@ class _EntryViewPageState extends State<EntryViewPage> {
       List<EntryAttachment> attachments) async {
     if (_editorOpen) return;
     _editorOpen = true;
-    final (body, _) = EntryLocations.split(entry.text);
-    final startAt = ReadingPosition.enabled ? _readingOffset(body) : null;
-    final scrolledTo =
-        _scrollController.hasClients ? _scrollController.offset : 0.0;
     try {
       await Navigator.of(context).push(PageRouteBuilder(
         allowSnapshotting: false,
         fullscreenDialog: true,
-        pageBuilder: (context, _, __) => AddEditEntryPage(
-            entry: entry, attachments: attachments, startAt: startAt),
+        pageBuilder: (context, _, __) =>
+            AddEditEntryPage(entry: entry, attachments: attachments),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(
             opacity: animation,
@@ -316,14 +282,6 @@ class _EntryViewPageState extends State<EntryViewPage> {
       ));
 
       widget.onEntryEdited(entry.id!);
-      // Back to where you were reading
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!ReadingPosition.enabled) return;
-        if (!mounted || !_scrollController.hasClients) return;
-        final position = _scrollController.position;
-        _scrollController.jumpTo(scrolledTo.clamp(
-            position.minScrollExtent, position.maxScrollExtent));
-      });
     } finally {
       _editorOpen = false;
     }
