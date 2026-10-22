@@ -148,36 +148,73 @@ class EntryLinks {
       ));
   }
 
+  static final RegExp _webAddress =
+      RegExp(r'https?://[^\s<>"]+', caseSensitive: false);
+
+  /// A link shared from another app ("Title\nhttps://…" or just the
+  /// address), as (words around it, address). Null when [shared] isn't a
+  /// single web link, or is a Google Maps place (those become places).
+  static (String, String)? sharedWebLink(String? shared) {
+    if (shared == null) return null;
+    final trimmed = shared.trim();
+    if (trimmed.isEmpty || Places.placeFromShared(trimmed) != null) {
+      return null;
+    }
+    final matches = _webAddress.allMatches(trimmed).toList();
+    if (matches.length != 1) return null;
+    final address = matches.single.group(0)!;
+    final words = trimmed
+        .replaceRange(matches.single.start, matches.single.end, ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .replaceAll(RegExp(r'^[\s\-–—:|]+|[\s\-–—:|]+$'), '')
+        .trim();
+    // Long shared text is a passage, not a link name: paste it as it is.
+    if (words.length > 120) return null;
+    return (words, address);
+  }
+
   /// Opens the "Add link" box and puts the link where the cursor or
   /// selection was. Highlighted words become the link's text.
+  ///
+  /// [initialAddress] and [initialText] fill the box in (for a shared link)
+  /// instead of the clipboard. If the box is cancelled, [fallback] is put in
+  /// instead, so a shared link is never lost. [prefix] goes before whatever
+  /// is put in.
   static Future<void> showAddLinkDialog(
       BuildContext context, TextEditingController controller,
-      {int? currentEntryId}) async {
+      {int? currentEntryId,
+      String? initialAddress,
+      String? initialText,
+      String? fallback,
+      String prefix = ''}) async {
     final value = controller.value;
     final selection = value.selection;
     final selected = selection.isValid && !selection.isCollapsed
         ? selection.textInside(value.text)
         : '';
-    final copied =
-        (await Clipboard.getData(Clipboard.kTextPlain))?.text?.trim() ?? '';
+    final copied = initialAddress ??
+        (await Clipboard.getData(Clipboard.kTextPlain))?.text?.trim() ??
+        '';
     if (!context.mounted) return;
 
     final link = await showAppDialog<String>(
       context: context,
       builder: (context) => _AddLinkDialog(
-        selectedText: selected,
+        selectedText: selected.isNotEmpty ? selected : (initialText ?? ''),
         copied: copied,
         currentEntryId: currentEntryId,
       ),
     );
-    if (link == null) return;
+    final inserted = link ?? fallback;
+    if (inserted == null) return;
 
     final text = controller.text;
     final start = selection.isValid ? selection.start : text.length;
     final end = selection.isValid ? selection.end : text.length;
+    final withPrefix = '$prefix$inserted';
     controller.value = TextEditingValue(
-      text: text.replaceRange(start, end, link),
-      selection: TextSelection.collapsed(offset: start + link.length),
+      text: text.replaceRange(start, end, withPrefix),
+      selection: TextSelection.collapsed(offset: start + withPrefix.length),
     );
   }
 }
