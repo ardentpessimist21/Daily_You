@@ -221,11 +221,16 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
     if (startAt != null && widget.sharedText == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        final offset = startAt.clamp(0, _textEditingController.text.length);
-        _textEditingController.selection =
-            TextSelection.collapsed(offset: offset);
-        // Focusing scrolls the cursor into view
-        _focusNode.requestFocus();
+        // Wait for the editor to finish fading in: opening the keyboard and
+        // scrolling during the fade makes it stutter.
+        _afterOpening(() {
+          if (!mounted) return;
+          final offset = startAt.clamp(0, _textEditingController.text.length);
+          _textEditingController.selection =
+              TextSelection.collapsed(offset: offset);
+          // Focusing scrolls the cursor into view
+          _focusNode.requestFocus();
+        });
       });
     }
 
@@ -233,6 +238,25 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
       _openedCamera = true;
       _importAttachments(EntryAttachmentActions.takePhoto());
     }
+  }
+
+  /// Runs [action] once this page's opening animation has finished.
+  void _afterOpening(VoidCallback action) {
+    final animation = ModalRoute.of(context)?.animation;
+    if (animation == null || animation.status == AnimationStatus.completed) {
+      action();
+      return;
+    }
+    late final AnimationStatusListener listener;
+    listener = (status) {
+      if (status == AnimationStatus.completed) {
+        animation.removeStatusListener(listener);
+        action();
+      } else if (status == AnimationStatus.dismissed) {
+        animation.removeStatusListener(listener);
+      }
+    };
+    animation.addStatusListener(listener);
   }
 
   @override
