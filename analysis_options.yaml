@@ -2,6 +2,7 @@ include: package:flutter_lints/flutter.yaml
 analyzer:
   exclude:
     - submodules/**
+    - packages/third_party/**
     - /nix/store/**
     - build/**
     - android/**

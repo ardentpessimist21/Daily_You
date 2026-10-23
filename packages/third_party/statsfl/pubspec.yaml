@@ -1,0 +1,13 @@
+name: statsfl
+
+version: 2.3.0
+description: A simple FPS monitor for Flutter. Helps to easily diagnose performance problems in your applications.
+homepage: https://github.com/gskinnerTeam/flutter-stats-fl
+
+environment:
+  sdk: '>=2.12.0-0 <3.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+flutter:
