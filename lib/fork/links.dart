@@ -586,7 +586,9 @@ class LinkPasteFormatter extends TextInputFormatter {
     final newEnd = newValue.text.length - removedAfter;
     if (newEnd < start || newEnd > newValue.text.length) return newValue;
     // Only replacements of the selection, and only multi-character ones, so
-    // ordinary typing is never touched.
+    // ordinary typing is never touched. The length check comes first: it's
+    // free, while the comparisons below walk the whole entry.
+    if (newEnd - start < 4) return newValue;
     if (!newValue.text.startsWith(oldValue.text.substring(0, start)) ||
         !newValue.text.endsWith(oldValue.text.substring(oldEnd))) {
       return newValue;

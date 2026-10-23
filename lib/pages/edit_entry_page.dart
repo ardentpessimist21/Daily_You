@@ -682,11 +682,31 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
   /// the saved text exactly, so opening an entry never counts as an edit.
   void _syncText() {
     final body = _textEditingController.text;
-    final (savedBody, savedPlaces) = EntryLocations.split(_entry.text);
+    // Runs on every keystroke and cursor move, so skip the work when
+    // nothing it uses has changed.
+    if (identical(body, _syncedBody) &&
+        identical(_places, _syncedPlaces) &&
+        identical(_entry.text, _syncedEntryText)) {
+      return;
+    }
+    if (!identical(_entry.text, _savedSplitFor)) {
+      _savedSplitFor = _entry.text;
+      _savedSplit = EntryLocations.split(_entry.text);
+    }
+    final (savedBody, savedPlaces) = _savedSplit;
     text = body == savedBody && listEquals(_places, savedPlaces)
         ? _entry.text
         : EntryLocations.join(body, _places);
+    _syncedBody = body;
+    _syncedPlaces = _places;
+    _syncedEntryText = _entry.text;
   }
+
+  String? _syncedBody;
+  List<Place>? _syncedPlaces;
+  String? _syncedEntryText;
+  String? _savedSplitFor;
+  (String, List<Place>) _savedSplit = ('', const []);
 
   void _addPlace(Place place) {
     if (!mounted) return;

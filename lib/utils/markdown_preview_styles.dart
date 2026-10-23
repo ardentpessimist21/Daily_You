@@ -109,19 +109,25 @@ TextSpan buildMarkdownPreviewSpan({
   final underlined = <TextRange>[
     if (composing.isValid && composing.end <= text.length) composing,
   ];
-  final marked = [
+  // Sorted and merged where they overlap, so the sweep below only ever needs
+  // to look at the next one (long entries can have hundreds).
+  final marked = _sortedUnion([
     for (final range in misspellings)
       if (range.isValid && range.end <= text.length) range,
-  ];
+  ]);
 
   final children = <TextSpan>[];
   final activeSpans = <MarkdownSpan>[];
   var cursor = 0;
   var nextSpan = 0;
+  var nextMarked = 0;
 
   while (cursor < text.length) {
     while (nextSpan < spans.length && spans[nextSpan].start <= cursor) {
       activeSpans.add(spans[nextSpan++]);
+    }
+    while (nextMarked < marked.length && marked[nextMarked].end <= cursor) {
+      nextMarked++;
     }
 
     var segmentEnd =
@@ -129,9 +135,14 @@ TextSpan buildMarkdownPreviewSpan({
     for (final span in activeSpans) {
       segmentEnd = min(segmentEnd, span.end);
     }
-    for (final range in underlined.followedBy(marked)) {
+    for (final range in underlined) {
       if (range.start > cursor) segmentEnd = min(segmentEnd, range.start);
       if (range.end > cursor) segmentEnd = min(segmentEnd, range.end);
+    }
+    final mark = nextMarked < marked.length ? marked[nextMarked] : null;
+    if (mark != null) {
+      segmentEnd =
+          min(segmentEnd, mark.start > cursor ? mark.start : mark.end);
     }
 
     var style = baseStyle;
@@ -141,7 +152,7 @@ TextSpan buildMarkdownPreviewSpan({
     if (_covers(underlined, cursor, segmentEnd)) {
       style = _decorate(style, TextDecoration.underline);
     }
-    if (_covers(marked, cursor, segmentEnd)) {
+    if (mark != null && mark.start <= cursor && mark.end >= segmentEnd) {
       style = _decorate(style, TextDecoration.underline).copyWith(
         decorationColor: styles.misspelling,
         decorationStyle: TextDecorationStyle.wavy,
@@ -155,6 +166,24 @@ TextSpan buildMarkdownPreviewSpan({
   }
 
   return TextSpan(style: baseStyle, children: children);
+}
+
+/// [ranges] in order, with overlapping ones joined
+List<TextRange> _sortedUnion(List<TextRange> ranges) {
+  if (ranges.length < 2) return ranges;
+  final sorted = [...ranges]..sort((a, b) => a.start.compareTo(b.start));
+  final joined = <TextRange>[sorted.first];
+  for (final range in sorted.skip(1)) {
+    final last = joined.last;
+    if (range.start < last.end) {
+      if (range.end > last.end) {
+        joined.last = TextRange(start: last.start, end: range.end);
+      }
+    } else {
+      joined.add(range);
+    }
+  }
+  return joined;
 }
 
 bool _covers(List<TextRange> ranges, int start, int end) {

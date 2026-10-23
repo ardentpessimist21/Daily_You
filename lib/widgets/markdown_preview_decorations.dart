@@ -125,9 +125,53 @@ class RenderMarkdownPreviewDecorations extends RenderProxyBox {
     return found;
   }
 
+  // Where each block sits in the text, kept until the text or its layout
+  // changes: measuring every block again on each scroll frame is wasted work
+  // on long entries.
+  MarkdownScan? _measuredScan;
+  InlineSpan? _measuredText;
+  Size? _measuredSize;
+  List<_BlockSpot?> _spots = const [];
+
+  List<_BlockSpot?> _measure(RenderEditable editable, MarkdownScan scan) {
+    if (identical(scan, _measuredScan) &&
+        identical(editable.text, _measuredText) &&
+        editable.size == _measuredSize) {
+      return _spots;
+    }
+    _measuredScan = scan;
+    _measuredText = editable.text;
+    _measuredSize = editable.size;
+    return _spots = [
+      for (final block in scan.blocks) _spotOf(editable, block),
+    ];
+  }
+
+  static _BlockSpot? _spotOf(RenderEditable editable, MarkdownBlock block) {
+    final boxes = editable.getBoxesForSelection(
+      TextSelection(baseOffset: block.start, extentOffset: block.end),
+    );
+    if (boxes.isEmpty) return null;
+
+    var top = double.infinity;
+    var bottom = double.negativeInfinity;
+    for (final box in boxes) {
+      top = min(top, box.top);
+      bottom = max(bottom, box.bottom);
+    }
+    if (block.kind == MarkdownBlockKind.codeBlock) {
+      return _BlockSpot(top, bottom, null);
+    }
+    final marker = editable.getBoxesForSelection(
+      TextSelection(baseOffset: block.start, extentOffset: block.markerEnd),
+    );
+    return _BlockSpot(top, bottom, marker.isEmpty ? null : marker.first.left);
+  }
+
   @override
   void paint(PaintingContext context, Offset offset) {
-    final blocks = _controller.scan.blocks;
+    final scan = _controller.scan;
+    final blocks = scan.blocks;
     final editable = blocks.isEmpty ? null : _editableChild();
     if (editable != null) {
       final textOrigin =
@@ -136,30 +180,22 @@ class RenderMarkdownPreviewDecorations extends RenderProxyBox {
       canvas.save();
       canvas.clipRect(Rect.fromLTRB(offset.dx, textOrigin.dy,
           offset.dx + size.width, textOrigin.dy + editable.size.height));
-      for (final block in blocks) {
-        _paintBlock(canvas, editable, block, offset, textOrigin);
+      final spots = _measure(editable, scan);
+      for (var i = 0; i < blocks.length; i++) {
+        final spot = spots[i];
+        if (spot != null) {
+          _paintBlock(canvas, blocks[i], spot, offset, textOrigin);
+        }
       }
       canvas.restore();
     }
     super.paint(context, offset);
   }
 
-  void _paintBlock(Canvas canvas, RenderEditable editable, MarkdownBlock block,
+  void _paintBlock(Canvas canvas, MarkdownBlock block, _BlockSpot spot,
       Offset offset, Offset textOrigin) {
-    final boxes = editable.getBoxesForSelection(
-      TextSelection(baseOffset: block.start, extentOffset: block.end),
-    );
-    if (boxes.isEmpty) return;
-
-    var top = double.infinity;
-    var bottom = double.negativeInfinity;
-    for (final box in boxes) {
-      top = min(top, box.top);
-      bottom = max(bottom, box.bottom);
-    }
-    top += textOrigin.dy;
-    bottom += textOrigin.dy;
-
+    final top = spot.top + textOrigin.dy;
+    final bottom = spot.bottom + textOrigin.dy;
     final edge = offset.dx + _blockMargin;
 
     if (block.kind == MarkdownBlockKind.codeBlock) {
@@ -174,14 +210,21 @@ class RenderMarkdownPreviewDecorations extends RenderProxyBox {
       return;
     }
 
-    final marker = editable.getBoxesForSelection(
-      TextSelection(baseOffset: block.start, extentOffset: block.markerEnd),
-    );
-    final markerLeft = marker.isEmpty ? 0.0 : textOrigin.dx + marker.first.left;
+    final markerLeft =
+        spot.markerLeft == null ? 0.0 : textOrigin.dx + spot.markerLeft!;
     final left = max(edge, markerLeft - _barGap - _barWidth);
     canvas.drawRect(
       Rect.fromLTRB(left, top, left + _barWidth, bottom),
       Paint()..color = _barColor,
     );
   }
+}
+
+/// Where a block sits, relative to the text
+class _BlockSpot {
+  const _BlockSpot(this.top, this.bottom, this.markerLeft);
+
+  final double top;
+  final double bottom;
+  final double? markerLeft;
 }
