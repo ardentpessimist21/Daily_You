@@ -318,7 +318,6 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final keyboardInset = EditorActionBarOverlay.keyboardInsetOf(context);
 
     return _loadingEntry
         ? Scaffold()
@@ -329,6 +328,8 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
               }
             },
             child: Scaffold(
+              // The action bar overlay handles the keyboard (Update L2)
+              resizeToAvoidBottomInset: false,
               appBar: AppBar(
                   leading: BackButton(
                     onPressed: () {
@@ -347,7 +348,6 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
                     _closeButton(),
                   ]),
               body: EditorActionBarOverlay(
-                keyboardInset: keyboardInset,
                 body: LayoutBuilder(
                   builder: (context, constraints) {
                     final sidePadding =

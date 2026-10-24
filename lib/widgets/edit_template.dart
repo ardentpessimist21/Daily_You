@@ -183,9 +183,10 @@ class _EditTemplateState extends State<EditTemplate> {
 
   @override
   Widget build(BuildContext context) {
-    final keyboardInset = EditorActionBarOverlay.keyboardInsetOf(context);
 
     return Scaffold(
+      // The action bar overlay handles the keyboard (Update L2)
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         actions: [
           UndoRedoButtons(controller: _undoController),
@@ -194,7 +195,6 @@ class _EditTemplateState extends State<EditTemplate> {
         ],
       ),
       body: EditorActionBarOverlay(
-        keyboardInset: keyboardInset,
         body: CustomScrollView(
           slivers: [
             SliverToBoxAdapter(

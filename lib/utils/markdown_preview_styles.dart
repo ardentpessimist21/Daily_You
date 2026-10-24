@@ -47,6 +47,20 @@ class MarkdownPreviewStyles {
   final Color misspelling;
   final Color highlightBackground;
 
+  @override
+  bool operator ==(Object other) =>
+      other is MarkdownPreviewStyles &&
+      other.marker == marker &&
+      other.link == link &&
+      other.quote == quote &&
+      other.codeBackground == codeBackground &&
+      other.misspelling == misspelling &&
+      other.highlightBackground == highlightBackground;
+
+  @override
+  int get hashCode => Object.hash(
+      marker, link, quote, codeBackground, misspelling, highlightBackground);
+
   TextStyle apply(TextStyle style, MarkdownSpan span) {
     final sized = span.construct == MarkdownConstruct.header
         ? style.copyWith(
@@ -141,8 +155,7 @@ TextSpan buildMarkdownPreviewSpan({
     }
     final mark = nextMarked < marked.length ? marked[nextMarked] : null;
     if (mark != null) {
-      segmentEnd =
-          min(segmentEnd, mark.start > cursor ? mark.start : mark.end);
+      segmentEnd = min(segmentEnd, mark.start > cursor ? mark.start : mark.end);
     }
 
     var style = baseStyle;

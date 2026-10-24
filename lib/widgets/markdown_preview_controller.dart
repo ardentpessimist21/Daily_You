@@ -137,7 +137,8 @@ class MarkdownPreviewController extends TextEditingController {
         if (span.range.end <= start || span.range.start >= end) span,
       for (final span in found)
         SuggestionSpan(
-          TextRange(start: span.range.start + start, end: span.range.end + start),
+          TextRange(
+              start: span.range.start + start, end: span.range.end + start),
           span.suggestions,
         ),
     ]..sort((a, b) => a.range.start.compareTo(b.range.start));
@@ -153,8 +154,51 @@ class MarkdownPreviewController extends TextEditingController {
     super.dispose();
   }
 
+  // The last styled text and what it was built from (Update L2). The text
+  // field asks for the styled text on every rebuild, even when nothing in
+  // the entry changed (theme, focus, the keyboard moving); building it walks
+  // the whole entry, and handing over a new copy makes the field compare it
+  // against the old one in full.
+  String? _styledText;
+  TextStyle? _styledBase;
+  MarkdownPreviewStyles? _styledWith;
+  TextRange _styledComposing = TextRange.empty;
+  List<TextRange> _styledMisspellings = const [];
+  TextSpan? _styled;
+
   @override
   TextSpan buildTextSpan({
+    required BuildContext context,
+    TextStyle? style,
+    required bool withComposing,
+  }) {
+    final current = text;
+    final base = style ?? const TextStyle();
+    final styles = MarkdownPreviewStyles.fromTheme(context);
+    final composing = withComposing ? value.composing : TextRange.empty;
+    final marked = nearbyMisspellings();
+    final cached = _styled;
+    if (cached != null &&
+        identical(_styledText, current) &&
+        _styledComposing == composing &&
+        _styledBase == base &&
+        _styledWith == styles &&
+        listEquals(_styledMisspellings, marked)) {
+      return cached;
+    }
+    _styledText = current;
+    _styledBase = base;
+    _styledWith = styles;
+    _styledComposing = composing;
+    _styledMisspellings = marked;
+    return _styled = buildStyledSpan(
+        context: context, style: style, withComposing: withComposing);
+  }
+
+  /// Builds the styled text from scratch
+  @protected
+  @visibleForTesting
+  TextSpan buildStyledSpan({
     required BuildContext context,
     TextStyle? style,
     required bool withComposing,
@@ -256,7 +300,8 @@ class _PreviewSpellCheckService implements SpellCheckService {
     if (controller._disposed || controller.text != text) return null;
 
     final (start, end) = controller._hasChecked
-        ? MarkdownPreviewController.linesToRecheck(controller._checkedText, text)
+        ? MarkdownPreviewController.linesToRecheck(
+            controller._checkedText, text)
         : (0, text.length);
     final part = text.substring(start, end);
     final found = part.trim().isEmpty
@@ -272,6 +317,8 @@ class _PreviewSpellCheckService implements SpellCheckService {
     }
 
     // Returning null tells Flutter there is nothing new to draw.
-    return controller.mergeSpellCheck(text, start, end, found) ? const [] : null;
+    return controller.mergeSpellCheck(text, start, end, found)
+        ? const []
+        : null;
   }
 }
