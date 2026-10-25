@@ -1704,6 +1704,42 @@ abstract class AppLocalizations {
   /// **'Sort by usage'**
   String get tagPickerSortUsageLabel;
 
+  /// No description provided for @tagPickerFrequent.
+  ///
+  /// In en, this message translates to:
+  /// **'Frequent'**
+  String get tagPickerFrequent;
+
+  /// No description provided for @tagPickerFrequentWindow.
+  ///
+  /// In en, this message translates to:
+  /// **'Last 60 days'**
+  String get tagPickerFrequentWindow;
+
+  /// No description provided for @tagsSelectedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} selected'**
+  String tagsSelectedCount(int count);
+
+  /// No description provided for @tagsMoveToCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to category'**
+  String get tagsMoveToCategory;
+
+  /// No description provided for @tagsMovedToCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Moved {count, plural, =1{1 tag} other{{count} tags}} to {category}'**
+  String tagsMovedToCategory(int count, String category);
+
+  /// No description provided for @favouriteTagLockedNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Set with the star button. Only the colour can be changed.'**
+  String get favouriteTagLockedNote;
+
   /// No description provided for @tagFavoriteName.
   ///
   /// In en, this message translates to:

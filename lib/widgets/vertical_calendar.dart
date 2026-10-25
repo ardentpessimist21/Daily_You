@@ -580,7 +580,8 @@ class _VerticalCalendarState extends State<VerticalCalendar>
                   ),
                 ],
               ),
-              if (widget.onDaySelected == null) _buildCalendarControls(context),
+              // Shown on the share screen too, with Jump to month only
+              _buildCalendarControls(context),
               _buildJumpToTodayButton(context),
             ]);
       },
@@ -652,18 +653,21 @@ class _VerticalCalendarState extends State<VerticalCalendar>
                         ],
                       ),
                     ),
-                    PopupMenuItem<String>(
-                      value: 'log',
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.event_rounded,
-                              color: theme.colorScheme.primary),
-                          const SizedBox(width: 8),
-                          Text(l10n.jumpToLogTitle),
-                        ],
+                    // Jump to log opens entries, so it's left out where a
+                    // day tap picks the day (sharing into the app)
+                    if (widget.onDaySelected == null)
+                      PopupMenuItem<String>(
+                        value: 'log',
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.event_rounded,
+                                color: theme.colorScheme.primary),
+                            const SizedBox(width: 8),
+                            Text(l10n.jumpToLogTitle),
+                          ],
+                        ),
                       ),
-                    ),
                   ],
                   onSelected: (value) {
                     if (value == 'month') {

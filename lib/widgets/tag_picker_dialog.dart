@@ -2,15 +2,19 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
-import 'package:daily_you/config_provider.dart';
+import 'package:daily_you/fork/tag_picker_layout.dart';
 import 'package:daily_you/models/tag.dart';
+import 'package:daily_you/models/tag_category.dart';
 import 'package:daily_you/pages/settings/tags_settings.dart';
+import 'package:daily_you/providers/entries_provider.dart';
 import 'package:daily_you/providers/tags_provider.dart';
 import 'package:daily_you/widgets/app_dialog.dart';
 import 'package:daily_you/widgets/edit_tag.dart';
 import 'package:daily_you/widgets/tag_attachment_source.dart';
+import 'package:daily_you/utils/tag_category_visuals.dart';
 import 'package:daily_you/widgets/tag_chip.dart';
 import 'package:daily_you/widgets/tag_grouped_chip_list.dart';
+import 'package:daily_you/widgets/tag_icon_glyph.dart';
 import 'package:daily_you/utils/tag_name_sanitizer.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
@@ -56,7 +60,13 @@ class TagPickerDialog extends StatefulWidget {
 class _TagPickerDialogState extends State<TagPickerDialog> {
   final TagNameEditingController _searchController = TagNameEditingController();
   String _searchText = '';
-  late String _sortMode;
+
+  // Usage is measured once when the popup opens, so tags don't jump around
+  // while you're picking
+  late final Map<int, TagUsage> _usage;
+
+  /// Groups opened by hand; every group starts closed. -1 = Uncategorized.
+  final Set<int> _openGroups = {};
 
   // filter mode state
   late List<int> _selectedTagIds;
@@ -69,7 +79,12 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
     _selectedTagIds = List.from(widget.initialSelectedTagIds);
     _filterMode = widget.initialFilterMode;
     _noTagsOnly = widget.initialNoTagsOnly;
-    _sortMode = ConfigProvider.instance.get(Settings.tagPickerSortMode);
+    final entryDates = <int, DateTime>{
+      for (final entry in EntriesProvider.instance.entries)
+        if (entry.id != null) entry.id!: entry.timeCreate,
+    };
+    _usage = TagPickerLayout.usage(
+        TagsProvider.instance.entryTags, entryDates, DateTime.now());
     _searchController.addListener(() {
       setState(() => _searchText = _searchController.text.toLowerCase());
     });
@@ -81,10 +96,13 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
     super.dispose();
   }
 
-  void _toggleSortMode() {
-    final newMode = _sortMode == 'manual' ? 'usage' : 'manual';
-    setState(() => _sortMode = newMode);
-    ConfigProvider.instance.set(Settings.tagPickerSortMode, newMode);
+  static int _groupKey(TagCategory? category) => category?.id ?? -1;
+
+  void _toggleGroup(TagCategory? category) {
+    final key = _groupKey(category);
+    setState(() {
+      if (!_openGroups.remove(key)) _openGroups.add(key);
+    });
   }
 
   // attach mode helpers
@@ -192,28 +210,45 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
     );
   }
 
-  Widget _buildFilterModeToggle(BuildContext context) {
-    if (_selectedTagIds.length < 2) return const SizedBox.shrink();
-    final l10n = AppLocalizations.of(context)!;
+  /// Any/All (once two tags are picked) and No tags, on one row.
+  Widget _buildFilterRow(BuildContext context, AppLocalizations l10n) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: SegmentedButton<TagFilterMode>(
-        segments: [
-          ButtonSegment(
-            value: TagFilterMode.any,
-            label: Text(l10n.tagFilterModeAny),
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: _selectedTagIds.length < 2 || _noTagsOnly
+                  ? const SizedBox.shrink()
+                  : _buildFilterModeToggle(context, l10n),
+            ),
           ),
-          ButtonSegment(
-            value: TagFilterMode.all,
-            label: Text(l10n.tagFilterModeAll),
-          ),
+          _buildNoTagsToggle(l10n),
         ],
-        selected: {_filterMode},
-        onSelectionChanged: (selected) {
-          setState(() => _filterMode = selected.first);
-          _notifyFilter();
-        },
       ),
+    );
+  }
+
+  Widget _buildFilterModeToggle(BuildContext context, AppLocalizations l10n) {
+    return SegmentedButton<TagFilterMode>(
+      showSelectedIcon: false,
+      style: const ButtonStyle(visualDensity: VisualDensity.compact),
+      segments: [
+        ButtonSegment(
+          value: TagFilterMode.any,
+          label: Text(l10n.tagFilterModeAny),
+        ),
+        ButtonSegment(
+          value: TagFilterMode.all,
+          label: Text(l10n.tagFilterModeAll),
+        ),
+      ],
+      selected: {_filterMode},
+      onSelectionChanged: (selected) {
+        setState(() => _filterMode = selected.first);
+        _notifyFilter();
+      },
     );
   }
 
@@ -290,42 +325,6 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
                   )
                 : const SizedBox.shrink(key: ValueKey('empty')),
           ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.sort_rounded),
-            padding: EdgeInsets.zero,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            onSelected: (value) {
-              if (value != _sortMode) _toggleSortMode();
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem<String>(
-                value: 'manual',
-                child: Row(children: [
-                  Icon(Icons.check_rounded,
-                      size: 18,
-                      color: _sortMode == 'manual'
-                          ? Theme.of(context).colorScheme.primary
-                          : Colors.transparent),
-                  const SizedBox(width: 8),
-                  Text(l10n.tagPickerSortManualLabel),
-                ]),
-              ),
-              PopupMenuItem<String>(
-                value: 'usage',
-                child: Row(children: [
-                  Icon(Icons.check_rounded,
-                      size: 18,
-                      color: _sortMode == 'usage'
-                          ? Theme.of(context).colorScheme.primary
-                          : Colors.transparent),
-                  const SizedBox(width: 8),
-                  Text(l10n.tagPickerSortUsageLabel),
-                ]),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -358,33 +357,21 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
           excludedIds = [];
         }
 
-        List<Tag> pool;
         bool typeMatch(Tag tag) =>
             widget.tagTypeFilter == null || tag.tagType == widget.tagTypeFilter;
+        final pool = provider.tags
+            .where((tag) => !excludedIds.contains(tag.id) && typeMatch(tag))
+            .toList();
 
-        if (_sortMode == 'usage') {
-          pool = provider.tags
-              .where((tag) => !excludedIds.contains(tag.id) && typeMatch(tag))
-              .toList()
-            ..sort((a, b) {
-              final countA = provider.entryTags
-                  .where((entryTag) => entryTag.tagId == a.id)
-                  .length;
-              final countB = provider.entryTags
-                  .where((entryTag) => entryTag.tagId == b.id)
-                  .length;
-              return countB.compareTo(countA);
-            });
-        } else {
-          pool = provider.tags
-              .where((tag) => !excludedIds.contains(tag.id) && typeMatch(tag))
-              .toList();
-        }
-
-        // The Gallery filter can show favourites; other pickers can't add it
-        final sections = provider.buildSections(_searchText,
-            tagPool: pool,
-            includeFavourite: widget.mode == TagPickerMode.filter);
+        // ⭐ Favourite is set with the star button; only the Gallery filter
+        // offers it, pinned at the top
+        final content = TagPickerLayout.build(
+          pool: pool,
+          categories: provider.categories,
+          usage: _usage,
+          query: _searchText,
+          pinFavourite: widget.mode == TagPickerMode.filter,
+        );
 
         final String title;
         switch (widget.mode) {
@@ -396,24 +383,14 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
             title = l10n.filterTagsTitle;
         }
 
-        final titleWidget = widget.mode == TagPickerMode.filter
-            ? Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Flexible(child: Text(title, overflow: TextOverflow.ellipsis)),
-                  _buildNoTagsToggle(l10n),
-                ],
-              )
-            : Text(title);
-
         return AlertDialog(
-          title: titleWidget,
+          title: Text(title),
           contentPadding: widget.mode == TagPickerMode.selectSingle
               ? const EdgeInsets.fromLTRB(24, 16, 24, 0)
               : null,
           content: SizedBox(
             width: double.maxFinite,
-            child: _buildContent(context, l10n, provider, sections),
+            child: _buildContent(context, l10n, provider, content),
           ),
           actions: _buildActions(context, l10n, provider),
         );
@@ -425,8 +402,27 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
     BuildContext context,
     AppLocalizations l10n,
     TagsProvider provider,
-    List<TagSection> sections,
+    TagPickerContent content,
   ) {
+    Future<void> pick(Tag tag) async {
+      switch (widget.mode) {
+        case TagPickerMode.attach:
+          await widget.source!.attach(context, tag);
+        case TagPickerMode.selectSingle:
+          Navigator.of(context).pop(tag);
+        case TagPickerMode.filter:
+          _addFilterTag(tag.id!);
+      }
+    }
+
+    final list = _TagPickerList(
+      content: content,
+      searching: _searchText.isNotEmpty,
+      isOpen: (category) => _openGroups.contains(_groupKey(category)),
+      onToggle: _toggleGroup,
+      onPick: pick,
+    );
+
     if (widget.mode == TagPickerMode.selectSingle) {
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -434,69 +430,56 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
         children: [
           _buildSearchField(l10n, provider),
           const SizedBox(height: 8),
-          if (sections.isEmpty)
+          if (content.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Text(l10n.noResults),
             )
           else
-            Flexible(
-              child: SingleChildScrollView(
-                child: TagGroupedChipList(
-                  sections: sections,
-                  chipBuilder: (tag) => TagChip(
-                    tag: tag,
-                    onTap: () => Navigator.of(context).pop(tag),
-                  ),
-                ),
-              ),
-            ),
+            Flexible(child: SingleChildScrollView(child: list)),
         ],
       );
     }
 
+    final body = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (widget.mode == TagPickerMode.attach) _buildAttachedChips(provider),
+        if (widget.mode == TagPickerMode.filter)
+          _buildFilterSelectedChips(provider),
+        _buildSearchField(l10n, provider),
+        const SizedBox(height: 8),
+        if (content.isEmpty && _searchText.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Text(l10n.noResults),
+          )
+        else
+          list,
+      ],
+    );
+
     return SingleChildScrollView(
-      child: AnimatedOpacity(
-        duration: const Duration(milliseconds: 200),
-        opacity: _noTagsOnly ? 0.3 : 1.0,
-        child: IgnorePointer(
-          ignoring: _noTagsOnly,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (widget.note != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Text(widget.note!,
-                      style: TextStyle(
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant)),
-                ),
-              if (widget.mode == TagPickerMode.attach)
-                _buildAttachedChips(provider),
-              if (widget.mode == TagPickerMode.filter) ...[
-                _buildFilterSelectedChips(provider),
-                _buildFilterModeToggle(context),
-              ],
-              _buildSearchField(l10n, provider),
-              const SizedBox(height: 8),
-              TagGroupedChipList(
-                sections: sections,
-                chipBuilder: (tag) => TagChip(
-                  tag: tag,
-                  onTap: () async {
-                    if (widget.mode == TagPickerMode.attach) {
-                      await widget.source!.attach(context, tag);
-                    } else {
-                      _addFilterTag(tag.id!);
-                    }
-                  },
-                ),
-              ),
-            ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (widget.note != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(widget.note!,
+                  style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            ),
+          if (widget.mode == TagPickerMode.filter)
+            _buildFilterRow(context, l10n),
+          AnimatedOpacity(
+            duration: const Duration(milliseconds: 200),
+            opacity: _noTagsOnly ? 0.3 : 1.0,
+            child: IgnorePointer(ignoring: _noTagsOnly, child: body),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -529,5 +512,178 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
           close,
         ];
     }
+  }
+}
+
+/// Pinned ⭐, the Frequent row, then collapsible groups.
+class _TagPickerList extends StatelessWidget {
+  final TagPickerContent content;
+  final bool searching;
+  final bool Function(TagCategory?) isOpen;
+  final void Function(TagCategory?) onToggle;
+  final Future<void> Function(Tag) onPick;
+
+  const _TagPickerList({
+    required this.content,
+    required this.searching,
+    required this.isOpen,
+    required this.onToggle,
+    required this.onPick,
+  });
+
+  Widget _chips(List<Tag> tags) => Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          for (final tag in tags) TagChip(tag: tag, onTap: () => onPick(tag)),
+        ],
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final labelStyle = theme.textTheme.labelMedium?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.6,
+    );
+    final favourite = content.pinnedFavourite;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (favourite != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _chips([favourite]),
+          ),
+        if (!searching && content.frequent.isNotEmpty) ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Expanded(
+                child: Text(l10n.tagPickerFrequent.toUpperCase(),
+                    style: labelStyle),
+              ),
+              Text(l10n.tagPickerFrequentWindow,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _chips(content.frequent),
+          const SizedBox(height: 10),
+          Divider(height: 1, color: theme.colorScheme.outlineVariant),
+        ],
+        for (final group in content.groups)
+          _TagGroupSection(
+            group: group,
+            open: searching || isOpen(group.category),
+            onToggle: searching ? null : () => onToggle(group.category),
+            chips: _chips(group.tags),
+          ),
+      ],
+    );
+  }
+}
+
+class _TagGroupSection extends StatelessWidget {
+  final TagPickerGroup group;
+  final bool open;
+  final VoidCallback? onToggle;
+  final Widget chips;
+
+  const _TagGroupSection({
+    required this.group,
+    required this.open,
+    required this.onToggle,
+    required this.chips,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    final category = group.category;
+    final name = category?.name ?? l10n.tagCategoryUncategorized;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border:
+            Border(bottom: BorderSide(color: theme.colorScheme.outlineVariant)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Semantics(
+            button: true,
+            expanded: open,
+            child: InkWell(
+              onTap: onToggle,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 48),
+                child: Row(
+                  children: [
+                    AnimatedRotation(
+                      turns: open ? 0.25 : 0,
+                      duration: const Duration(milliseconds: 150),
+                      child: Icon(Icons.chevron_right_rounded,
+                          size: 20, color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                    const SizedBox(width: 6),
+                    if (category != null)
+                      TagIconGlyph(
+                        icon: category.icon,
+                        iconType: category.iconType,
+                        fallbackIcon: Icons.folder_rounded,
+                        color: category.resolvedColor(context),
+                        size: 18,
+                      )
+                    else
+                      Icon(Icons.folder_open_rounded,
+                          size: 18, color: theme.colorScheme.onSurfaceVariant),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        name,
+                        overflow: TextOverflow.fade,
+                        softWrap: false,
+                        maxLines: 1,
+                        style: theme.textTheme.titleSmall
+                            ?.copyWith(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    Container(
+                      constraints: const BoxConstraints(minWidth: 26),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: Text(
+                        '${group.tags.length}',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (open)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(26, 2, 0, 12),
+              child: chips,
+            ),
+        ],
+      ),
+    );
   }
 }

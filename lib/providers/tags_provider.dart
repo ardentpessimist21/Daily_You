@@ -51,6 +51,9 @@ class TagsProvider with ChangeNotifier {
     _entryTagsByEntry = grouped;
   }
 
+  @visibleForTesting
+  void debugSetEntryTags(List<EntryTag> updated) => _setEntryTags(updated);
+
   void _setTemplateTags(List<TemplateTag> updated) {
     _templateTags = updated;
     final grouped = <int, List<TemplateTag>>{};

@@ -956,6 +956,35 @@ class AppLocalizationsIt extends AppLocalizations {
   String get tagPickerSortUsageLabel => 'Per frequenza di utilizzo';
 
   @override
+  String get tagPickerFrequent => 'Frequent';
+
+  @override
+  String get tagPickerFrequentWindow => 'Last 60 days';
+
+  @override
+  String tagsSelectedCount(int count) {
+    return '$count selected';
+  }
+
+  @override
+  String get tagsMoveToCategory => 'Move to category';
+
+  @override
+  String tagsMovedToCategory(int count, String category) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tags',
+      one: '1 tag',
+    );
+    return 'Moved $_temp0 to $category';
+  }
+
+  @override
+  String get favouriteTagLockedNote =>
+      'Set with the star button. Only the colour can be changed.';
+
+  @override
   String get tagFavoriteName => 'Preferiti';
 
   @override

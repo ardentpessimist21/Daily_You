@@ -513,6 +513,33 @@
   "@tagPickerSortManualLabel": {},
   "tagPickerSortUsageLabel": "Sort by usage",
   "@tagPickerSortUsageLabel": {},
+  "tagPickerFrequent": "Frequent",
+  "@tagPickerFrequent": {},
+  "tagPickerFrequentWindow": "Last 60 days",
+  "@tagPickerFrequentWindow": {},
+  "tagsSelectedCount": "{count} selected",
+  "@tagsSelectedCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "tagsMoveToCategory": "Move to category",
+  "@tagsMoveToCategory": {},
+  "tagsMovedToCategory": "Moved {count, plural, =1{1 tag} other{{count} tags}} to {category}",
+  "@tagsMovedToCategory": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "category": {
+        "type": "String"
+      }
+    }
+  },
+  "favouriteTagLockedNote": "Set with the star button. Only the colour can be changed.",
+  "@favouriteTagLockedNote": {},
   "tagFavoriteName": "Favorite",
   "@tagFavoriteName": {},
   "tagEnergyName": "Energy",
