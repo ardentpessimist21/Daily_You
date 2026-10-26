@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/fork/year_month_range.dart';
 import 'package:daily_you/time_manager.dart';
 import 'package:daily_you/widgets/app_dialog.dart';
 import 'package:material_ui/material_ui.dart';
@@ -12,15 +13,28 @@ Future<DateTime?> showYearMonthPicker(
   BuildContext context, {
   DateTime? initialDate,
   bool isJalali = false,
+  int? firstYear,
+  DateTime? lastDate,
 }) {
   final now = DateTime.now();
   final locale = Localizations.localeOf(context).toString();
+  final last = lastDate ?? now;
+  final first = firstYear ?? YearMonthRange.fallbackFirstYear;
 
   if (isJalali) {
-    return _showJalaliPicker(context, initialDate: initialDate, locale: locale);
+    final lastJ = Jalali.fromDateTime(last);
+    final range = YearMonthRange(
+      firstYear: Jalali.fromDateTime(DateTime(first, 1, 1)).year,
+      lastYear: lastJ.year,
+      lastMonth: lastJ.month,
+    );
+    return _showJalaliPicker(context,
+        initialDate: initialDate, locale: locale, range: range);
   } else {
+    final range = YearMonthRange(
+        firstYear: first, lastYear: last.year, lastMonth: last.month);
     return _showGregorianPicker(context,
-        initialDate: initialDate, now: now, locale: locale);
+        initialDate: initialDate, now: now, locale: locale, range: range);
   }
 }
 
@@ -29,9 +43,10 @@ Future<DateTime?> _showGregorianPicker(
   required DateTime? initialDate,
   required DateTime now,
   required String locale,
+  required YearMonthRange range,
 }) {
-  int selectedYear = (initialDate ?? now).year;
-  int selectedMonth = (initialDate ?? now).month;
+  var (selectedYear, selectedMonth) =
+      range.clamp((initialDate ?? now).year, (initialDate ?? now).month);
 
   List<String> localizedMonths() {
     final formatter = DateFormat.MMMM(locale);
@@ -40,7 +55,7 @@ Future<DateTime?> _showGregorianPicker(
   }
 
   final months = localizedMonths();
-  final years = List.generate(now.year - 2000 + 1, (i) => 2000 + i);
+  final years = range.years;
 
   return showAppDialog<DateTime>(
     context: context,
@@ -78,11 +93,8 @@ Future<DateTime?> _showGregorianPicker(
                 onChanged: (value) {
                   if (value != null) {
                     setState(() {
-                      selectedYear = value;
-                      if (selectedYear == now.year &&
-                          selectedMonth > now.month) {
-                        selectedMonth = now.month;
-                      }
+                      (selectedYear, selectedMonth) =
+                          range.clamp(value, selectedMonth);
                     });
                   }
                 },
@@ -97,7 +109,7 @@ Future<DateTime?> _showGregorianPicker(
                 borderRadius: BorderRadius.circular(20),
                 value: selectedMonth,
                 items: List.generate(
-                  selectedYear == now.year ? now.month : 12,
+                  range.monthCount(selectedYear),
                   (i) => DropdownMenuItem<int>(
                     value: i + 1,
                     child: Padding(
@@ -146,17 +158,14 @@ Future<DateTime?> _showJalaliPicker(
   BuildContext context, {
   required DateTime? initialDate,
   required String locale,
+  required YearMonthRange range,
 }) {
   final nowJ = Jalali.now();
-  final firstDateJ = Jalali.fromDateTime(DateTime(2000, 1, 1));
-
   final initJ = initialDate != null ? Jalali.fromDateTime(initialDate) : nowJ;
 
-  int selectedYear = initJ.year;
-  int selectedMonth = initJ.month;
+  var (selectedYear, selectedMonth) = range.clamp(initJ.year, initJ.month);
 
-  final years = List.generate(
-      nowJ.year - firstDateJ.year + 1, (i) => firstDateJ.year + i);
+  final years = range.years;
 
   final months =
       List.generate(12, (i) => TimeManager.jalaliMonthName(i + 1, locale));
@@ -197,11 +206,8 @@ Future<DateTime?> _showJalaliPicker(
                 onChanged: (value) {
                   if (value != null) {
                     setState(() {
-                      selectedYear = value;
-                      if (selectedYear == nowJ.year &&
-                          selectedMonth > nowJ.month) {
-                        selectedMonth = nowJ.month;
-                      }
+                      (selectedYear, selectedMonth) =
+                          range.clamp(value, selectedMonth);
                     });
                   }
                 },
@@ -216,7 +222,7 @@ Future<DateTime?> _showJalaliPicker(
                 borderRadius: BorderRadius.circular(20),
                 value: selectedMonth,
                 items: List.generate(
-                  selectedYear == nowJ.year ? nowJ.month : 12,
+                  range.monthCount(selectedYear),
                   (i) => DropdownMenuItem<int>(
                     value: i + 1,
                     child: Padding(

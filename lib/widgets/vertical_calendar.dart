@@ -20,6 +20,7 @@ import 'package:daily_you/time_manager.dart';
 import 'package:daily_you/widgets/app_dialog.dart';
 import 'package:daily_you/widgets/calendar_view_options_dialog.dart';
 import 'package:daily_you/widgets/entry_day_cell.dart';
+import 'package:daily_you/fork/year_month_range.dart';
 import 'package:daily_you/widgets/year_month_picker.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
@@ -634,28 +635,37 @@ class _VerticalCalendarState extends State<VerticalCalendar>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                PopupMenuButton<String>(
-                  icon: Icon(Icons.calendar_month_rounded,
-                      color: theme.colorScheme.primary),
-                  padding: const EdgeInsets.all(8),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
-                  itemBuilder: (context) => [
-                    PopupMenuItem<String>(
-                      value: 'month',
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.calendar_month_rounded,
-                              color: theme.colorScheme.primary),
-                          const SizedBox(width: 8),
-                          Text(l10n.jumpToMonthTitle),
-                        ],
+                // Sharing into the app only offers Jump to month, so the
+                // icon opens the picker straight away instead of a
+                // one-item menu
+                if (widget.onDaySelected != null)
+                  IconButton(
+                    tooltip: l10n.jumpToMonthTitle,
+                    onPressed: () => _onMonthLabelTap(context),
+                    icon: const Icon(Icons.calendar_month_rounded),
+                    color: theme.colorScheme.primary,
+                    padding: const EdgeInsets.all(8),
+                  )
+                else
+                  PopupMenuButton<String>(
+                    icon: Icon(Icons.calendar_month_rounded,
+                        color: theme.colorScheme.primary),
+                    padding: const EdgeInsets.all(8),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                    itemBuilder: (context) => [
+                      PopupMenuItem<String>(
+                        value: 'month',
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.calendar_month_rounded,
+                                color: theme.colorScheme.primary),
+                            const SizedBox(width: 8),
+                            Text(l10n.jumpToMonthTitle),
+                          ],
+                        ),
                       ),
-                    ),
-                    // Jump to log opens entries, so it's left out where a
-                    // day tap picks the day (sharing into the app)
-                    if (widget.onDaySelected == null)
                       PopupMenuItem<String>(
                         value: 'log',
                         child: Row(
@@ -668,15 +678,15 @@ class _VerticalCalendarState extends State<VerticalCalendar>
                           ],
                         ),
                       ),
-                  ],
-                  onSelected: (value) {
-                    if (value == 'month') {
-                      _onMonthLabelTap(context);
-                    } else {
-                      _onCalendarIconTap(context);
-                    }
-                  },
-                ),
+                    ],
+                    onSelected: (value) {
+                      if (value == 'month') {
+                        _onMonthLabelTap(context);
+                      } else {
+                        _onCalendarIconTap(context);
+                      }
+                    },
+                  ),
                 IconButton(
                   onPressed: () => showAppDialog(
                     context: context,
@@ -775,8 +785,14 @@ class _VerticalCalendarState extends State<VerticalCalendar>
   }
 
   Future<void> _onMonthLabelTap(BuildContext context) async {
+    final entries = context.read<EntriesProvider>().entries;
     final DateTime? selected = await showYearMonthPicker(context,
-        initialDate: _visibleMonth, isJalali: _isJalali);
+        initialDate: _visibleMonth,
+        isJalali: _isJalali,
+        firstYear: YearMonthRange.firstYearFor(
+            entries.map((entry) => entry.timeCreate)),
+        // Runs ahead of today when future entries are on
+        lastDate: _lastDate);
     if (selected == null) return;
     _jumpToMonth(selected);
   }

@@ -367,9 +367,21 @@ void main() {
       ];
     }
 
-    testWidgets('sharing: the pill shows, with Jump to month only',
+    testWidgets('sharing: the calendar icon opens the month picker directly',
         (tester) async {
-      expect(await menuFor(tester, (_, __) {}), ['month']);
+      // Update 10.1: no one-item menu first
+      expect(await menuFor(tester, (_, __) {}), <String>[]);
+      expect(find.byType(PopupMenuItem<String>), findsNothing);
+      final dropdowns = tester
+          .widgetList<DropdownButton<int>>(find.byType(DropdownButton<int>))
+          .toList();
+      expect(dropdowns.length, 2);
+      // Neither year nor month is blank
+      for (final dropdown in dropdowns) {
+        expect(
+            dropdown.items!.where((item) => item.value == dropdown.value),
+            hasLength(1));
+      }
       expect(find.byIcon(Icons.visibility_rounded), findsOneWidget);
     });
 
