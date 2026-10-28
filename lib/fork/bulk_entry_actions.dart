@@ -33,7 +33,8 @@ class BulkEntryActions {
     for (final entry in entries) {
       if (entry.id == null || entry.mood == mood) continue;
       final tags = TagsProvider.instance.getEntryTagsForEntry(entry.id!);
-      await _save(entry.copy(mood: mood, timeModified: DateTime.now()), tags);
+      // Mood changes keep "Last modified", which follows text edits only
+      await _save(entry.copy(mood: mood), tags);
     }
   }
 

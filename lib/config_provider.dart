@@ -127,6 +127,8 @@ class Settings {
   static const showLocationButtons = Setting<bool>("showLocationButtons", true);
   static const timelineOldestFirst =
       Setting<bool>("timelineOldestFirst", false);
+  static const selectionActionsHidden =
+      Setting<String>("selectionActionsHidden", "[]");
   static const lastDismissedSupportBannerDate =
       Setting<String?>("lastDismissedSupportBannerDate", null);
   static const calendarShowMood = Setting<bool>("calendarShowMood", true);
@@ -218,6 +220,7 @@ class Settings {
     hideImagesInFlashbacks,
     timelineShowFullEntries,
     timelineOldestFirst,
+    selectionActionsHidden,
     homeGreetingEnabled,
     homeGreetingName,
     homeGreetingStyle,

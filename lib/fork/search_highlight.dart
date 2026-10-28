@@ -2,37 +2,30 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/fork/search_text.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/utils/color_utils.dart';
 import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 
-/// Marks Gallery search matches in entry text, matching the search itself:
-/// plain, case-insensitive text.
+/// Marks Gallery search matches in entry text, matching the search itself
+/// (see [SearchText]): visible words, case-insensitive.
 class SearchHighlight {
   static final Color matchColor = Colors.orange.shade300;
   static final Color currentColor = Colors.deepOrange.shade600;
 
-  /// How many times [query] appears in [text].
-  static int count(String text, String query) {
-    if (query.isEmpty) return 0;
-    final haystack = text.toLowerCase();
-    final needle = query.toLowerCase();
-    var count = 0;
-    var start = 0;
-    while (true) {
-      final index = haystack.indexOf(needle, start);
-      if (index < 0) return count;
-      count++;
-      start = index + needle.length;
-    }
-  }
+  /// How many times [query] appears in [text]'s visible words, the same
+  /// way the search itself matches.
+  static int count(String text, String query) => SearchText.count(text, query);
 
   /// Text for a card preview: the start of [text], or, when the first match
   /// sits further down than the card shows, a snippet starting near it.
   static String preview(String text, String query, {int visibleChars = 160}) {
-    if (query.isEmpty) return text;
-    final index = text.toLowerCase().indexOf(query.toLowerCase());
+    final needle = SearchText.fold(query);
+    if (needle.isEmpty) return text;
+    final found = FoldedText(text).matches(needle);
+    if (found.isEmpty) return text;
+    final index = found.first.$1;
     if (index < visibleChars) return text;
     // Start at the beginning of the match's line, or a little before it.
     final lineStart = text.lastIndexOf('\n', index) + 1;
@@ -90,28 +83,19 @@ class SearchMatchCounter {
   }
 
   List<InlineSpan> _split(String text, GestureRecognizer? recognizer) {
-    final lower = text.toLowerCase();
-    final needle = query.toLowerCase();
+    final ranges = FoldedText(text).matches(SearchText.fold(query));
     final pieces = <InlineSpan>[];
     var start = 0;
-    while (true) {
-      final index = needle.isEmpty ? -1 : lower.indexOf(needle, start);
-      if (index < 0) {
-        if (start < text.length) {
-          pieces.add(
-              TextSpan(text: text.substring(start), recognizer: recognizer));
-        }
-        return pieces;
-      }
-      if (index > start) {
+    for (final (from, to) in ranges) {
+      if (from > start) {
         pieces.add(TextSpan(
-            text: text.substring(start, index), recognizer: recognizer));
+            text: text.substring(start, from), recognizer: recognizer));
       }
       final isCurrent = _next == current;
       final background =
           isCurrent ? SearchHighlight.currentColor : SearchHighlight.matchColor;
       pieces.add(TextSpan(
-        text: text.substring(index, index + needle.length),
+        text: text.substring(from, to),
         recognizer: recognizer,
         style: TextStyle(
           backgroundColor: background,
@@ -119,8 +103,12 @@ class SearchMatchCounter {
         ),
       ));
       _next++;
-      start = index + needle.length;
+      start = to;
     }
+    if (start < text.length) {
+      pieces.add(TextSpan(text: text.substring(start), recognizer: recognizer));
+    }
+    return pieces;
   }
 }
 

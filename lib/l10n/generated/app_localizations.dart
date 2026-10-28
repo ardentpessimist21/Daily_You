@@ -2951,6 +2951,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'When reading, lines fill the width like a book, with long words split by a hyphen. Off keeps text left-aligned.'**
   String get settingsJustifyTextHint;
+
+  /// No description provided for @tagFilterTrackers.
+  ///
+  /// In en, this message translates to:
+  /// **'Trackers'**
+  String get tagFilterTrackers;
+
+  /// No description provided for @sortRecentlyEditedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently edited'**
+  String get sortRecentlyEditedTitle;
+
+  /// No description provided for @sortRecentlyEditedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Older entries whose text you changed later, last edited first'**
+  String get sortRecentlyEditedHint;
+
+  /// No description provided for @settingsSelectionActions.
+  ///
+  /// In en, this message translates to:
+  /// **'Selection actions'**
+  String get settingsSelectionActions;
+
+  /// No description provided for @settingsSelectionActionsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Buttons on the bar when you long-press to select entries in the Gallery or Timeline'**
+  String get settingsSelectionActionsHint;
 }
 
 class _AppLocalizationsDelegate

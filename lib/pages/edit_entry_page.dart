@@ -786,7 +786,9 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
             text: text,
             mood: mood,
             timeCreate: entryDate,
-            timeModified: DateTime.now(),
+            // "Last modified" (and Recently edited) follow text edits only;
+            // changing just the mood or date keeps it
+            timeModified: text != _entry.text ? DateTime.now() : null,
           )
         : _entry;
     return EntryDraft(

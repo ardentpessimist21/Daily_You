@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/fork/selection_actions.dart';
 import 'package:daily_you/config_provider.dart';
-import 'package:daily_you/fork/bulk_entry_actions.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/pages/edit_entry_page.dart';
@@ -110,79 +110,26 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
   List<Entry> _selectedEntries(List<Entry> entries) =>
       entries.where((entry) => _selected.contains(entry.id)).toList();
 
-  Future<void> _bulkMood(List<Entry> entries) async {
-    final chosen = await BulkEntryActions.pickMood(context, entries.length);
-    if (chosen == null || !mounted) return;
-    await BulkEntryActions.setMood(entries, chosen.mood);
-    if (!mounted) return;
-    setState(_selected.clear);
-    _showStatus(AppLocalizations.of(context)!.bulkMoodChanged);
-  }
-
-  Future<void> _bulkTags(List<Entry> entries) async {
-    final (add, remove) = await BulkEntryActions.pickTags(context, entries);
-    if (!mounted || (add.isEmpty && remove.isEmpty)) return;
-    await BulkEntryActions.changeTags(entries, add, remove);
-    if (!mounted) return;
-    setState(_selected.clear);
-    _showStatus(AppLocalizations.of(context)!.bulkTagsUpdated);
-  }
-
-  Future<void> _bulkDelete(List<Entry> entries) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final deletedText =
-        AppLocalizations.of(context)!.bulkDeleted(entries.length);
-    if (!await BulkEntryActions.confirmDelete(context, entries.length)) return;
-    await BulkEntryActions.delete(entries);
-    if (mounted) setState(_selected.clear);
-    // Shown via the messenger so it still appears if the timeline closes
-    // because the day has no entries left.
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(deletedText),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(milliseconds: 1500),
-      ));
-  }
-
   PreferredSizeWidget _selectionAppBar(List<Entry> entries) {
-    final localizations = AppLocalizations.of(context)!;
-    final colorScheme = Theme.of(context).colorScheme;
-    final selected = _selectedEntries(entries);
-    return AppBar(
-      backgroundColor: colorScheme.secondaryContainer,
-      foregroundColor: colorScheme.onSecondaryContainer,
-      leading: IconButton(
-        tooltip: MaterialLocalizations.of(context).cancelButtonLabel,
-        icon: const Icon(Icons.close_rounded),
-        onPressed: () => setState(_selected.clear),
-      ),
-      title: Text(localizations.bulkSelected(selected.length)),
-      actions: [
-        IconButton(
-          tooltip: MaterialLocalizations.of(context).selectAllButtonLabel,
-          icon: const Icon(Icons.select_all_rounded),
-          onPressed: () => setState(() =>
-              _selected.addAll(entries.map((entry) => entry.id).nonNulls)),
-        ),
-        IconButton(
-          tooltip: localizations.bulkChangeMood,
-          icon: const Icon(Icons.mood_rounded),
-          onPressed: () => _bulkMood(selected),
-        ),
-        IconButton(
-          tooltip: localizations.bulkChangeTags,
-          icon: const Icon(Icons.sell_rounded),
-          onPressed: () => _bulkTags(selected),
-        ),
-        IconButton(
-          tooltip: MaterialLocalizations.of(context).deleteButtonTooltip,
-          icon: const Icon(Icons.delete_rounded),
-          onPressed: () => _bulkDelete(selected),
-        ),
-        const SizedBox(width: 4),
-      ],
+    // Captured now: deleting a day's last entries closes the timeline,
+    // and the message should still show
+    final messenger = ScaffoldMessenger.of(context);
+    return SelectionAppBar(
+      selected: _selectedEntries(entries),
+      all: entries,
+      onClear: () => setState(_selected.clear),
+      onSelectAll: () => setState(
+          () => _selected.addAll(entries.map((entry) => entry.id).nonNulls)),
+      onDone: (message) {
+        if (mounted) setState(_selected.clear);
+        messenger
+          ..hideCurrentSnackBar()
+          ..showSnackBar(SnackBar(
+            content: Text(message),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(milliseconds: 1500),
+          ));
+      },
     );
   }
 
@@ -359,7 +306,7 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
             selected: isSelected,
             onTap: onTap,
             onLongPress: onLongPress,
-            child: _SelectionOutline(
+            child: SelectionOutline(
               selected: isSelected,
               child: FullEntryCardWidget(
                 title: label,
@@ -405,7 +352,7 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
                   child: GestureDetector(
                     onTap: onTap,
                     onLongPress: onLongPress,
-                    child: _SelectionOutline(
+                    child: SelectionOutline(
                       selected: isSelected,
                       child: LargeEntryCardWidget(
                         title: label,
@@ -527,27 +474,6 @@ class _RailDot extends StatelessWidget {
       child: selected
           ? Icon(Icons.check_rounded, size: 15, color: colorScheme.onPrimary)
           : null,
-    );
-  }
-}
-
-/// Outlines a card while it's selected.
-class _SelectionOutline extends StatelessWidget {
-  const _SelectionOutline({required this.selected, required this.child});
-
-  final bool selected;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    if (!selected) return child;
-    return Container(
-      foregroundDecoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border:
-            Border.all(color: Theme.of(context).colorScheme.primary, width: 2),
-      ),
-      child: child,
     );
   }
 }

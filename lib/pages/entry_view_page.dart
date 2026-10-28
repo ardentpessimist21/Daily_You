@@ -8,7 +8,7 @@ import 'dart:io';
 import 'package:daily_you/fork/checklists.dart';
 import 'package:daily_you/fork/double_tap_to_edit.dart';
 import 'package:daily_you/fork/hyphenation.dart';
-import 'package:daily_you/database/attachment_storage.dart';
+import 'package:daily_you/fork/entry_share.dart';
 import 'package:daily_you/fork/favourites.dart';
 import 'package:daily_you/fork/links.dart';
 import 'package:daily_you/fork/search_highlight.dart';
@@ -21,7 +21,6 @@ import 'package:daily_you/providers/entries_provider.dart';
 import 'package:daily_you/providers/entry_attachments_provider.dart';
 import 'package:daily_you/providers/tags_provider.dart';
 import 'package:daily_you/time_manager.dart';
-import 'package:daily_you/utils/attachment_mime.dart';
 import 'package:daily_you/widgets/attachment_tile_background.dart';
 import 'package:daily_you/widgets/mood_icon.dart';
 import 'package:daily_you/widgets/scaled_markdown.dart';
@@ -29,7 +28,6 @@ import 'package:daily_you/widgets/entry_tag_chips.dart';
 import 'package:daily_you/widgets/tag_chip.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
 
 class EntryViewPage extends StatefulWidget {
   const EntryViewPage({
@@ -361,41 +359,8 @@ class _EntryViewPageState extends State<EntryViewPage> {
   }
 
   Future<void> _shareEntry(BuildContext context, Entry entry,
-      List<EntryAttachment> attachments) async {
-    String sharedText = "";
-    if (entry.mood != null) {
-      sharedText = "${MoodIcon.getMoodIcon(entry.mood)} ";
-    }
-    // Links to other entries only work inside Daily You, so they're shared
-    // as their words.
-    final (body, places) = EntryLocations.split(entry.text);
-    var text = body.replaceAllMapped(
-        RegExp(r'\[([^\]\n]*)\]\(entry:\d+\)'), (match) => match[1]!);
-    // Places are shared as words with a Maps link.
-    if (places.isNotEmpty) {
-      final line = EntryLocations.shareLine(places);
-      text = text.isEmpty ? line : '$text\n\n$line';
-    }
-    sharedText =
-        "$sharedText${TimeManager.formatDateWithWeekday(entry.timeCreate, context)}\n$text";
-
-    final files = <XFile>[];
-    final fileNames = <String>[];
-    for (final attachment in attachments) {
-      final localPath = await AttachmentStorage.instance
-          .getLocalPath(attachment.filePath, attachment.type);
-      if (localPath == null) continue;
-      files.add(XFile(localPath,
-          mimeType: attachmentMimeType(attachment.filePath, attachment.type)));
-      fileNames.add(attachment.filePath);
-    }
-    // share_plus rejects an empty file list, so text-only entries pass no
-    // files at all.
-    await SharePlus.instance.share(files.isEmpty
-        ? ShareParams(text: sharedText)
-        : ShareParams(
-            files: files, fileNameOverrides: fileNames, text: sharedText));
-  }
+          List<EntryAttachment> attachments) =>
+      EntryShare.share(context, [entry]);
 
   Widget _attachmentsList(
       BuildContext context, List<EntryAttachment> attachments) {

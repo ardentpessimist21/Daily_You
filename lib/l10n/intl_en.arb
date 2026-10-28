@@ -949,5 +949,15 @@
   "settingsJustifyText": "Justify text",
   "@settingsJustifyText": {},
   "settingsJustifyTextHint": "When reading, lines fill the width like a book, with long words split by a hyphen. Off keeps text left-aligned.",
-  "@settingsJustifyTextHint": {}
+  "@settingsJustifyTextHint": {},
+  "tagFilterTrackers": "Trackers",
+  "@tagFilterTrackers": {},
+  "sortRecentlyEditedTitle": "Recently edited",
+  "@sortRecentlyEditedTitle": {},
+  "sortRecentlyEditedHint": "Older entries whose text you changed later, last edited first",
+  "@sortRecentlyEditedHint": {},
+  "settingsSelectionActions": "Selection actions",
+  "@settingsSelectionActions": {},
+  "settingsSelectionActionsHint": "Buttons on the bar when you long-press to select entries in the Gallery or Timeline",
+  "@settingsSelectionActionsHint": {}
 }

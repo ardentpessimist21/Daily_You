@@ -18,11 +18,17 @@ class EntriesListPage extends StatefulWidget {
   /// Gallery search text to highlight in each entry.
   final String? searchQuery;
 
+  /// Whether the list runs newest first. Swiping right-to-left always goes
+  /// forward in time, so a newest-first list is laid out back to front and
+  /// an oldest-first one front to back.
+  final bool newestFirst;
+
   const EntriesListPage({
     super.key,
     required this.index,
     required this.getEntries,
     this.searchQuery,
+    this.newestFirst = true,
   });
 
   @override
@@ -75,7 +81,7 @@ class _EntriesListPageState extends State<EntriesListPage> {
           hitTestBehavior: HitTestBehavior.translucent,
           controller: _pageController,
           physics: FastPageViewScrollPhysics(),
-          reverse: true,
+          reverse: widget.newestFirst,
           itemCount: entries.length,
           onPageChanged: null,
           itemBuilder: (context, index) {

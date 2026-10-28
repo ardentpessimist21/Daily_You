@@ -1598,4 +1598,21 @@ class AppLocalizationsMs extends AppLocalizations {
   @override
   String get settingsJustifyTextHint =>
       'When reading, lines fill the width like a book, with long words split by a hyphen. Off keeps text left-aligned.';
+
+  @override
+  String get tagFilterTrackers => 'Trackers';
+
+  @override
+  String get sortRecentlyEditedTitle => 'Recently edited';
+
+  @override
+  String get sortRecentlyEditedHint =>
+      'Older entries whose text you changed later, last edited first';
+
+  @override
+  String get settingsSelectionActions => 'Selection actions';
+
+  @override
+  String get settingsSelectionActionsHint =>
+      'Buttons on the bar when you long-press to select entries in the Gallery or Timeline';
 }

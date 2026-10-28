@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/fork/selection_actions.dart';
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/fork/editor_buttons_settings_page.dart';
 import 'package:daily_you/fork/home_greeting.dart';
@@ -330,6 +331,13 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
             icon: const Icon(Icons.chevron_right_rounded),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(
                 builder: (_) => const EditorButtonsSettingsPage())),
+          ),
+          SettingsIconAction(
+            title: AppLocalizations.of(context)!.settingsSelectionActions,
+            hint: AppLocalizations.of(context)!.settingsSelectionActionsHint,
+            icon: const Icon(Icons.chevron_right_rounded),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const SelectionActionsSettingsPage())),
           ),
           SettingsToggle(
             title: AppLocalizations.of(context)!.settingsJustifyText,

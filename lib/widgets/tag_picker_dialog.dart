@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/fork/favourites.dart';
 import 'package:daily_you/fork/tag_picker_layout.dart';
 import 'package:daily_you/models/tag.dart';
 import 'package:daily_you/models/tag_category.dart';
@@ -72,6 +73,10 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
   late List<int> _selectedTagIds;
   late TagFilterMode _filterMode;
   late bool _noTagsOnly;
+
+  /// Gallery filter's Trackers button: shows every tracker, each in its
+  /// own category, with every category open.
+  bool _trackersOnly = false;
 
   @override
   void initState() {
@@ -161,6 +166,7 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
       _selectedTagIds = [];
       _filterMode = TagFilterMode.any;
       _noTagsOnly = false;
+      _trackersOnly = false;
     });
     _notifyFilter();
     Navigator.of(context).pop();
@@ -357,8 +363,12 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
           excludedIds = [];
         }
 
-        bool typeMatch(Tag tag) =>
-            widget.tagTypeFilter == null || tag.tagType == widget.tagTypeFilter;
+        final trackersOnly =
+            widget.mode == TagPickerMode.filter && _trackersOnly;
+        bool typeMatch(Tag tag) => trackersOnly
+            ? tag.tagType == TagType.tracker || Favourites.isFavouriteTag(tag)
+            : widget.tagTypeFilter == null ||
+                tag.tagType == widget.tagTypeFilter;
         final pool = provider.tags
             .where((tag) => !excludedIds.contains(tag.id) && typeMatch(tag))
             .toList();
@@ -372,6 +382,8 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
           query: _searchText,
           pinFavourite: widget.mode == TagPickerMode.filter,
         );
+        final hasTrackers =
+            provider.tags.any((tag) => tag.tagType == TagType.tracker);
 
         final String title;
         switch (widget.mode) {
@@ -390,7 +402,8 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
               : null,
           content: SizedBox(
             width: double.maxFinite,
-            child: _buildContent(context, l10n, provider, content),
+            child: _buildContent(context, l10n, provider, content,
+                hasTrackers: hasTrackers),
           ),
           actions: _buildActions(context, l10n, provider),
         );
@@ -402,8 +415,9 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
     BuildContext context,
     AppLocalizations l10n,
     TagsProvider provider,
-    TagPickerContent content,
-  ) {
+    TagPickerContent content, {
+    bool hasTrackers = false,
+  }) {
     Future<void> pick(Tag tag) async {
       switch (widget.mode) {
         case TagPickerMode.attach:
@@ -415,9 +429,22 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
       }
     }
 
+    final trackersButton = widget.mode == TagPickerMode.filter && hasTrackers
+        ? FilterChip(
+            avatar: Icon(Icons.numbers_rounded,
+                size: 16,
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
+            showCheckmark: false,
+            label: Text(l10n.tagFilterTrackers),
+            selected: _trackersOnly,
+            onSelected: (value) => setState(() => _trackersOnly = value),
+          )
+        : null;
+
     final list = _TagPickerList(
       content: content,
-      searching: _searchText.isNotEmpty,
+      searching: _searchText.isNotEmpty || _trackersOnly,
+      trailingPinned: trackersButton,
       isOpen: (category) => _openGroups.contains(_groupKey(category)),
       onToggle: _toggleGroup,
       onPick: pick,
@@ -450,7 +477,7 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
           _buildFilterSelectedChips(provider),
         _buildSearchField(l10n, provider),
         const SizedBox(height: 8),
-        if (content.isEmpty && _searchText.isNotEmpty)
+        if (content.isEmpty && (_searchText.isNotEmpty || _trackersOnly))
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(l10n.noResults),
@@ -523,9 +550,13 @@ class _TagPickerList extends StatelessWidget {
   final void Function(TagCategory?) onToggle;
   final Future<void> Function(Tag) onPick;
 
+  /// Shown on the pinned row after ⭐ (the Gallery filter's Trackers button).
+  final Widget? trailingPinned;
+
   const _TagPickerList({
     required this.content,
     required this.searching,
+    this.trailingPinned,
     required this.isOpen,
     required this.onToggle,
     required this.onPick,
@@ -554,10 +585,19 @@ class _TagPickerList extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (favourite != null)
+        if (favourite != null || trailingPinned != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
-            child: _chips([favourite]),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (favourite != null)
+                  TagChip(tag: favourite, onTap: () => onPick(favourite)),
+                if (trailingPinned != null) trailingPinned!,
+              ],
+            ),
           ),
         if (!searching && content.frequent.isNotEmpty) ...[
           Row(
