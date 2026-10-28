@@ -4,6 +4,7 @@
 
 import 'dart:async';
 
+import 'package:daily_you/fork/quick_filters.dart';
 import 'package:daily_you/fork/selection_actions.dart';
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/fork/future_entries.dart';
@@ -45,7 +46,16 @@ class _GalleryPageState extends State<GalleryPage>
   TagFilterMode _filterTagMode = TagFilterMode.any;
   bool _filterNoTags = false;
 
-  bool get _hasTagFilter => _filterTagIds.isNotEmpty || _filterNoTags;
+  // Quick filters: Favourite and pinned tags that are on, and Last Edited.
+  // Like tag filters they last until the app restarts.
+  Set<int> _quickTagIds = {};
+  bool _lastEdited = false;
+
+  bool get _hasTagFilter =>
+      _filterTagIds.isNotEmpty ||
+      _filterNoTags ||
+      _quickTagIds.isNotEmpty ||
+      _lastEdited;
 
   // Entry ids picked in select mode (started by long-pressing a tile)
   final Set<int> _selected = {};
@@ -201,7 +211,12 @@ class _GalleryPageState extends State<GalleryPage>
       EntriesProvider entriesProvider, TagsProvider tagsProvider) {
     final filtered =
         _applyTagFilter(entriesProvider.getFilteredEntries(), tagsProvider);
-    return _applyTrackerSort(filtered, entriesProvider, tagsProvider);
+    final sorted = _applyTrackerSort(filtered, entriesProvider, tagsProvider);
+    if (_filterNoTags) return sorted;
+    return QuickFilters.apply(sorted,
+        tagIds: _quickTagIds,
+        lastEdited: _lastEdited,
+        ascending: entriesProvider.sortOrder == SortOrder.ascending);
   }
 
   List<Entry> _applyTagFilter(List<Entry> entries, TagsProvider tagsProvider) {
@@ -276,6 +291,12 @@ class _GalleryPageState extends State<GalleryPage>
         initialSelectedTagIds: List.from(_filterTagIds),
         initialFilterMode: _filterTagMode,
         initialNoTagsOnly: _filterNoTags,
+        initialQuickTagIds: _quickTagIds,
+        initialLastEdited: _lastEdited,
+        onQuickFiltersChanged: (tagIds, lastEdited) => setState(() {
+          _quickTagIds = tagIds;
+          _lastEdited = lastEdited;
+        }),
         onFilterChanged: (tagIds, mode, noTagsOnly) {
           setState(() {
             _filterTagIds = tagIds;
@@ -348,13 +369,6 @@ class _GalleryPageState extends State<GalleryPage>
                             Text(AppLocalizations.of(context)!.sortDateTitle),
                       ),
                       RadioListTile<OrderBy>(
-                        value: OrderBy.edited,
-                        title: Text(AppLocalizations.of(context)!
-                            .sortRecentlyEditedTitle),
-                        subtitle: Text(AppLocalizations.of(context)!
-                            .sortRecentlyEditedHint),
-                      ),
-                      RadioListTile<OrderBy>(
                         value: OrderBy.mood,
                         title: Text(AppLocalizations.of(context)!.tagMoodTitle),
                       ),
@@ -419,7 +433,8 @@ class _GalleryPageState extends State<GalleryPage>
     // Entries dated after today sit in their own Upcoming row at the top.
     final upcoming = FutureEntries.upcoming(visible);
     final entries = upcoming.isEmpty ? visible : FutureEntries.past(visible);
-    _pillAllowed = entriesProvider.orderBy == OrderBy.date;
+    // Month pill only when entries run by date (not by last edit)
+    _pillAllowed = entriesProvider.orderBy == OrderBy.date && !_lastEdited;
     final bool showClear = _searchController.text.isNotEmpty || _hasTagFilter;
     // Entries deleted or filtered away drop out of the selection
     _selected.removeWhere((id) => !entries.any((entry) => entry.id == id));
@@ -507,6 +522,8 @@ class _GalleryPageState extends State<GalleryPage>
                                     _filterTagIds = [];
                                     _filterTagMode = TagFilterMode.any;
                                     _filterNoTags = false;
+                                    _quickTagIds = {};
+                                    _lastEdited = false;
                                   });
                                 },
                               )

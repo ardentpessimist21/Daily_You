@@ -129,6 +129,9 @@ class Settings {
       Setting<bool>("timelineOldestFirst", false);
   static const selectionActionsHidden =
       Setting<String>("selectionActionsHidden", "[]");
+  static const quickFilterPins = Setting<String>("quickFilterPins", "[]");
+  static const quickFiltersCompact =
+      Setting<bool>("quickFiltersCompact", false);
   static const lastDismissedSupportBannerDate =
       Setting<String?>("lastDismissedSupportBannerDate", null);
   static const calendarShowMood = Setting<bool>("calendarShowMood", true);
@@ -221,6 +224,8 @@ class Settings {
     timelineShowFullEntries,
     timelineOldestFirst,
     selectionActionsHidden,
+    quickFilterPins,
+    quickFiltersCompact,
     homeGreetingEnabled,
     homeGreetingName,
     homeGreetingStyle,

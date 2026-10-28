@@ -4,9 +4,9 @@
 
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/custom_locale_delegates.dart';
-import 'package:daily_you/database/entry_store.dart';
 import 'package:daily_you/fork/entry_share.dart';
 import 'package:daily_you/fork/favourites.dart';
+import 'package:daily_you/fork/quick_filters.dart';
 import 'package:daily_you/fork/search_highlight.dart';
 import 'package:daily_you/fork/search_text.dart';
 import 'package:daily_you/fork/selection_actions.dart';
@@ -70,9 +70,9 @@ void main() {
     });
 
     test('invisible marks pasted from Messenger are ignored', () {
-      const pasted = '_Nagtawag ang [⁨ba​tang⁩](https://m.me/x)_';
+      const pasted = '_Nagtawag ang [\u2068ba\u200Btang\u2069](https://m.me/x)_';
       expect(SearchText.matches(pasted, 'batang'), isTrue);
-      expect(SearchText.matches(batang, 'bat‎ang'), isTrue);
+      expect(SearchText.matches(batang, 'bat\u200Eang'), isTrue);
     });
 
     test('link addresses and the hidden places line are not searched', () {
@@ -85,7 +85,7 @@ void main() {
     });
 
     test('highlights land on the original characters', () {
-      final folded = FoldedText('A ba​tang!');
+      final folded = FoldedText('A ba\u200Btang!');
       expect(folded.matches('batang'), [(2, 9)]);
     });
   });
@@ -106,17 +106,10 @@ void main() {
     });
   });
 
-  group('Recently edited', () {
-    useTemporaryConfig();
-    tearDown(() {
-      EntriesProvider.instance.orderBy = OrderBy.date;
-      EntriesProvider.instance.sortOrder = SortOrder.descending;
-      EntryStore.instance.entries = [];
-    });
-
-    test('lists only entries edited on a later day, last edited first', () {
+  group('Last Edited quick filter', () {
+    test('keeps entries edited on a later day, last edited first', () {
       final day = DateTime(2025, 3, 1, 9);
-      EntryStore.instance.entries = [
+      final entries = [
         _entry(1, 'never edited', day),
         _entry(2, 'same day edit', day,
             modified: day.add(const Duration(hours: 3))),
@@ -124,12 +117,12 @@ void main() {
         _entry(4, 'edited in October', DateTime(2025, 1, 1),
             modified: DateTime(2026, 10, 1)),
       ];
-      EntriesProvider.instance.orderBy = OrderBy.edited;
-      expect(EntriesProvider.instance.getFilteredEntries().map((e) => e.id),
-          [4, 3]);
-      EntriesProvider.instance.sortOrder = SortOrder.ascending;
-      expect(EntriesProvider.instance.getFilteredEntries().map((e) => e.id),
-          [3, 4]);
+      List<int?> ids(bool ascending) => QuickFilters.apply(entries,
+              tagIds: const {}, lastEdited: true, ascending: ascending)
+          .map((e) => e.id)
+          .toList();
+      expect(ids(false), [4, 3]);
+      expect(ids(true), [3, 4]);
     });
   });
 

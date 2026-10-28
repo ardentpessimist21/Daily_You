@@ -2958,18 +2958,6 @@ abstract class AppLocalizations {
   /// **'Trackers'**
   String get tagFilterTrackers;
 
-  /// No description provided for @sortRecentlyEditedTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Recently edited'**
-  String get sortRecentlyEditedTitle;
-
-  /// No description provided for @sortRecentlyEditedHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Older entries whose text you changed later, last edited first'**
-  String get sortRecentlyEditedHint;
-
   /// No description provided for @settingsSelectionActions.
   ///
   /// In en, this message translates to:
@@ -2981,6 +2969,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Buttons on the bar when you long-press to select entries in the Gallery or Timeline'**
   String get settingsSelectionActionsHint;
+
+  /// No description provided for @quickFiltersTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick filters'**
+  String get quickFiltersTitle;
+
+  /// No description provided for @quickFilterFavourite.
+  ///
+  /// In en, this message translates to:
+  /// **'Favourite'**
+  String get quickFilterFavourite;
+
+  /// No description provided for @quickFilterLastEdited.
+  ///
+  /// In en, this message translates to:
+  /// **'Last Edited'**
+  String get quickFilterLastEdited;
+
+  /// No description provided for @quickFilterPin.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin to Quick filters'**
+  String get quickFilterPin;
+
+  /// No description provided for @quickFilterUnpin.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin from Quick filters'**
+  String get quickFilterUnpin;
+
+  /// No description provided for @quickFilterPinned.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned to Quick filters · {used} of {max} used'**
+  String quickFilterPinned(int used, int max);
+
+  /// No description provided for @quickFilterPinsFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick filters hold {max} pins. Unpin one to add another.'**
+  String quickFilterPinsFull(int max);
+
+  /// No description provided for @quickFilterPinnedSome.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned {added}, {skipped} didn\'t fit · {max} of {max} used'**
+  String quickFilterPinnedSome(int added, int skipped, int max);
+
+  /// No description provided for @quickFilterUnpinned.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpinned from Quick filters'**
+  String get quickFilterUnpinned;
 }
 
 class _AppLocalizationsDelegate

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/fork/quick_filters.dart';
 import 'package:daily_you/fork/favourites.dart';
 import 'package:daily_you/fork/tag_bulk_move.dart';
 import 'package:daily_you/models/tag.dart';
@@ -122,6 +123,35 @@ class _TagsSettingsState extends State<TagsSettings> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l10n.tagsMovedToCategory(count, name))),
     );
+  }
+
+  /// Pins the selected tags to the Gallery filter's Quick filters, or
+  /// unpins them when every selected tag is already pinned.
+  Future<void> _pinSelected() async {
+    final l10n = AppLocalizations.of(context)!;
+    final messenger = ScaffoldMessenger.of(context);
+    final ids = _selectedIds.toList();
+    final String message;
+    if (ids.every(QuickFilters.isPinned)) {
+      await QuickFilters.unpin(ids);
+      message = l10n.quickFilterUnpinned;
+    } else {
+      final (added, skipped) = await QuickFilters.pin(ids);
+      final used = QuickFilters.pinnedIds.length;
+      if (added == 0) {
+        message = l10n.quickFilterPinsFull(QuickFilters.maxPins);
+      } else if (skipped > 0) {
+        message =
+            l10n.quickFilterPinnedSome(added, skipped, QuickFilters.maxPins);
+      } else {
+        message = l10n.quickFilterPinned(used, QuickFilters.maxPins);
+      }
+    }
+    if (!mounted) return;
+    _clearSelection();
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _editFavouriteColour(Tag favourite) async {
@@ -421,7 +451,17 @@ class _TagsSettingsState extends State<TagsSettings> {
               Expanded(
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: TagChip(tag: tag),
+                  child: QuickFilters.isPinned(tag.id!)
+                      ? Row(mainAxisSize: MainAxisSize.min, children: [
+                          Flexible(child: TagChip(tag: tag)),
+                          const SizedBox(width: 6),
+                          Icon(Icons.push_pin_rounded,
+                              size: 16,
+                              semanticLabel:
+                                  AppLocalizations.of(context)!.quickFilterPin,
+                              color: Theme.of(context).colorScheme.primary),
+                        ])
+                      : TagChip(tag: tag),
                 ),
               ),
               Padding(
@@ -548,6 +588,18 @@ class _TagsSettingsState extends State<TagsSettings> {
       ),
       title: Text(l10n.tagsSelectedCount(_selectedIds.length)),
       actions: [
+        Builder(builder: (context) {
+          final allPinned = _selectedIds.isNotEmpty &&
+              _selectedIds.every(QuickFilters.isPinned);
+          final full = !allPinned &&
+              QuickFilters.pinnedIds.length >= QuickFilters.maxPins;
+          return IconButton(
+            icon: Icon(
+                allPinned ? Icons.push_pin_rounded : Icons.push_pin_outlined),
+            tooltip: allPinned ? l10n.quickFilterUnpin : l10n.quickFilterPin,
+            onPressed: full ? null : _pinSelected,
+          );
+        }),
         IconButton(
           icon: const Icon(Icons.drive_file_move_outlined),
           tooltip: l10n.tagsMoveToCategory,

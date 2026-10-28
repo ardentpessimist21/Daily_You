@@ -7,7 +7,7 @@ import 'package:daily_you/fork/search_text.dart';
 import 'package:daily_you/models/entry.dart';
 import 'package:material_ui/material_ui.dart';
 
-enum OrderBy { date, mood, tracker, edited }
+enum OrderBy { date, mood, tracker }
 
 enum SortOrder { ascending, descending }
 
@@ -91,16 +91,6 @@ class EntriesProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Whether [entry]'s text was changed on a later day than it was written:
-  /// the Gallery's "Recently edited" list. Same-day edits don't count.
-  static bool editedLater(Entry entry) {
-    final created = DateTime(
-        entry.timeCreate.year, entry.timeCreate.month, entry.timeCreate.day);
-    final modified = DateTime(entry.timeModified.year, entry.timeModified.month,
-        entry.timeModified.day);
-    return modified.isAfter(created);
-  }
-
   void _calculateFilteredEntries() {
     List<Entry> filteredEntries;
     if (_searchText.isNotEmpty) {
@@ -109,11 +99,6 @@ class EntriesProvider with ChangeNotifier {
           .toList();
     } else {
       filteredEntries = entries.toList();
-    }
-
-    if (_orderBy == OrderBy.edited) {
-      filteredEntries = filteredEntries.where(editedLater).toList()
-        ..sort((a, b) => b.timeModified.compareTo(a.timeModified));
     }
 
     if (_orderBy == OrderBy.mood) {

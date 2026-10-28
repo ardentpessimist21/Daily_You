@@ -3,6 +3,7 @@
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
 import 'package:daily_you/fork/favourites.dart';
+import 'package:daily_you/fork/quick_filters.dart';
 import 'package:daily_you/fork/tag_picker_layout.dart';
 import 'package:daily_you/models/tag.dart';
 import 'package:daily_you/models/tag_category.dart';
@@ -37,6 +38,12 @@ class TagPickerDialog extends StatefulWidget {
   final bool initialNoTagsOnly;
   final void Function(List<int>, TagFilterMode, bool)? onFilterChanged;
 
+  /// Gallery filter only: Quick filters that are on (Favourite and pinned
+  /// tag ids) and whether Last Edited is on.
+  final Set<int> initialQuickTagIds;
+  final bool initialLastEdited;
+  final void Function(Set<int> tagIds, bool lastEdited)? onQuickFiltersChanged;
+
   final TagType? tagTypeFilter;
 
   /// Optional line under the title, e.g. multi-select's "On some: …"
@@ -50,6 +57,9 @@ class TagPickerDialog extends StatefulWidget {
     this.initialFilterMode = TagFilterMode.any,
     this.initialNoTagsOnly = false,
     this.onFilterChanged,
+    this.initialQuickTagIds = const {},
+    this.initialLastEdited = false,
+    this.onQuickFiltersChanged,
     this.tagTypeFilter,
     this.note,
   });
@@ -78,12 +88,22 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
   /// own category, with every category open.
   bool _trackersOnly = false;
 
+  // Quick filters (Gallery filter only)
+  late Set<int> _quickTagIds;
+  late bool _lastEdited;
+  bool _quickCompact = QuickFilters.compact;
+
+  /// Frequent in the Gallery filter: open every time the popup opens.
+  bool _frequentOpen = true;
+
   @override
   void initState() {
     super.initState();
     _selectedTagIds = List.from(widget.initialSelectedTagIds);
     _filterMode = widget.initialFilterMode;
     _noTagsOnly = widget.initialNoTagsOnly;
+    _quickTagIds = {...widget.initialQuickTagIds};
+    _lastEdited = widget.initialLastEdited;
     final entryDates = <int, DateTime>{
       for (final entry in EntriesProvider.instance.entries)
         if (entry.id != null) entry.id!: entry.timeCreate,
@@ -140,6 +160,26 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
     widget.onFilterChanged?.call(_selectedTagIds, _filterMode, _noTagsOnly);
   }
 
+  void _notifyQuick() =>
+      widget.onQuickFiltersChanged?.call({..._quickTagIds}, _lastEdited);
+
+  void _toggleQuickTag(Tag tag) {
+    setState(() {
+      if (!_quickTagIds.remove(tag.id)) _quickTagIds.add(tag.id!);
+    });
+    _notifyQuick();
+  }
+
+  void _toggleLastEdited() {
+    setState(() => _lastEdited = !_lastEdited);
+    _notifyQuick();
+  }
+
+  void _toggleQuickCompact() {
+    setState(() => _quickCompact = !_quickCompact);
+    QuickFilters.setCompact(_quickCompact);
+  }
+
   void _addFilterTag(int tagId) {
     setState(() => _selectedTagIds.add(tagId));
     _notifyFilter();
@@ -156,9 +196,13 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
       if (value) {
         _selectedTagIds = [];
         _filterMode = TagFilterMode.any;
+        _quickTagIds = {};
+        _lastEdited = false;
+        _trackersOnly = false;
       }
     });
     _notifyFilter();
+    if (value) _notifyQuick();
   }
 
   void _clearAllFilters() {
@@ -167,8 +211,11 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
       _filterMode = TagFilterMode.any;
       _noTagsOnly = false;
       _trackersOnly = false;
+      _quickTagIds = {};
+      _lastEdited = false;
     });
     _notifyFilter();
+    _notifyQuick();
     Navigator.of(context).pop();
   }
 
@@ -380,7 +427,6 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
           categories: provider.categories,
           usage: _usage,
           query: _searchText,
-          pinFavourite: widget.mode == TagPickerMode.filter,
         );
         final hasTrackers =
             provider.tags.any((tag) => tag.tagType == TagType.tracker);
@@ -429,22 +475,12 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
       }
     }
 
-    final trackersButton = widget.mode == TagPickerMode.filter && hasTrackers
-        ? FilterChip(
-            avatar: Icon(Icons.numbers_rounded,
-                size: 16,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
-            showCheckmark: false,
-            label: Text(l10n.tagFilterTrackers),
-            selected: _trackersOnly,
-            onSelected: (value) => setState(() => _trackersOnly = value),
-          )
-        : null;
-
     final list = _TagPickerList(
       content: content,
       searching: _searchText.isNotEmpty || _trackersOnly,
-      trailingPinned: trackersButton,
+      collapsibleFrequent: widget.mode == TagPickerMode.filter,
+      frequentOpen: _frequentOpen,
+      onToggleFrequent: () => setState(() => _frequentOpen = !_frequentOpen),
       isOpen: (category) => _openGroups.contains(_groupKey(category)),
       onToggle: _toggleGroup,
       onPick: pick,
@@ -477,6 +513,25 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
           _buildFilterSelectedChips(provider),
         _buildSearchField(l10n, provider),
         const SizedBox(height: 8),
+        if (widget.mode == TagPickerMode.filter)
+          QuickFiltersSection(
+            favourite: Favourites.tag,
+            showTrackers: hasTrackers,
+            pinned: [
+              for (final id in QuickFilters.pinnedIds)
+                ...provider.tags.where((tag) => tag.id == id),
+            ],
+            activeTagIds: _quickTagIds,
+            trackersOn: _trackersOnly,
+            lastEditedOn: _lastEdited,
+            compact: _quickCompact,
+            enabled: !_noTagsOnly,
+            onToggleTag: _toggleQuickTag,
+            onToggleTrackers: () =>
+                setState(() => _trackersOnly = !_trackersOnly),
+            onToggleLastEdited: _toggleLastEdited,
+            onToggleCompact: _toggleQuickCompact,
+          ),
         if (content.isEmpty && (_searchText.isNotEmpty || _trackersOnly))
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
@@ -550,13 +605,17 @@ class _TagPickerList extends StatelessWidget {
   final void Function(TagCategory?) onToggle;
   final Future<void> Function(Tag) onPick;
 
-  /// Shown on the pinned row after ⭐ (the Gallery filter's Trackers button).
-  final Widget? trailingPinned;
+  /// Gallery filter: Frequent has a ▾ header and no "Last 60 days".
+  final bool collapsibleFrequent;
+  final bool frequentOpen;
+  final VoidCallback? onToggleFrequent;
 
   const _TagPickerList({
     required this.content,
     required this.searching,
-    this.trailingPinned,
+    this.collapsibleFrequent = false,
+    this.frequentOpen = true,
+    this.onToggleFrequent,
     required this.isOpen,
     required this.onToggle,
     required this.onPick,
@@ -585,21 +644,44 @@ class _TagPickerList extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (favourite != null || trailingPinned != null)
+        if (favourite != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                if (favourite != null)
-                  TagChip(tag: favourite, onTap: () => onPick(favourite)),
-                if (trailingPinned != null) trailingPinned!,
-              ],
+            child: _chips([favourite]),
+          ),
+        if (!searching &&
+            content.frequent.isNotEmpty &&
+            collapsibleFrequent) ...[
+          Semantics(
+            button: true,
+            expanded: frequentOpen,
+            child: InkWell(
+              onTap: onToggleFrequent,
+              child: SizedBox(
+                height: 36,
+                child: Row(
+                  children: [
+                    AnimatedRotation(
+                      turns: frequentOpen ? 0.25 : 0,
+                      duration: const Duration(milliseconds: 150),
+                      child: Icon(Icons.chevron_right_rounded,
+                          size: 20, color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(l10n.tagPickerFrequent.toUpperCase(),
+                        style: labelStyle),
+                  ],
+                ),
+              ),
             ),
           ),
-        if (!searching && content.frequent.isNotEmpty) ...[
+          if (frequentOpen) ...[
+            const SizedBox(height: 6),
+            _chips(content.frequent),
+          ],
+          const SizedBox(height: 10),
+          Divider(height: 1, color: theme.colorScheme.outlineVariant),
+        ] else if (!searching && content.frequent.isNotEmpty) ...[
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,

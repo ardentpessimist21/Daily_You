@@ -1653,16 +1653,42 @@ class AppLocalizationsId extends AppLocalizations {
   String get tagFilterTrackers => 'Trackers';
 
   @override
-  String get sortRecentlyEditedTitle => 'Recently edited';
-
-  @override
-  String get sortRecentlyEditedHint =>
-      'Older entries whose text you changed later, last edited first';
-
-  @override
   String get settingsSelectionActions => 'Selection actions';
 
   @override
   String get settingsSelectionActionsHint =>
       'Buttons on the bar when you long-press to select entries in the Gallery or Timeline';
+
+  @override
+  String get quickFiltersTitle => 'Quick filters';
+
+  @override
+  String get quickFilterFavourite => 'Favourite';
+
+  @override
+  String get quickFilterLastEdited => 'Last Edited';
+
+  @override
+  String get quickFilterPin => 'Pin to Quick filters';
+
+  @override
+  String get quickFilterUnpin => 'Unpin from Quick filters';
+
+  @override
+  String quickFilterPinned(int used, int max) {
+    return 'Pinned to Quick filters · $used of $max used';
+  }
+
+  @override
+  String quickFilterPinsFull(int max) {
+    return 'Quick filters hold $max pins. Unpin one to add another.';
+  }
+
+  @override
+  String quickFilterPinnedSome(int added, int skipped, int max) {
+    return 'Pinned $added, $skipped didn\'t fit · $max of $max used';
+  }
+
+  @override
+  String get quickFilterUnpinned => 'Unpinned from Quick filters';
 }
