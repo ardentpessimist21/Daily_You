@@ -62,6 +62,11 @@ class _TagsSettingsState extends State<TagsSettings> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
 
+  /// A quiet place for focus while selecting, so closing a popup doesn't
+  /// hand focus (and the keyboard) back to the search bar.
+  final FocusNode _pageFocus =
+      FocusNode(debugLabel: 'Settings › Tags', skipTraversal: true);
+
   /// Select mode starts with a long press on a tag and stays on until it's
   /// closed, even with nothing ticked.
   bool _selectMode = false;
@@ -75,12 +80,17 @@ class _TagsSettingsState extends State<TagsSettings> {
   @override
   void dispose() {
     _searchController.dispose();
+    _pageFocus.dispose();
     super.dispose();
   }
 
   // Selection
 
+  /// Takes focus off the search bar and keeps it off once a popup closes.
+  void _parkFocus() => _pageFocus.requestFocus();
+
   void _toggleSelected(Tag tag) {
+    _parkFocus();
     setState(() {
       _selectMode = true;
       if (!_selectedIds.remove(tag.id)) _selectedIds.add(tag.id!);
@@ -143,6 +153,7 @@ class _TagsSettingsState extends State<TagsSettings> {
   // Pill actions
 
   Future<void> _moveSelected(TagsProvider provider) async {
+    _parkFocus();
     final l10n = AppLocalizations.of(context)!;
     // Wrapped so "Uncategorized" (null) can be told apart from Cancel
     final target = await showAppDialog<({int? id})>(
@@ -201,6 +212,7 @@ class _TagsSettingsState extends State<TagsSettings> {
   /// Asks which list, then pins the selected tags there, or unpins them
   /// when they're all already in it.
   Future<void> _pinSelected() async {
+    _parkFocus();
     final l10n = AppLocalizations.of(context)!;
     final ids = _selectedIds.toList();
     final list = await showAppDialog<TagPinList>(
@@ -265,6 +277,7 @@ class _TagsSettingsState extends State<TagsSettings> {
   }
 
   Future<void> _colourSelected(TagsProvider provider) async {
+    _parkFocus();
     final l10n = AppLocalizations.of(context)!;
     final selected = _selectedTags(provider);
     if (selected.isEmpty) return;
@@ -302,6 +315,7 @@ class _TagsSettingsState extends State<TagsSettings> {
   }
 
   Future<void> _deleteSelected(TagsProvider provider) async {
+    _parkFocus();
     final l10n = AppLocalizations.of(context)!;
     final selected = _selectedTags(provider);
     if (selected.isEmpty) return;
@@ -365,6 +379,7 @@ class _TagsSettingsState extends State<TagsSettings> {
   }
 
   Future<void> _saveSelected() async {
+    _parkFocus();
     final l10n = AppLocalizations.of(context)!;
     final bytes = TemplatesTagsTransfer.exportTags({..._selectedIds});
     final status = ValueNotifier<String>("");
@@ -382,6 +397,7 @@ class _TagsSettingsState extends State<TagsSettings> {
   }
 
   Future<void> _shareSelected() async {
+    _parkFocus();
     final bytes = TemplatesTagsTransfer.exportTags({..._selectedIds});
     await TemplatesTagsTransfer.shareBytes(bytes, _exportFileName());
     if (mounted) _exitSelectMode();
@@ -1006,172 +1022,179 @@ class _TagsSettingsState extends State<TagsSettings> {
       ],
     );
 
-    return PopScope(
-      canPop: !_selectMode,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        if (_shareOpen) {
-          setState(() => _shareOpen = false);
-        } else {
-          _exitSelectMode();
-        }
-      },
-      child: Scaffold(
-        appBar: _selectMode
-            ? selectionBar
-            : AppBar(
-                title: Text(l10n.settingsTagsTitle),
-                centerTitle: true,
-                actions: [
-                  IconButton(
-                    icon: const Icon(Icons.file_open_outlined),
-                    onPressed: () => _importFile(context),
-                  ),
-                  IconButton(
-                    icon: Icon(allOpen
-                        ? Icons.unfold_less_rounded
-                        : Icons.unfold_more_rounded),
-                    tooltip:
-                        allOpen ? l10n.tagsCollapseAll : l10n.tagsExpandAll,
-                    onPressed: () => _toggleAll(provider),
-                  ),
-                ],
-              ),
-        // The + button stretches into the action pill in select mode
-        floatingActionButton: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 260),
-          switchInCurve: Curves.easeOutBack,
-          switchOutCurve: Curves.easeIn,
-          layoutBuilder: (current, previous) => Stack(
-            alignment: AlignmentDirectional.bottomEnd,
-            children: [...previous, if (current != null) current],
-          ),
-          transitionBuilder: (child, animation) => FadeTransition(
-            opacity: animation,
-            child: SizeTransition(
-              sizeFactor: animation,
-              axis: Axis.horizontal,
-              alignment: AlignmentDirectional.centerEnd,
-              child: child,
-            ),
-          ),
-          child: _selectMode
-              ? KeyedSubtree(
-                  key: const ValueKey('pill'),
-                  child: _buildSelectionPill(context, provider),
-                )
-              : fab,
-        ),
-        body: isEmpty
-            ? Center(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 48),
-                  child: Text(l10n.noResults),
-                ),
-              )
-            : Builder(builder: (context) {
-                final allItems = _buildFlatItems(provider);
-                // Keep the uncategorized header out of the reorderable range so
-                // nothing can be dragged above
-                final hasUncategorizedHeader = allItems.isNotEmpty &&
-                    allItems[0] is _HeaderItem &&
-                    (allItems[0] as _HeaderItem).category == null;
-                final items =
-                    hasUncategorizedHeader ? allItems.sublist(1) : allItems;
-
-                return CustomScrollView(
-                  slivers: [
-                    SliverToBoxAdapter(child: _buildSearchField(l10n)),
-                    if (!_searching) ...[
-                      SliverToBoxAdapter(
-                        child: _buildPinnedSection(
-                          context,
-                          TagPinList.gallery,
-                          _galleryPinsOpen,
-                          () => setState(
-                              () => _galleryPinsOpen = !_galleryPinsOpen),
-                        ),
-                      ),
-                      SliverToBoxAdapter(
-                        child: _buildPinnedSection(
-                          context,
-                          TagPinList.addTags,
-                          _addTagsPinsOpen,
-                          () => setState(
-                              () => _addTagsPinsOpen = !_addTagsPinsOpen),
-                        ),
-                      ),
-                      const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                    ],
-                    if (_searching && items.isEmpty)
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Center(child: Text(l10n.noResults)),
-                        ),
-                      ),
-                    if (hasUncategorizedHeader)
-                      SliverToBoxAdapter(
-                        child: _buildHeaderRow(
-                          context,
-                          0,
-                          null,
-                          provider,
-                          key: const ValueKey('hdr_null'),
-                        ),
-                      ),
-                    SliverReorderableList(
-                      itemCount: items.length,
-                      onReorderStart: (index) {
-                        if (!_isDraggingCategory &&
-                            index < items.length &&
-                            items[index] is _HeaderItem &&
-                            (items[index] as _HeaderItem).category != null) {
-                          WidgetsBinding.instance.addPostFrameCallback((_) {
-                            if (mounted) {
-                              setState(() => _isDraggingCategory = true);
-                            }
-                          });
-                        }
-                      },
-                      onReorderEnd: (_) {
-                        if (_isDraggingCategory) {
-                          setState(() => _isDraggingCategory = false);
-                        }
-                      },
-                      onReorderItem: (from, to) {
-                        final snapshot = List<_ListItem>.from(items);
-                        _onReorder(from, to, provider, snapshot);
-                      },
-                      itemBuilder: (context, index) {
-                        final item = items[index];
-                        if (item is _HeaderItem) {
-                          return _buildHeaderRow(
-                            context,
-                            index,
-                            item.category,
-                            provider,
-                            key: ValueKey('hdr_${item.category?.id ?? 'null'}'),
-                          );
-                        } else {
-                          final tagItem = item as _TagItem;
-                          return _buildTagRow(
-                            context,
-                            index,
-                            tagItem.tag,
-                            provider,
-                            key: ValueKey('tag_${tagItem.tag.id}'),
-                          );
-                        }
-                      },
+    return Focus(
+      focusNode: _pageFocus,
+      child: PopScope(
+        canPop: !_selectMode,
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) return;
+          if (_shareOpen) {
+            setState(() => _shareOpen = false);
+          } else {
+            _exitSelectMode();
+          }
+        },
+        child: Scaffold(
+          appBar: _selectMode
+              ? selectionBar
+              : AppBar(
+                  title: Text(l10n.settingsTagsTitle),
+                  centerTitle: true,
+                  actions: [
+                    IconButton(
+                      icon: const Icon(Icons.file_open_outlined),
+                      onPressed: () => _importFile(context),
                     ),
-                    // Room for the pill or + button
-                    const SliverToBoxAdapter(
-                      child: SizedBox(height: 96),
+                    IconButton(
+                      icon: Icon(allOpen
+                          ? Icons.unfold_less_rounded
+                          : Icons.unfold_more_rounded),
+                      tooltip:
+                          allOpen ? l10n.tagsCollapseAll : l10n.tagsExpandAll,
+                      onPressed: () => _toggleAll(provider),
                     ),
                   ],
-                );
-              }),
+                ),
+          // The + button stretches into the action pill in select mode
+          floatingActionButton: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 260),
+            switchInCurve: Curves.easeOutBack,
+            switchOutCurve: Curves.easeIn,
+            layoutBuilder: (current, previous) => Stack(
+              alignment: AlignmentDirectional.bottomEnd,
+              children: [...previous, if (current != null) current],
+            ),
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: SizeTransition(
+                sizeFactor: animation,
+                axis: Axis.horizontal,
+                // Stretch sideways only: without a height factor the
+                // transition fills the screen's height and centres the button
+                alignment: AlignmentDirectional.bottomEnd,
+                fixedCrossAxisSizeFactor: 1,
+                child: child,
+              ),
+            ),
+            child: _selectMode
+                ? KeyedSubtree(
+                    key: const ValueKey('pill'),
+                    child: _buildSelectionPill(context, provider),
+                  )
+                : fab,
+          ),
+          body: isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 48),
+                    child: Text(l10n.noResults),
+                  ),
+                )
+              : Builder(builder: (context) {
+                  final allItems = _buildFlatItems(provider);
+                  // Keep the uncategorized header out of the reorderable range so
+                  // nothing can be dragged above
+                  final hasUncategorizedHeader = allItems.isNotEmpty &&
+                      allItems[0] is _HeaderItem &&
+                      (allItems[0] as _HeaderItem).category == null;
+                  final items =
+                      hasUncategorizedHeader ? allItems.sublist(1) : allItems;
+
+                  return CustomScrollView(
+                    slivers: [
+                      SliverToBoxAdapter(child: _buildSearchField(l10n)),
+                      if (!_searching) ...[
+                        SliverToBoxAdapter(
+                          child: _buildPinnedSection(
+                            context,
+                            TagPinList.gallery,
+                            _galleryPinsOpen,
+                            () => setState(
+                                () => _galleryPinsOpen = !_galleryPinsOpen),
+                          ),
+                        ),
+                        SliverToBoxAdapter(
+                          child: _buildPinnedSection(
+                            context,
+                            TagPinList.addTags,
+                            _addTagsPinsOpen,
+                            () => setState(
+                                () => _addTagsPinsOpen = !_addTagsPinsOpen),
+                          ),
+                        ),
+                        const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                      ],
+                      if (_searching && items.isEmpty)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Center(child: Text(l10n.noResults)),
+                          ),
+                        ),
+                      if (hasUncategorizedHeader)
+                        SliverToBoxAdapter(
+                          child: _buildHeaderRow(
+                            context,
+                            0,
+                            null,
+                            provider,
+                            key: const ValueKey('hdr_null'),
+                          ),
+                        ),
+                      SliverReorderableList(
+                        itemCount: items.length,
+                        onReorderStart: (index) {
+                          if (!_isDraggingCategory &&
+                              index < items.length &&
+                              items[index] is _HeaderItem &&
+                              (items[index] as _HeaderItem).category != null) {
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (mounted) {
+                                setState(() => _isDraggingCategory = true);
+                              }
+                            });
+                          }
+                        },
+                        onReorderEnd: (_) {
+                          if (_isDraggingCategory) {
+                            setState(() => _isDraggingCategory = false);
+                          }
+                        },
+                        onReorderItem: (from, to) {
+                          final snapshot = List<_ListItem>.from(items);
+                          _onReorder(from, to, provider, snapshot);
+                        },
+                        itemBuilder: (context, index) {
+                          final item = items[index];
+                          if (item is _HeaderItem) {
+                            return _buildHeaderRow(
+                              context,
+                              index,
+                              item.category,
+                              provider,
+                              key: ValueKey(
+                                  'hdr_${item.category?.id ?? 'null'}'),
+                            );
+                          } else {
+                            final tagItem = item as _TagItem;
+                            return _buildTagRow(
+                              context,
+                              index,
+                              tagItem.tag,
+                              provider,
+                              key: ValueKey('tag_${tagItem.tag.id}'),
+                            );
+                          }
+                        },
+                      ),
+                      // Room for the pill or + button
+                      const SliverToBoxAdapter(
+                        child: SizedBox(height: 96),
+                      ),
+                    ],
+                  );
+                }),
+        ),
       ),
     );
   }

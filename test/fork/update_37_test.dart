@@ -338,7 +338,12 @@ void main() {
       await _openSettings(tester);
       await tester.tap(find.byTooltip('Expand all'));
       await tester.pumpAndSettle();
-      await tester.longPress(find.text('Gadget'));
+      await tester.longPress(find.text('Friends'));
+      await tester.pumpAndSettle();
+      // Fold the groups above so Hobbies sits clear of the pill
+      await tester.tap(find.text('Uncategorized'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('People'));
       await tester.pumpAndSettle();
       // Fold Hobbies by tapping its header, then tick it closed
       await tester.tap(find.text('Hobbies'));
@@ -402,6 +407,104 @@ void main() {
       await tester.pumpAndSettle();
       EasyDebounce.cancelAll();
       expect(TagPinList.gallery.ids, isEmpty);
+    });
+  });
+
+  group('3.7.0.38 fixes', () {
+    useTemporaryConfig();
+    setUp(_seed);
+
+    // _openSettings uses a 432 × 960 screen
+    const height = 960.0;
+    const width = 432.0;
+
+    testWidgets('+ sits at the bottom-right when the page opens',
+        (tester) async {
+      await _openSettings(tester);
+      final plus = tester.getRect(find.byIcon(Icons.add));
+      expect(plus.bottom, greaterThan(height - 60));
+      expect(plus.right, greaterThan(width - 60));
+    });
+
+    testWidgets('the pill stays at the bottom while and after it opens',
+        (tester) async {
+      await _openSettings(tester);
+      await tester.tap(find.byTooltip('Expand all'));
+      await tester.pumpAndSettle();
+      await tester.longPress(find.text('Friends'));
+      await tester.pump(const Duration(milliseconds: 120));
+      expect(tester.getRect(find.byTooltip('Delete')).bottom,
+          greaterThan(height - 70));
+      await tester.pumpAndSettle();
+      final delete = tester.getRect(find.byTooltip('Delete'));
+      expect(delete.bottom, greaterThan(height - 70));
+      expect(delete.right, greaterThan(width - 70));
+      // Back to the + at the bottom when select mode closes
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+      expect(tester.getRect(find.byIcon(Icons.add)).bottom,
+          greaterThan(height - 60));
+    });
+
+    bool searchFocused(WidgetTester tester) => tester
+        .widget<EditableText>(find.byType(EditableText))
+        .focusNode
+        .hasFocus;
+
+    Future<void> selectWithSearchFocused(WidgetTester tester) async {
+      await _openSettings(tester);
+      await tester.tap(find.byTooltip('Expand all'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(TextField));
+      await tester.pumpAndSettle();
+      expect(searchFocused(tester), isTrue);
+      await tester.longPress(find.text('Friends'));
+      await tester.pumpAndSettle();
+      expect(searchFocused(tester), isFalse);
+    }
+
+    Future<void> dismissPopup(WidgetTester tester) async {
+      await tester.tapAt(const Offset(4, 4));
+      await tester.pumpAndSettle();
+    }
+
+    for (final tooltip in ['Change colour', 'Move to category', 'Pin to']) {
+      testWidgets('closing $tooltip leaves the keyboard shut', (tester) async {
+        await selectWithSearchFocused(tester);
+        await tester.tap(find.byTooltip(tooltip));
+        await tester.pumpAndSettle();
+        await dismissPopup(tester);
+        expect(searchFocused(tester), isFalse);
+        expect(tester.testTextInput.isVisible, isFalse);
+      });
+    }
+
+    testWidgets('picking a pin list leaves the keyboard shut', (tester) async {
+      await selectWithSearchFocused(tester);
+      await tester.tap(find.byTooltip('Pin to'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Add Tags'));
+      await tester.pumpAndSettle();
+      EasyDebounce.cancelAll();
+      expect(searchFocused(tester), isFalse);
+      expect(tester.testTextInput.isVisible, isFalse);
+    });
+
+    testWidgets('cancelling Delete leaves the keyboard shut', (tester) async {
+      await selectWithSearchFocused(tester);
+      await tester.tap(find.byTooltip('Delete'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(searchFocused(tester), isFalse);
+      expect(tester.testTextInput.isVisible, isFalse);
+    });
+
+    testWidgets('tapping search still opens the keyboard', (tester) async {
+      await selectWithSearchFocused(tester);
+      await tester.tap(find.byType(TextField));
+      await tester.pumpAndSettle();
+      expect(searchFocused(tester), isTrue);
     });
   });
 }
