@@ -44,6 +44,21 @@ class TagPickerContent {
       pinnedFavourite == null && frequent.isEmpty && groups.isEmpty;
 }
 
+/// How tags are ordered inside each group of the Add Tags popup.
+enum TagSortMode {
+  /// Last used first
+  recent,
+
+  /// Most used in the window first (the default)
+  usage,
+
+  /// The order set in Settings › Tags
+  manual;
+
+  static TagSortMode fromKey(String key) =>
+      values.where((mode) => mode.name == key).firstOrNull ?? usage;
+}
+
 /// Layout rules for the Add Tags / Filter Tags / pick-a-tag popup:
 /// - Frequent: the top [frequentLimit] tags used in the last [windowDays].
 /// - Categories keep the order you set in Settings; Uncategorized goes last.
@@ -101,12 +116,33 @@ class TagPickerLayout {
     return (a.id ?? 0).compareTo(b.id ?? 0);
   }
 
+  static int compareByRecent(Tag a, Tag b, Map<int, TagUsage> usage) {
+    final lastA = usage[a.id]?.lastUsed;
+    final lastB = usage[b.id]?.lastUsed;
+    if (lastA != null && lastB != null) {
+      final byLast = lastB.compareTo(lastA);
+      if (byLast != 0) return byLast;
+    } else if (lastA != null) {
+      return -1;
+    } else if (lastB != null) {
+      return 1;
+    }
+    return compareBySettings(a, b);
+  }
+
+  static int compareBySettings(Tag a, Tag b) {
+    final bySettings = a.sortOrder.compareTo(b.sortOrder);
+    if (bySettings != 0) return bySettings;
+    return (a.id ?? 0).compareTo(b.id ?? 0);
+  }
+
   static TagPickerContent build({
     required List<Tag> pool,
     required List<TagCategory> categories,
     required Map<int, TagUsage> usage,
     String query = '',
     bool pinFavourite = false,
+    TagSortMode sortMode = TagSortMode.usage,
   }) {
     final search = query.trim().toLowerCase();
     final categoryById = {for (final c in categories) c.id: c};
@@ -128,12 +164,18 @@ class TagPickerLayout {
       if (matches(tag)) tags.add(tag);
     }
 
-    int sorter(Tag a, Tag b) => compareByUsage(a, b, usage);
+    // Frequent is always by usage; the sort choice orders the groups
+    int byUsage(Tag a, Tag b) => compareByUsage(a, b, usage);
+    int sorter(Tag a, Tag b) => switch (sortMode) {
+          TagSortMode.recent => compareByRecent(a, b, usage),
+          TagSortMode.usage => compareByUsage(a, b, usage),
+          TagSortMode.manual => compareBySettings(a, b),
+        };
 
     final frequent = search.isNotEmpty
         ? <Tag>[]
         : (tags.where((tag) => (usage[tag.id]?.recentCount ?? 0) > 0).toList()
-              ..sort(sorter))
+              ..sort(byUsage))
             .take(frequentLimit)
             .toList();
 

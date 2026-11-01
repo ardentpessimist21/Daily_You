@@ -245,12 +245,14 @@ void main() {
           TagPickerDialog(
               mode: TagPickerMode.attach, source: TagAttachmentSource()));
       expect(find.text('FREQUENT'), findsOneWidget);
-      expect(find.text('Last 60 days'), findsOneWidget);
+      // 3.7.0.37: Frequent folds like the Gallery filter's, no window label
+      expect(find.text('Last 60 days'), findsNothing);
       // Walking is in Frequent; Photography sits in closed Hobbies
       expect(find.text('Walking'), findsOneWidget);
       expect(find.text('Photography'), findsNothing);
       expect(find.text('Uncategorized'), findsOneWidget);
-      expect(find.byIcon(Icons.sort_rounded), findsNothing);
+      // 3.7.0.37: Add Tags has a sort menu
+      expect(find.byIcon(Icons.sort_rounded), findsOneWidget);
       // ⭐ stays out of Add Tags
       expect(find.text(Favourites.tagName), findsNothing);
     });
@@ -301,13 +303,15 @@ void main() {
     useTemporaryConfig();
     setUp(_seed);
 
-    testWidgets('⭐ shows as a locked row with a colour button', (tester) async {
+    testWidgets('⭐ has no row; the pinned lists sit at the top',
+        (tester) async {
+      // 3.7.0.37 removed the locked ⭐ row
       await tester.pumpWidget(_app(const TagsSettings()));
       await tester.pumpAndSettle();
-      expect(find.text(Favourites.tagName), findsOneWidget);
-      expect(find.byIcon(Icons.lock_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.palette_outlined), findsOneWidget);
-      expect(find.textContaining('star button'), findsOneWidget);
+      expect(find.text(Favourites.tagName), findsNothing);
+      expect(find.textContaining('star button'), findsNothing);
+      expect(find.text('Pinned · Gallery'), findsOneWidget);
+      expect(find.text('Pinned · Add Tags'), findsOneWidget);
     });
 
     testWidgets('search narrows the list', (tester) async {
@@ -323,7 +327,13 @@ void main() {
     });
 
     testWidgets('long press selects tags for Move to category', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.5;
+      addTearDown(tester.view.reset);
       await tester.pumpWidget(_app(const TagsSettings()));
+      await tester.pumpAndSettle();
+      // Categories start collapsed since 3.7.0.37
+      await tester.tap(find.byTooltip('Expand all'));
       await tester.pumpAndSettle();
       await tester.longPress(find.text('Friends'));
       await tester.pumpAndSettle();
@@ -378,8 +388,7 @@ void main() {
       expect(dropdowns.length, 2);
       // Neither year nor month is blank
       for (final dropdown in dropdowns) {
-        expect(
-            dropdown.items!.where((item) => item.value == dropdown.value),
+        expect(dropdown.items!.where((item) => item.value == dropdown.value),
             hasLength(1));
       }
       expect(find.byIcon(Icons.visibility_rounded), findsOneWidget);

@@ -207,12 +207,13 @@ void main() {
       expect(QuickFilters.compact, isTrue);
     });
 
-    testWidgets('Add Tags keeps its Frequent label', (tester) async {
+    testWidgets('Add Tags Frequent folds too (3.7.0.37)', (tester) async {
       await _open(
           tester,
           TagPickerDialog(
               mode: TagPickerMode.attach, source: TagAttachmentSource()));
-      expect(find.text('Last 60 days'), findsOneWidget);
+      expect(find.text('Last 60 days'), findsNothing);
+      expect(find.text('FREQUENT'), findsOneWidget);
       expect(find.text('QUICK FILTERS'), findsNothing);
     });
   });

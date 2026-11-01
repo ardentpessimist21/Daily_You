@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/fork/favourites.dart';
 import 'package:daily_you/fork/quick_filters.dart';
 import 'package:daily_you/fork/tag_picker_layout.dart';
+import 'package:daily_you/fork/tag_pins.dart';
 import 'package:daily_you/models/tag.dart';
 import 'package:daily_you/models/tag_category.dart';
 import 'package:daily_you/pages/settings/tags_settings.dart';
@@ -84,9 +86,15 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
   late TagFilterMode _filterMode;
   late bool _noTagsOnly;
 
-  /// Gallery filter's Trackers button: shows every tracker, each in its
-  /// own category, with every category open.
+  /// Gallery filter's Trackers button and Add Tags' # button: shows every
+  /// tracker, each in its own category, with every category open.
   bool _trackersOnly = false;
+
+  // Add Tags only: how tags are ordered inside groups, and whether the
+  // Pinned row shows icons only (both remembered)
+  TagSortMode _sortMode = TagSortMode.fromKey(
+      ConfigProvider.instance.get(Settings.addTagsSortMode));
+  bool _pinsCompact = ConfigProvider.instance.get(Settings.addTagsPinsCompact);
 
   // Quick filters (Gallery filter only)
   late Set<int> _quickTagIds;
@@ -173,6 +181,25 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
   void _toggleLastEdited() {
     setState(() => _lastEdited = !_lastEdited);
     _notifyQuick();
+  }
+
+  void _setSortMode(TagSortMode mode) {
+    setState(() => _sortMode = mode);
+    ConfigProvider.instance.set(Settings.addTagsSortMode, mode.name);
+  }
+
+  void _togglePinsCompact() {
+    setState(() => _pinsCompact = !_pinsCompact);
+    ConfigProvider.instance.set(Settings.addTagsPinsCompact, _pinsCompact);
+  }
+
+  Future<void> _togglePinnedTag(Tag tag) async {
+    final source = widget.source!;
+    if (source.contains(tag.id!)) {
+      await source.detach(tag.id!);
+    } else {
+      await source.attach(context, tag);
+    }
   }
 
   void _toggleQuickCompact() {
@@ -378,6 +405,26 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
                   )
                 : const SizedBox.shrink(key: ValueKey('empty')),
           ),
+          if (widget.mode == TagPickerMode.attach) ...[
+            Container(
+              width: 1,
+              height: 24,
+              margin: const EdgeInsets.symmetric(horizontal: 2),
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+            IconButton(
+              isSelected: _trackersOnly,
+              tooltip: l10n.addTagsTrackersOnly,
+              icon: const Icon(Icons.numbers_rounded),
+              selectedIcon: Icon(Icons.numbers_rounded,
+                  color: Theme.of(context).colorScheme.onPrimary),
+              style: _trackersOnly
+                  ? IconButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary)
+                  : null,
+              onPressed: () => setState(() => _trackersOnly = !_trackersOnly),
+            ),
+          ],
         ],
       ),
     );
@@ -410,8 +457,9 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
           excludedIds = [];
         }
 
-        final trackersOnly =
-            widget.mode == TagPickerMode.filter && _trackersOnly;
+        final trackersOnly = (widget.mode == TagPickerMode.filter ||
+                widget.mode == TagPickerMode.attach) &&
+            _trackersOnly;
         bool typeMatch(Tag tag) => trackersOnly
             ? tag.tagType == TagType.tracker || Favourites.isFavouriteTag(tag)
             : widget.tagTypeFilter == null ||
@@ -427,6 +475,9 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
           categories: provider.categories,
           usage: _usage,
           query: _searchText,
+          sortMode: widget.mode == TagPickerMode.attach
+              ? _sortMode
+              : TagSortMode.usage,
         );
         final hasTrackers =
             provider.tags.any((tag) => tag.tagType == TagType.tracker);
@@ -442,7 +493,12 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
         }
 
         return AlertDialog(
-          title: Text(title),
+          title: widget.mode == TagPickerMode.attach
+              ? Row(children: [
+                  Expanded(child: Text(title)),
+                  _buildSortButton(l10n),
+                ])
+              : Text(title),
           contentPadding: widget.mode == TagPickerMode.selectSingle
               ? const EdgeInsets.fromLTRB(24, 16, 24, 0)
               : null,
@@ -478,7 +534,7 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
     final list = _TagPickerList(
       content: content,
       searching: _searchText.isNotEmpty || _trackersOnly,
-      collapsibleFrequent: widget.mode == TagPickerMode.filter,
+      collapsibleFrequent: widget.mode != TagPickerMode.selectSingle,
       frequentOpen: _frequentOpen,
       onToggleFrequent: () => setState(() => _frequentOpen = !_frequentOpen),
       isOpen: (category) => _openGroups.contains(_groupKey(category)),
@@ -513,6 +569,17 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
           _buildFilterSelectedChips(provider),
         _buildSearchField(l10n, provider),
         const SizedBox(height: 8),
+        if (widget.mode == TagPickerMode.attach &&
+            _searchText.isEmpty &&
+            !_trackersOnly &&
+            TagPinList.addTags.ids.isNotEmpty)
+          PinnedTagsSection(
+            tags: TagPinList.addTags.tags,
+            onIds: widget.source!.attachedTagIds.toSet(),
+            compact: _pinsCompact,
+            onToggleTag: _togglePinnedTag,
+            onToggleCompact: _togglePinsCompact,
+          ),
         if (widget.mode == TagPickerMode.filter)
           QuickFiltersSection(
             favourite: Favourites.tag,
@@ -563,6 +630,29 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Add Tags: Recent · Sort by Usage · My Order, remembered.
+  Widget _buildSortButton(AppLocalizations l10n) {
+    String label(TagSortMode mode) => switch (mode) {
+          TagSortMode.recent => l10n.addTagsSortRecent,
+          TagSortMode.usage => l10n.addTagsSortUsage,
+          TagSortMode.manual => l10n.addTagsSortManual,
+        };
+    return PopupMenuButton<TagSortMode>(
+      icon: const Icon(Icons.sort_rounded),
+      tooltip: l10n.addTagsSortTitle,
+      initialValue: _sortMode,
+      onSelected: _setSortMode,
+      itemBuilder: (context) => [
+        for (final mode in TagSortMode.values)
+          CheckedPopupMenuItem(
+            value: mode,
+            checked: mode == _sortMode,
+            child: Text(label(mode)),
+          ),
+      ],
     );
   }
 

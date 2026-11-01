@@ -1690,4 +1690,134 @@ class AppLocalizationsFa extends AppLocalizations {
 
   @override
   String get quickFilterUnpinned => 'Unpinned from Quick filters';
+
+  @override
+  String get pinnedTagsTitle => 'Pinned';
+
+  @override
+  String get tagsPinnedGallery => 'Pinned · Gallery';
+
+  @override
+  String get tagsPinnedAddTags => 'Pinned · Add Tags';
+
+  @override
+  String tagPinsFree(int count) {
+    return '$count free';
+  }
+
+  @override
+  String get tagPinsEmptyHint =>
+      'Long-press tags and tap Pin to add them here.';
+
+  @override
+  String get tagsPinTo => 'Pin to';
+
+  @override
+  String get tagsPinListGallery => 'Gallery filter';
+
+  @override
+  String get tagsPinListAddTags => 'Add Tags';
+
+  @override
+  String tagsPinFreeOf(int free, int max) {
+    return '$free of $max free';
+  }
+
+  @override
+  String tagsUnpinFrom(String list) {
+    return 'Unpin from $list';
+  }
+
+  @override
+  String tagsPinnedTo(String list, int used, int max) {
+    return 'Pinned to $list · $used of $max used';
+  }
+
+  @override
+  String tagsPinsFull(String list, int max) {
+    return '$list holds $max pins. Unpin one to add another.';
+  }
+
+  @override
+  String tagsPinnedSome(int added, String list, int skipped) {
+    return 'Pinned $added to $list, $skipped didn\'t fit';
+  }
+
+  @override
+  String tagsUnpinnedFrom(String list) {
+    return 'Unpinned from $list';
+  }
+
+  @override
+  String get tagsChangeColour => 'Change colour';
+
+  @override
+  String tagsColourChanged(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tags',
+      one: '1 tag',
+    );
+    return 'Changed the colour of $_temp0';
+  }
+
+  @override
+  String tagsDeleteSelectedMessage(int count, int logs) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tags',
+      one: '1 tag',
+    );
+    String _temp1 = intl.Intl.pluralLogic(
+      logs,
+      locale: localeName,
+      other: ' They\'re used in $logs logs.',
+      one: ' They\'re used in 1 log.',
+      zero: '',
+    );
+    return 'Delete $_temp0?$_temp1 This can\'t be undone.';
+  }
+
+  @override
+  String get tagsDeleteBackupFirst => 'Back up first';
+
+  @override
+  String tagsDeleted(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tags',
+      one: '1 tag',
+    );
+    return 'Deleted $_temp0';
+  }
+
+  @override
+  String get tagsSelectAll => 'Select all';
+
+  @override
+  String get tagsClearSelection => 'Clear selection';
+
+  @override
+  String get tagsExpandAll => 'Expand all';
+
+  @override
+  String get tagsCollapseAll => 'Collapse all';
+
+  @override
+  String get addTagsSortTitle => 'Sort tags';
+
+  @override
+  String get addTagsSortRecent => 'Recent';
+
+  @override
+  String get addTagsSortUsage => 'Sort by Usage';
+
+  @override
+  String get addTagsSortManual => 'My Order';
+
+  @override
+  String get addTagsTrackersOnly => 'Trackers only';
 }

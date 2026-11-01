@@ -132,6 +132,9 @@ class Settings {
   static const quickFilterPins = Setting<String>("quickFilterPins", "[]");
   static const quickFiltersCompact =
       Setting<bool>("quickFiltersCompact", false);
+  static const addTagsPins = Setting<String>("addTagsPins", "[]");
+  static const addTagsPinsCompact = Setting<bool>("addTagsPinsCompact", false);
+  static const addTagsSortMode = Setting<String>("addTagsSortMode", "usage");
   static const lastDismissedSupportBannerDate =
       Setting<String?>("lastDismissedSupportBannerDate", null);
   static const calendarShowMood = Setting<bool>("calendarShowMood", true);
@@ -226,6 +229,9 @@ class Settings {
     selectionActionsHidden,
     quickFilterPins,
     quickFiltersCompact,
+    addTagsPins,
+    addTagsPinsCompact,
+    addTagsSortMode,
     homeGreetingEnabled,
     homeGreetingName,
     homeGreetingStyle,

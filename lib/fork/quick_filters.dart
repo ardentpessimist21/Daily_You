@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
-import 'dart:convert';
-
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/fork/favourites.dart';
+import 'package:daily_you/fork/tag_pins.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/models/tag.dart';
@@ -22,59 +21,22 @@ import 'package:material_ui/material_ui.dart';
 /// combine with the tag filter); Trackers only switches the popup's list to
 /// your trackers.
 class QuickFilters {
-  static const int maxPins = 3;
+  static int get maxPins => TagPinList.gallery.max;
 
   static const Color trackersColor = Color(0xFF2BB3A3);
   static const Color lastEditedColor = Color(0xFFE8963A);
   static const Color favouriteFallback = Color(0xFF4A90E2);
 
-  /// Pinned tag ids, in the order they were pinned, skipping deleted tags.
-  static List<int> get pinnedIds {
-    final live = {
-      for (final tag in TagsProvider.instance.tags)
-        if (!Favourites.isFavouriteTag(tag)) tag.id,
-    };
-    try {
-      final raw =
-          jsonDecode(ConfigProvider.instance.get(Settings.quickFilterPins))
-              as List;
-      return [
-        for (final id in raw)
-          if (id is int && live.contains(id)) id,
-      ];
-    } catch (_) {
-      return [];
-    }
-  }
+  /// Pinned tag ids, in their saved order, skipping deleted tags.
+  static List<int> get pinnedIds => TagPinList.gallery.ids;
 
-  static bool isPinned(int tagId) => pinnedIds.contains(tagId);
+  static bool isPinned(int tagId) => TagPinList.gallery.contains(tagId);
 
-  static Future<void> _save(List<int> ids) =>
-      ConfigProvider.instance.set(Settings.quickFilterPins, jsonEncode(ids));
+  static Future<(int, int)> pin(Iterable<int> tagIds) =>
+      TagPinList.gallery.pin(tagIds);
 
-  /// Pins as many of [tagIds] as there's room for. Returns how many were
-  /// pinned and how many didn't fit.
-  static Future<(int, int)> pin(Iterable<int> tagIds) async {
-    final pins = pinnedIds;
-    var added = 0;
-    var skipped = 0;
-    for (final id in tagIds) {
-      if (pins.contains(id)) continue;
-      if (pins.length >= maxPins) {
-        skipped++;
-        continue;
-      }
-      pins.add(id);
-      added++;
-    }
-    await _save(pins);
-    return (added, skipped);
-  }
-
-  static Future<void> unpin(Iterable<int> tagIds) async {
-    final remove = tagIds.toSet();
-    await _save(pinnedIds.where((id) => !remove.contains(id)).toList());
-  }
+  static Future<void> unpin(Iterable<int> tagIds) =>
+      TagPinList.gallery.unpin(tagIds);
 
   static bool get compact =>
       ConfigProvider.instance.get(Settings.quickFiltersCompact);

@@ -3023,6 +3023,174 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unpinned from Quick filters'**
   String get quickFilterUnpinned;
+
+  /// No description provided for @pinnedTagsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned'**
+  String get pinnedTagsTitle;
+
+  /// No description provided for @tagsPinnedGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned · Gallery'**
+  String get tagsPinnedGallery;
+
+  /// No description provided for @tagsPinnedAddTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned · Add Tags'**
+  String get tagsPinnedAddTags;
+
+  /// No description provided for @tagPinsFree.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} free'**
+  String tagPinsFree(int count);
+
+  /// No description provided for @tagPinsEmptyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Long-press tags and tap Pin to add them here.'**
+  String get tagPinsEmptyHint;
+
+  /// No description provided for @tagsPinTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin to'**
+  String get tagsPinTo;
+
+  /// No description provided for @tagsPinListGallery.
+  ///
+  /// In en, this message translates to:
+  /// **'Gallery filter'**
+  String get tagsPinListGallery;
+
+  /// No description provided for @tagsPinListAddTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Add Tags'**
+  String get tagsPinListAddTags;
+
+  /// No description provided for @tagsPinFreeOf.
+  ///
+  /// In en, this message translates to:
+  /// **'{free} of {max} free'**
+  String tagsPinFreeOf(int free, int max);
+
+  /// No description provided for @tagsUnpinFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin from {list}'**
+  String tagsUnpinFrom(String list);
+
+  /// No description provided for @tagsPinnedTo.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned to {list} · {used} of {max} used'**
+  String tagsPinnedTo(String list, int used, int max);
+
+  /// No description provided for @tagsPinsFull.
+  ///
+  /// In en, this message translates to:
+  /// **'{list} holds {max} pins. Unpin one to add another.'**
+  String tagsPinsFull(String list, int max);
+
+  /// No description provided for @tagsPinnedSome.
+  ///
+  /// In en, this message translates to:
+  /// **'Pinned {added} to {list}, {skipped} didn\'t fit'**
+  String tagsPinnedSome(int added, String list, int skipped);
+
+  /// No description provided for @tagsUnpinnedFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpinned from {list}'**
+  String tagsUnpinnedFrom(String list);
+
+  /// No description provided for @tagsChangeColour.
+  ///
+  /// In en, this message translates to:
+  /// **'Change colour'**
+  String get tagsChangeColour;
+
+  /// No description provided for @tagsColourChanged.
+  ///
+  /// In en, this message translates to:
+  /// **'Changed the colour of {count, plural, =1{1 tag} other{{count} tags}}'**
+  String tagsColourChanged(int count);
+
+  /// No description provided for @tagsDeleteSelectedMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete {count, plural, =1{1 tag} other{{count} tags}}?{logs, plural, =0{} =1{ They\'re used in 1 log.} other{ They\'re used in {logs} logs.}} This can\'t be undone.'**
+  String tagsDeleteSelectedMessage(int count, int logs);
+
+  /// No description provided for @tagsDeleteBackupFirst.
+  ///
+  /// In en, this message translates to:
+  /// **'Back up first'**
+  String get tagsDeleteBackupFirst;
+
+  /// No description provided for @tagsDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Deleted {count, plural, =1{1 tag} other{{count} tags}}'**
+  String tagsDeleted(int count);
+
+  /// No description provided for @tagsSelectAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Select all'**
+  String get tagsSelectAll;
+
+  /// No description provided for @tagsClearSelection.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear selection'**
+  String get tagsClearSelection;
+
+  /// No description provided for @tagsExpandAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand all'**
+  String get tagsExpandAll;
+
+  /// No description provided for @tagsCollapseAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Collapse all'**
+  String get tagsCollapseAll;
+
+  /// No description provided for @addTagsSortTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort tags'**
+  String get addTagsSortTitle;
+
+  /// No description provided for @addTagsSortRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get addTagsSortRecent;
+
+  /// No description provided for @addTagsSortUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort by Usage'**
+  String get addTagsSortUsage;
+
+  /// No description provided for @addTagsSortManual.
+  ///
+  /// In en, this message translates to:
+  /// **'My Order'**
+  String get addTagsSortManual;
+
+  /// No description provided for @addTagsTrackersOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Trackers only'**
+  String get addTagsTrackersOnly;
 }
 
 class _AppLocalizationsDelegate

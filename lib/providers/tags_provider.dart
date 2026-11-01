@@ -10,6 +10,7 @@ import 'package:daily_you/database/tag_category_dao.dart';
 import 'package:daily_you/database/tag_dao.dart';
 import 'package:daily_you/database/template_tag_dao.dart';
 import 'package:daily_you/fork/favourites.dart';
+import 'package:daily_you/fork/tag_pins.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/tag.dart';
 import 'package:daily_you/models/tag_category.dart';
@@ -130,6 +131,28 @@ class TagsProvider with ChangeNotifier {
         .toList());
     await TagDao.remove(tag.id!);
     tags = tags.where((existing) => existing.id != tag.id).toList();
+    // A deleted tag leaves both pin lists
+    await TagPinList.forget([tag.id!]);
+    await AppDatabase.instance.updateExternalDatabase();
+    notifyListeners();
+  }
+
+  /// Deletes several tags at once (Settings › Tags select mode).
+  Future<void> removeTags(Iterable<Tag> doomed) async {
+    final ids = {for (final tag in doomed) tag.id!};
+    if (ids.isEmpty) return;
+    for (final id in ids) {
+      await EntryTagDao.removeAllForTag(id);
+      await TemplateTagDao.removeAllForTag(id);
+      await TagDao.remove(id);
+    }
+    _setEntryTags(
+        entryTags.where((entryTag) => !ids.contains(entryTag.tagId)).toList());
+    _setTemplateTags(templateTags
+        .where((templateTag) => !ids.contains(templateTag.tagId))
+        .toList());
+    tags = tags.where((existing) => !ids.contains(existing.id)).toList();
+    await TagPinList.forget(ids);
     await AppDatabase.instance.updateExternalDatabase();
     notifyListeners();
   }
@@ -308,6 +331,7 @@ class TagsProvider with ChangeNotifier {
       await TagDao.remove(tag.id!);
     }
     tags = tags.where((tag) => tag.categoryId != category.id).toList();
+    await TagPinList.forget(affected.map((tag) => tag.id!));
 
     await TagCategoryDao.remove(category.id!);
     categories =
