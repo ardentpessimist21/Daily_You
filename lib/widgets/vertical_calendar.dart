@@ -93,6 +93,13 @@ class _VerticalCalendarState extends State<VerticalCalendar>
   // Future entries: the calendar reaches 12 months ahead.
   bool _allowFuture = false;
   int get _monthsAhead => _allowFuture ? FutureEntries.monthsAhead : 0;
+  // With future entries off, the next months still show, greyed out, so
+  // the current month can sit in the middle of the screen (3.7.0.39).
+  static const int _greyMonthsAhead = 2;
+  int get _shownMonthsAhead => _allowFuture ? _monthsAhead : _greyMonthsAhead;
+  // The current month's rows, as list offsets: its first week row's start
+  // and its header row's end.
+  (double, double)? _currentMonthSpan;
   DateTime _today =
       DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day);
   Timer? _midnightTimer;
@@ -285,7 +292,8 @@ class _VerticalCalendarState extends State<VerticalCalendar>
     final headerOffsets = <(double, DateTime)>[];
     double offset = 0;
 
-    DateTime current = DateTime(_lastDate.year, _lastDate.month, 1);
+    final now = DateTime.now();
+    DateTime current = DateTime(now.year, now.month + _shownMonthsAhead, 1);
     final end = DateTime(_firstDate.year, _firstDate.month, 1);
 
     while (!current.isBefore(end)) {
@@ -303,6 +311,7 @@ class _VerticalCalendarState extends State<VerticalCalendar>
 
       final isCurrentMonth =
           current.year == _today.year && current.month == _today.month;
+      final monthStartOffset = offset;
       for (final week in weeks) {
         if (isCurrentMonth &&
             week.any((day) => day != null && day.day == _today.day)) {
@@ -315,6 +324,7 @@ class _VerticalCalendarState extends State<VerticalCalendar>
       items.add(_MonthHeaderItem(current));
       headerOffsets.add((offset, current));
       offset += _weekRowHeight;
+      if (isCurrentMonth) _currentMonthSpan = (monthStartOffset, offset);
 
       current = DateTime(current.year, current.month - 1, 1);
     }
@@ -335,8 +345,8 @@ class _VerticalCalendarState extends State<VerticalCalendar>
     final todayJalali = Jalali.fromDateTime(_today);
     final firstDateJalali = Jalali.fromDateTime(_firstDate);
 
-    Jalali current =
-        Jalali(todayJalali.year, todayJalali.month, 1).addMonths(_monthsAhead);
+    Jalali current = Jalali(todayJalali.year, todayJalali.month, 1)
+        .addMonths(_shownMonthsAhead);
     final end = Jalali(firstDateJalali.year, firstDateJalali.month, 1);
 
     while (current >= end) {
@@ -358,6 +368,7 @@ class _VerticalCalendarState extends State<VerticalCalendar>
 
       final isCurrentMonth = current.year == todayJalali.year &&
           current.month == todayJalali.month;
+      final monthStartOffset = offset;
       for (final week in weeks) {
         if (isCurrentMonth &&
             week.any(
@@ -371,6 +382,7 @@ class _VerticalCalendarState extends State<VerticalCalendar>
       items.add(_MonthHeaderItem(monthStart));
       headerOffsets.add((offset, monthStart));
       offset += _weekRowHeight;
+      if (isCurrentMonth) _currentMonthSpan = (monthStartOffset, offset);
 
       current = current.addMonths(-1);
     }
@@ -380,18 +392,40 @@ class _VerticalCalendarState extends State<VerticalCalendar>
     _headerOffsets = headerOffsets;
   }
 
+  /// Where to scroll so the current month sits in the middle of the space
+  /// between the pinned month header and the bottom padding (3.7.0.39).
+  /// Falls back to today's row before the list has a size.
+  double get _homeOffset {
+    final span = _currentMonthSpan;
+    final controller = widget.scrollController;
+    if (span == null ||
+        !controller.hasClients ||
+        !controller.position.hasViewportDimension) {
+      return _todayOffset;
+    }
+    final position = controller.position;
+    final visible =
+        position.viewportDimension - _listBottomPadding - _headerBoxHeight;
+    final middle = (span.$1 + span.$2) / 2;
+    final target = middle - visible / 2;
+    final maxExtent =
+        position.hasContentDimensions ? position.maxScrollExtent : target;
+    return target.clamp(0.0, maxExtent < 0 ? 0.0 : maxExtent);
+  }
+
   void _scrollToToday({bool animate = true}) {
     if (!widget.scrollController.hasClients) return;
+    final target = _homeOffset;
     if (animate) {
       widget.scrollController.animateTo(
-        _todayOffset,
+        target,
         duration: const Duration(milliseconds: 400),
         curve: Curves.easeInOut,
       );
     } else {
-      widget.scrollController.jumpTo(_todayOffset);
+      widget.scrollController.jumpTo(target);
     }
-    _updateVisibleMonthFromOffset(_todayOffset);
+    _updateVisibleMonthFromOffset(target);
   }
 
   void _jumpToMonth(DateTime month) {
@@ -421,7 +455,7 @@ class _VerticalCalendarState extends State<VerticalCalendar>
 
   void _onScroll() {
     final offset = widget.scrollController.offset;
-    final showToday = (offset - _todayOffset).abs() > _weekRowHeight * 12;
+    final showToday = (offset - _homeOffset).abs() > _weekRowHeight * 12;
     if (_showTodayButton.value != showToday) {
       _showTodayButton.value = showToday;
     }
@@ -537,7 +571,7 @@ class _VerticalCalendarState extends State<VerticalCalendar>
           _initialScrollDone = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (widget.scrollController.hasClients) {
-              widget.scrollController.jumpTo(_todayOffset);
+              widget.scrollController.jumpTo(_homeOffset);
               _updateSticky();
             }
           });
@@ -787,7 +821,9 @@ class _VerticalCalendarState extends State<VerticalCalendar>
   Future<void> _onMonthLabelTap(BuildContext context) async {
     final entries = context.read<EntriesProvider>().entries;
     final DateTime? selected = await showYearMonthPicker(context,
-        initialDate: _visibleMonth,
+        // Never one of the greyed months shown after the current one
+        initialDate:
+            _visibleMonth.isAfter(_lastDate) ? _lastDate : _visibleMonth,
         isJalali: _isJalali,
         firstYear: YearMonthRange.firstYearFor(
             entries.map((entry) => entry.timeCreate)),
@@ -864,11 +900,19 @@ class _VerticalCalendarState extends State<VerticalCalendar>
       child: Center(
         child: Text(
           TimeManager.formatMonthYear(month, context),
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              // Upcoming months shown only for spacing are greyed out
+              color:
+                  _isGreyMonth(month) ? Theme.of(context).disabledColor : null),
         ),
       ),
     );
   }
+
+  bool _isGreyMonth(DateTime monthStart) =>
+      !_allowFuture && monthStart.isAfter(_today);
 
   Widget _buildWeekRow(
       BuildContext context,

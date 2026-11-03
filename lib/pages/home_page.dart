@@ -5,6 +5,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:daily_you/fork/share_return.dart';
 import 'package:daily_you/fork/places.dart';
 import 'package:daily_you/fork/future_entries.dart';
 import 'package:daily_you/config_provider.dart';
@@ -148,6 +149,7 @@ class _HomePageState extends State<HomePage>
       );
     }
     if (!payload.hasMedia && Places.deliverShared(payload.text)) return;
+    ShareReturn.newShare();
     Navigator.of(context).popUntil((route) => route.isFirst);
     await Navigator.of(context).push(MaterialPageRoute(
       allowSnapshotting: false,

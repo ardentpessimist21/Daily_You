@@ -17,12 +17,23 @@ import 'package:url_launcher/url_launcher.dart';
 /// Home or Work. [address] is an optional map link; without one the place
 /// is just its name.
 class Place {
-  const Place(this.name, [this.address = '']);
+  const Place(this.name, [this.address = '', this.description = '']);
 
   final String name;
   final String address;
 
-  Map<String, String> toJson() => {'name': name, 'address': address};
+  /// Saved places only: a short note shown under the name (3.7.0.39). It's
+  /// a label, so it isn't part of what makes two places the same spot.
+  final String description;
+
+  /// The longest description a saved place can have.
+  static const int descriptionMaxLength = 20;
+
+  Map<String, String> toJson() => {
+        'name': name,
+        'address': address,
+        if (description.isNotEmpty) 'description': description,
+      };
 
   @override
   bool operator ==(Object other) =>
@@ -39,7 +50,22 @@ class Place {
     final name = json['name'];
     if (name is! String || name.trim().isEmpty) return null;
     final address = json['address'];
-    return Place(name.trim(), address is String ? address.trim() : '');
+    final description = json['description'];
+    return Place(
+      name.trim(),
+      address is String ? address.trim() : '',
+      description is String ? clipDescription(description) : '',
+    );
+  }
+
+  /// A description as stored: one line, at most [descriptionMaxLength]
+  /// characters.
+  static String clipDescription(String text) {
+    final line = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    final chars = line.characters;
+    return chars.length <= descriptionMaxLength
+        ? line
+        : chars.take(descriptionMaxLength).toString().trim();
   }
 }
 
@@ -204,12 +230,18 @@ class Places {
 
   /// Opens the map app. A place shared back to Daily You within 15 minutes
   /// goes to [add] while its editor is still open.
+  /// With [search], Maps opens searching that text (3.7.0.39).
   static Future<bool> findInMaps(
-      BuildContext context, void Function(Place place) add) async {
+      BuildContext context, void Function(Place place) add,
+      {String? search}) async {
     waitForMapsPlace(context, add);
+    final query = search?.trim() ?? '';
+    final url = query.isEmpty
+        ? Uri.parse('https://www.google.com/maps')
+        : Uri.https(
+            'www.google.com', '/maps/search/', {'api': '1', 'query': query});
     try {
-      return await launchUrl(Uri.parse('https://www.google.com/maps'),
-          mode: LaunchMode.externalApplication);
+      return await launchUrl(url, mode: LaunchMode.externalApplication);
     } catch (_) {
       _pending = null;
       return false;
@@ -373,8 +405,10 @@ class _PlaceSheetState extends State<_PlaceSheet> {
                   leading:
                       Icon(Icons.place_rounded, color: colorScheme.primary),
                   title: Text(place.name),
-                  subtitle:
-                      place.address.isEmpty ? null : Text(l10n.placeHasMapSpot),
+                  subtitle: place.description.isEmpty
+                      ? null
+                      : Text(place.description,
+                          maxLines: 1, overflow: TextOverflow.ellipsis),
                   onTap: () => Navigator.pop(context, place),
                 ),
               ListTile(
@@ -413,6 +447,8 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
     final existing = index == null ? null : _places[index];
     final name = TextEditingController(text: existing?.name ?? '');
     final address = TextEditingController(text: existing?.address ?? '');
+    final description =
+        TextEditingController(text: existing?.description ?? '');
     final result = await showDialog<Place>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -421,15 +457,43 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: name,
-                autofocus: true,
-                textCapitalization: TextCapitalization.words,
-                decoration: InputDecoration(
-                  labelText: l10n.placeName,
-                  border: const OutlineInputBorder(),
-                ),
-                onChanged: (_) => setDialogState(() {}),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: name,
+                      autofocus: true,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: InputDecoration(
+                        labelText: l10n.placeName,
+                        helperText: l10n.placeSearchNameHint,
+                        border: const OutlineInputBorder(),
+                      ),
+                      onChanged: (_) => setDialogState(() {}),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: IconButton.filledTonal(
+                      tooltip: l10n.placeFindInMaps,
+                      icon: const Icon(Icons.map_rounded),
+                      onPressed: () {
+                        // The place shared back from Maps fills the link,
+                        // and the name if it's still empty
+                        Places.findInMaps(context, (place) {
+                          address.text = place.address;
+                          if (name.text.trim().isEmpty &&
+                              place.name != Places.unnamed) {
+                            name.text = place.name;
+                          }
+                          setDialogState(() {});
+                        }, search: name.text);
+                      },
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               TextField(
@@ -461,6 +525,19 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
                   ),
                 ),
               ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: description,
+                maxLength: Place.descriptionMaxLength,
+                maxLines: 1,
+                textCapitalization: TextCapitalization.sentences,
+                textInputAction: TextInputAction.done,
+                decoration: InputDecoration(
+                  labelText: l10n.placeDescription,
+                  helperText: l10n.placeDescriptionHint,
+                  border: const OutlineInputBorder(),
+                ),
+              ),
             ],
           ),
           actions: [
@@ -476,7 +553,8 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
                       Place(
                           name.text.trim(),
                           Places.fromShared(address.text)?.$2 ??
-                              address.text.trim())),
+                              address.text.trim(),
+                          Place.clipDescription(description.text))),
               child: Text(MaterialLocalizations.of(context).saveButtonLabel),
             ),
           ],
@@ -487,6 +565,7 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
     Future.delayed(const Duration(seconds: 1), () {
       name.dispose();
       address.dispose();
+      description.dispose();
     });
     if (result == null) return;
     setState(() {
@@ -559,9 +638,10 @@ class _SavedPlacesPageState extends State<SavedPlacesPage> {
             key: ValueKey('$index-${place.name}'),
             leading: const Icon(Icons.place_rounded),
             title: Text(place.name),
-            subtitle: Text(place.address.isEmpty
-                ? l10n.placeNoMapSpot
-                : l10n.placeHasMapSpot),
+            subtitle: place.description.isEmpty
+                ? null
+                : Text(place.description,
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
             onTap: () => _edit(index),
             trailing: IconButton(
               tooltip: MaterialLocalizations.of(context).deleteButtonTooltip,

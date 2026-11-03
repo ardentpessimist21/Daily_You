@@ -388,13 +388,37 @@ class BackupRestoreUtils {
     return password;
   }
 
+  /// The Backup button's folder: the one picked last time while it's still
+  /// reachable, otherwise picked now and remembered (3.7.0.39).
+  static Future<PickedDirectory?> backupFolder() async {
+    final saved = ConfigProvider.instance.get(Settings.backupLocationUri);
+    if (saved.isNotEmpty) {
+      final directory = PickedDirectory(saved);
+      try {
+        if (await directory.store.isAvailable()) return directory;
+      } catch (error) {
+        _logger.info('Saved backup folder unavailable: $error');
+      }
+    }
+    return pickBackupFolder();
+  }
+
+  /// Asks for the Backup button's folder and remembers it.
+  static Future<PickedDirectory?> pickBackupFolder() async {
+    final picked = await StoragePicker.pickDirectory();
+    if (picked != null) {
+      await ConfigProvider.instance.set(Settings.backupLocationUri, picked.uri);
+    }
+    return picked;
+  }
+
   static Future<OperationOutcome> backupToZip(
       BuildContext context, void Function(String) updateStatus) async {
     final localizations = AppLocalizations.of(context)!;
     var outcome = const OperationOutcome.succeeded();
 
     try {
-      final saveDirectory = await StoragePicker.pickDirectory();
+      final saveDirectory = await backupFolder();
       if (saveDirectory == null) return const OperationOutcome.cancelled();
 
       await _writeBackup(

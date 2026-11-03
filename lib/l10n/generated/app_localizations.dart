@@ -1974,6 +1974,18 @@ abstract class AppLocalizations {
   /// **'Backup'**
   String get settingsBackup;
 
+  /// No description provided for @settingsBackupFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup folder'**
+  String get settingsBackupFolder;
+
+  /// No description provided for @settingsBackupFolderUnset.
+  ///
+  /// In en, this message translates to:
+  /// **'Chosen on your first backup'**
+  String get settingsBackupFolderUnset;
+
   /// No description provided for @settingsRestore.
   ///
   /// In en, this message translates to:
@@ -2771,6 +2783,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Opens in Maps'**
   String get placeHasMapSpot;
+
+  /// No description provided for @placeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Description (optional)'**
+  String get placeDescription;
+
+  /// No description provided for @placeDescriptionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows under the name'**
+  String get placeDescriptionHint;
+
+  /// No description provided for @placeSearchNameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Searches this name in Google Maps'**
+  String get placeSearchNameHint;
 
   /// No description provided for @placeNoMapSpot.
   ///

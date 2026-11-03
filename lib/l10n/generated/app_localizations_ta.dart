@@ -1104,6 +1104,12 @@ class AppLocalizationsTa extends AppLocalizations {
   String get settingsBackup => 'காப்புப்பிரதி';
 
   @override
+  String get settingsBackupFolder => 'Backup folder';
+
+  @override
+  String get settingsBackupFolderUnset => 'Chosen on your first backup';
+
+  @override
   String get settingsRestore => 'மீட்டமை';
 
   @override
@@ -1562,6 +1568,15 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get placeHasMapSpot => 'Opens in Maps';
+
+  @override
+  String get placeDescription => 'Description (optional)';
+
+  @override
+  String get placeDescriptionHint => 'Shows under the name';
+
+  @override
+  String get placeSearchNameHint => 'Searches this name in Google Maps';
 
   @override
   String get placeNoMapSpot => 'Searches its name in Maps';

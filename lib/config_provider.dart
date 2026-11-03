@@ -165,6 +165,8 @@ class Settings {
   static const autoBackupEnabled = Setting<bool>("autoBackupEnabled", false);
   static const autoBackupLocationUri =
       Setting<String>("autoBackupLocationUri", "");
+  // Where the Backup button saves, picked on the first backup (3.7.0.39)
+  static const backupLocationUri = Setting<String>("backupLocationUri", "");
   static const autoBackupInterval =
       Setting<String>("autoBackupInterval", "weekly");
   static const autoBackupRequireCharging =
@@ -266,6 +268,7 @@ class Settings {
     backupPassword,
     autoBackupEnabled,
     autoBackupLocationUri,
+    backupLocationUri,
     autoBackupInterval,
     autoBackupRequireCharging,
     autoBackupMaxCount,
@@ -579,6 +582,8 @@ class ConfigProvider with ChangeNotifier {
     Settings.audioSyncFolderUri.key,
     Settings.autoBackupEnabled.key,
     Settings.autoBackupLocationUri.key,
+    // A folder link only works on the phone it was picked on
+    Settings.backupLocationUri.key,
   };
 
   /// The settings a backup carries, as saved in its settings file.

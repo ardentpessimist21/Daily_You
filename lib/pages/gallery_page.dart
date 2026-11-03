@@ -162,7 +162,13 @@ class _GalleryPageState extends State<GalleryPage>
     });
   }
 
+  /// Lets go of the search bar before opening something on top, so the
+  /// keyboard doesn't come back up on return (3.7.0.39). The typed search
+  /// stays; tapping the search bar brings the keyboard back.
+  void _dropSearchFocus() => _focusNode.unfocus();
+
   Future<void> _pickMonthAndJump() async {
+    _dropSearchFocus();
     final current = _pill.value.$1;
     if (current == null) return;
     _pillTimer?.cancel();
@@ -184,6 +190,7 @@ class _GalleryPageState extends State<GalleryPage>
   }
 
   Future<void> _openUpcoming() async {
+    _dropSearchFocus();
     await Navigator.of(context).push(MaterialPageRoute(
       allowSnapshotting: false,
       builder: (context) => EntryTimelinePage(
@@ -284,6 +291,7 @@ class _GalleryPageState extends State<GalleryPage>
   }
 
   void _showTagFilterDialog(BuildContext context) {
+    _dropSearchFocus();
     showAppDialog(
       context: context,
       builder: (_) => TagPickerDialog(
@@ -309,6 +317,7 @@ class _GalleryPageState extends State<GalleryPage>
   }
 
   void _showSortSelectionPopup(BuildContext context) {
+    _dropSearchFocus();
     final entriesProvider =
         Provider.of<EntriesProvider>(context, listen: false);
     final tagsProvider = Provider.of<TagsProvider>(context, listen: false);
@@ -677,6 +686,7 @@ class _GalleryPageState extends State<GalleryPage>
                         _toggleSelected(entry);
                         return;
                       }
+                      _dropSearchFocus();
                       await Navigator.of(context).push(MaterialPageRoute(
                           allowSnapshotting: false,
                           builder: (context) => EntriesListPage(

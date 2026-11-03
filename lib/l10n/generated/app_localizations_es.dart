@@ -1100,6 +1100,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get settingsBackup => 'Respaldo';
 
   @override
+  String get settingsBackupFolder => 'Backup folder';
+
+  @override
+  String get settingsBackupFolderUnset => 'Chosen on your first backup';
+
+  @override
   String get settingsRestore => 'Restauración';
 
   @override
@@ -1557,6 +1563,15 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get placeHasMapSpot => 'Opens in Maps';
+
+  @override
+  String get placeDescription => 'Description (optional)';
+
+  @override
+  String get placeDescriptionHint => 'Shows under the name';
+
+  @override
+  String get placeSearchNameHint => 'Searches this name in Google Maps';
 
   @override
   String get placeNoMapSpot => 'Searches its name in Maps';

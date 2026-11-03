@@ -1105,6 +1105,12 @@ class AppLocalizationsUk extends AppLocalizations {
   String get settingsBackup => 'Резервна копія';
 
   @override
+  String get settingsBackupFolder => 'Backup folder';
+
+  @override
+  String get settingsBackupFolderUnset => 'Chosen on your first backup';
+
+  @override
   String get settingsRestore => 'Відновити резервну копію';
 
   @override
@@ -1558,6 +1564,15 @@ class AppLocalizationsUk extends AppLocalizations {
 
   @override
   String get placeHasMapSpot => 'Opens in Maps';
+
+  @override
+  String get placeDescription => 'Description (optional)';
+
+  @override
+  String get placeDescriptionHint => 'Shows under the name';
+
+  @override
+  String get placeSearchNameHint => 'Searches this name in Google Maps';
 
   @override
   String get placeNoMapSpot => 'Searches its name in Maps';

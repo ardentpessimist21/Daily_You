@@ -406,11 +406,16 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
                 : const SizedBox.shrink(key: ValueKey('empty')),
           ),
           if (widget.mode == TagPickerMode.attach) ...[
+            // outlineVariant blends into the search bar's fill, so the
+            // divider is drawn from the bar's own text colour (3.7.0.39)
             Container(
               width: 1,
               height: 24,
-              margin: const EdgeInsets.symmetric(horizontal: 2),
-              color: Theme.of(context).colorScheme.outlineVariant,
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              color: Theme.of(context)
+                  .colorScheme
+                  .onSecondaryContainer
+                  .withValues(alpha: 0.35),
             ),
             IconButton(
               isSelected: _trackersOnly,

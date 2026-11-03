@@ -40,21 +40,25 @@ class EntryTimelinePage extends StatefulWidget {
   /// Pushes a timeline listing every entry created on [date], with each
   /// entry labeled by its time of day and an add button for that day.
   static Future<void> pushForDay(BuildContext context, DateTime date) {
-    final title = TimeManager.formatDate(date, context);
     return Navigator.of(context).push(MaterialPageRoute(
       allowSnapshotting: false,
-      builder: (context) => EntryTimelinePage(
-        header: title,
-        getEntries: () => EntriesProvider.instance.entries
-            .where((entry) => TimeManager.isSameDay(entry.timeCreate, date))
-            .toList(),
-        addEntryDate: date,
-        swipeDays: true,
-        labelBuilder: (context, entry) => TimeManager.localizedTimeFormat(
-                context, TimeManager.currentLocale(context))
-            .format(entry.timeCreate),
-      ),
+      builder: (context) => forDay(context, date),
     ));
+  }
+
+  /// The day timeline [pushForDay] opens, for building into other routes.
+  static EntryTimelinePage forDay(BuildContext context, DateTime date) {
+    return EntryTimelinePage(
+      header: TimeManager.formatDate(date, context),
+      getEntries: () => EntriesProvider.instance.entries
+          .where((entry) => TimeManager.isSameDay(entry.timeCreate, date))
+          .toList(),
+      addEntryDate: date,
+      swipeDays: true,
+      labelBuilder: (context, entry) => TimeManager.localizedTimeFormat(
+              context, TimeManager.currentLocale(context))
+          .format(entry.timeCreate),
+    );
   }
 
   @override

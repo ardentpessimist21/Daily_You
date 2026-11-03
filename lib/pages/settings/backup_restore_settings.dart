@@ -271,6 +271,16 @@ class _BackupRestoreSettingsState extends State<BackupRestoreSettings> {
               onPressed: () async {
                 await _backupData(context);
               }),
+          SettingsIconAction(
+              title: AppLocalizations.of(context)!.settingsBackupFolder,
+              hint: configProvider.get(Settings.backupLocationUri).isEmpty
+                  ? AppLocalizations.of(context)!.settingsBackupFolderUnset
+                  : StoragePicker.displayName(
+                      configProvider.get(Settings.backupLocationUri)),
+              icon: Icon(Icons.folder_rounded),
+              onPressed: () async {
+                await BackupRestoreUtils.pickBackupFolder();
+              }),
           if (Platform.isAndroid)
             SettingsToggle(
               title: AppLocalizations.of(context)!.settingsAutoBackup,

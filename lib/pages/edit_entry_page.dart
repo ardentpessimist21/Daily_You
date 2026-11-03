@@ -60,6 +60,11 @@ class AddEditEntryPage extends StatefulWidget {
   final List<EntryAttachment> attachments;
   final String? sharedText;
 
+  /// Opened from a share (3.7.0.39): called once the editor has closed and
+  /// saved, with the entry that's left (null if discarded or deleted) and the
+  /// id of an entry being deleted. Back then leaves only the editor.
+  final void Function(Entry? kept, int? removedId)? onShareExit;
+
   const AddEditEntryPage({
     super.key,
     this.entry,
@@ -67,6 +72,7 @@ class AddEditEntryPage extends StatefulWidget {
     this.openCamera = false,
     this.attachments = const <EntryAttachment>[],
     this.sharedText,
+    this.onShareExit,
   });
 
   static String mergeSharedText(String baseText, String? sharedText,
@@ -294,7 +300,9 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
                 navigator.pop();
                 // Pop edit page
                 navigator.pop();
-                if (!_creatingNewEntry && navigator.canPop()) {
+                if (!_creatingNewEntry &&
+                    widget.onShareExit == null &&
+                    navigator.canPop()) {
                   // Pop view page
                   navigator.pop();
                 }
@@ -323,8 +331,14 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
         ? Scaffold()
         : PopScope(
             onPopInvokedWithResult: (didPop, result) async {
+              if (!didPop) return;
               if (!_deletingEntry) {
                 await _saveEntry();
+              }
+              final onShareExit = widget.onShareExit;
+              if (onShareExit != null) {
+                final kept = _deletingEntry || _newEntry ? null : _entry;
+                onShareExit(kept, _deletingEntry ? _entry.id : null);
               }
             },
             child: Scaffold(
@@ -336,6 +350,7 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
                       // Pop edit page
                       Navigator.of(context).pop();
                       if (!_creatingNewEntry &&
+                          widget.onShareExit == null &&
                           Navigator.of(context).canPop()) {
                         // Pop view page
                         Navigator.of(context).pop();

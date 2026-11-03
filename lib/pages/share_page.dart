@@ -5,6 +5,7 @@
 import 'dart:io';
 
 import 'package:daily_you/fork/links.dart';
+import 'package:daily_you/fork/share_return.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:intl/intl.dart';
 import 'package:daily_you/models/entry.dart';
@@ -96,8 +97,8 @@ class _SharePageState extends State<SharePage> {
 
   /// A log in the day menu: its heading or first words, no longer than the
   /// day's date below it, with its time underneath.
-  Widget _entryChoice(BuildContext context, Entry entry, DateFormat timeFormat,
-      DateTime day) {
+  Widget _entryChoice(
+      BuildContext context, Entry entry, DateFormat timeFormat, DateTime day) {
     final theme = Theme.of(context);
     final time = timeFormat.format(entry.timeCreate);
     final dateLength = TimeManager.formatDate(day, context)
@@ -118,8 +119,8 @@ class _SharePageState extends State<SharePage> {
                     Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
                     Text(
                       time,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant),
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
                   ],
                 ),
@@ -150,6 +151,12 @@ class _SharePageState extends State<SharePage> {
       return;
     }
 
+    // Leaving the editor goes back through the entry view and the day's
+    // Timeline, not straight to the calendar (3.7.0.39)
+    final navigator = Navigator.of(context);
+    final share = ShareReturn.currentShare;
+    void onShareExit(Entry? kept, int? removedId) => ShareReturn.show(navigator,
+        kept: kept, day: day, removedId: removedId, share: share);
     final page = entry == null
         ? AddEditEntryPage(
             overrideCreateDate: TimeManager.currentTimeOnDifferentDate(day)
@@ -157,6 +164,7 @@ class _SharePageState extends State<SharePage> {
             attachments: EntryAttachment.appendRanked(const [], newAttachments,
                 entryId: -1),
             sharedText: widget.payload.text,
+            onShareExit: onShareExit,
           )
         : AddEditEntryPage(
             entry: entry,
@@ -165,8 +173,9 @@ class _SharePageState extends State<SharePage> {
                 newAttachments,
                 entryId: entry.id!),
             sharedText: widget.payload.text,
+            onShareExit: onShareExit,
           );
-    await Navigator.of(context).pushReplacement(MaterialPageRoute(
+    await navigator.pushReplacement(MaterialPageRoute(
       allowSnapshotting: false,
       builder: (context) => page,
     ));
