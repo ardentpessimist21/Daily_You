@@ -3018,6 +3018,24 @@ abstract class AppLocalizations {
   /// **'Last Edited'**
   String get quickFilterLastEdited;
 
+  /// No description provided for @quickFilterPlaces.
+  ///
+  /// In en, this message translates to:
+  /// **'Places'**
+  String get quickFilterPlaces;
+
+  /// No description provided for @placeFilterSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search places'**
+  String get placeFilterSearchHint;
+
+  /// No description provided for @placeFilterEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No entries have a place yet.'**
+  String get placeFilterEmpty;
+
   /// No description provided for @quickFilterPin.
   ///
   /// In en, this message translates to:
@@ -3059,6 +3077,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pinned'**
   String get pinnedTagsTitle;
+
+  /// No description provided for @tagsAddNew.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a category or tag'**
+  String get tagsAddNew;
 
   /// No description provided for @tagsPinnedGallery.
   ///

@@ -4,6 +4,8 @@
 
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/fork/favourites.dart';
+import 'package:daily_you/fork/place_filter.dart';
+import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/fork/quick_filters.dart';
 import 'package:daily_you/fork/tag_picker_layout.dart';
 import 'package:daily_you/fork/tag_pins.dart';
@@ -46,6 +48,12 @@ class TagPickerDialog extends StatefulWidget {
   final bool initialLastEdited;
   final void Function(Set<int> tagIds, bool lastEdited)? onQuickFiltersChanged;
 
+  /// Gallery filter only: the 📍 Places pick (a place name), and the
+  /// entries to list places from (3.7.0.40).
+  final String? initialPlace;
+  final void Function(String? place)? onPlaceChanged;
+  final List<Entry> placeEntries;
+
   final TagType? tagTypeFilter;
 
   /// Optional line under the title, e.g. multi-select's "On some: …"
@@ -62,6 +70,9 @@ class TagPickerDialog extends StatefulWidget {
     this.initialQuickTagIds = const {},
     this.initialLastEdited = false,
     this.onQuickFiltersChanged,
+    this.initialPlace,
+    this.onPlaceChanged,
+    this.placeEntries = const [],
     this.tagTypeFilter,
     this.note,
   });
@@ -99,6 +110,8 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
   // Quick filters (Gallery filter only)
   late Set<int> _quickTagIds;
   late bool _lastEdited;
+  String? _place;
+  late final bool _hasPlaces;
   bool _quickCompact = QuickFilters.compact;
 
   /// Frequent in the Gallery filter: open every time the popup opens.
@@ -112,6 +125,9 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
     _noTagsOnly = widget.initialNoTagsOnly;
     _quickTagIds = {...widget.initialQuickTagIds};
     _lastEdited = widget.initialLastEdited;
+    _place = widget.initialPlace;
+    _hasPlaces = widget.mode == TagPickerMode.filter &&
+        PlaceFilter.placesIn(widget.placeEntries).isNotEmpty;
     final entryDates = <int, DateTime>{
       for (final entry in EntriesProvider.instance.entries)
         if (entry.id != null) entry.id!: entry.timeCreate,
@@ -172,10 +188,32 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
       widget.onQuickFiltersChanged?.call({..._quickTagIds}, _lastEdited);
 
   void _toggleQuickTag(Tag tag) {
+    final turningOn = !_quickTagIds.contains(tag.id);
     setState(() {
       if (!_quickTagIds.remove(tag.id)) _quickTagIds.add(tag.id!);
     });
+    // A pinned tag is a tag, so it can't go with No Tags (⭐ can)
+    if (turningOn && _noTagsOnly && !Favourites.isFavouriteTag(tag)) {
+      _setNoTagsOnly(false);
+    }
     _notifyQuick();
+  }
+
+  void _toggleTrackers() {
+    setState(() => _trackersOnly = !_trackersOnly);
+    if (_trackersOnly && _noTagsOnly) _setNoTagsOnly(false);
+  }
+
+  Future<void> _pickPlace() async {
+    final picked = await PlaceFilter.pick(context, widget.placeEntries);
+    if (picked == null || !mounted) return;
+    setState(() => _place = picked);
+    widget.onPlaceChanged?.call(_place);
+  }
+
+  void _clearPlace() {
+    setState(() => _place = null);
+    widget.onPlaceChanged?.call(null);
   }
 
   void _toggleLastEdited() {
@@ -217,15 +255,20 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
     _notifyFilter();
   }
 
+  /// No Tags clears the tag filters but keeps ⭐ Favourite, Last Edited
+  /// and Places, which combine with it (3.7.0.40).
   void _setNoTagsOnly(bool value) {
     setState(() {
       _noTagsOnly = value;
       if (value) {
         _selectedTagIds = [];
         _filterMode = TagFilterMode.any;
-        _quickTagIds = {};
-        _lastEdited = false;
         _trackersOnly = false;
+        final favouriteId = Favourites.tag?.id;
+        _quickTagIds = {
+          for (final id in _quickTagIds)
+            if (id == favouriteId) id,
+        };
       }
     });
     _notifyFilter();
@@ -240,9 +283,11 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
       _trackersOnly = false;
       _quickTagIds = {};
       _lastEdited = false;
+      _place = null;
     });
     _notifyFilter();
     _notifyQuick();
+    widget.onPlaceChanged?.call(null);
     Navigator.of(context).pop();
   }
 
@@ -565,7 +610,15 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
       );
     }
 
-    final body = Column(
+    // While No Tags is on, the tag parts are dimmed, but Quick filters stay
+    // usable: ⭐, Last Edited and Places combine with it (3.7.0.40)
+    Widget dimmed(Widget child) => AnimatedOpacity(
+          duration: const Duration(milliseconds: 200),
+          opacity: _noTagsOnly ? 0.3 : 1.0,
+          child: IgnorePointer(ignoring: _noTagsOnly, child: child),
+        );
+
+    final top = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -585,8 +638,11 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
             onToggleTag: _togglePinnedTag,
             onToggleCompact: _togglePinsCompact,
           ),
-        if (widget.mode == TagPickerMode.filter)
-          QuickFiltersSection(
+      ],
+    );
+
+    final quick = widget.mode == TagPickerMode.filter
+        ? QuickFiltersSection(
             favourite: Favourites.tag,
             showTrackers: hasTrackers,
             pinned: [
@@ -597,22 +653,24 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
             trackersOn: _trackersOnly,
             lastEditedOn: _lastEdited,
             compact: _quickCompact,
-            enabled: !_noTagsOnly,
+            enabled: true,
             onToggleTag: _toggleQuickTag,
-            onToggleTrackers: () =>
-                setState(() => _trackersOnly = !_trackersOnly),
+            onToggleTrackers: _toggleTrackers,
             onToggleLastEdited: _toggleLastEdited,
             onToggleCompact: _toggleQuickCompact,
-          ),
-        if (content.isEmpty && (_searchText.isNotEmpty || _trackersOnly))
-          Padding(
+            showPlaces: _hasPlaces,
+            place: _place,
+            onPickPlace: _pickPlace,
+            onClearPlace: _clearPlace,
+          )
+        : null;
+
+    final rest = content.isEmpty && (_searchText.isNotEmpty || _trackersOnly)
+        ? Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(l10n.noResults),
           )
-        else
-          list,
-      ],
-    );
+        : list;
 
     return SingleChildScrollView(
       child: Column(
@@ -628,20 +686,17 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
             ),
           if (widget.mode == TagPickerMode.filter)
             _buildFilterRow(context, l10n),
-          AnimatedOpacity(
-            duration: const Duration(milliseconds: 200),
-            opacity: _noTagsOnly ? 0.3 : 1.0,
-            child: IgnorePointer(ignoring: _noTagsOnly, child: body),
-          ),
+          dimmed(top),
+          if (quick != null) quick,
+          dimmed(rest),
         ],
       ),
     );
   }
 
-  /// Add Tags: Recent · Sort by Usage · My Order, remembered.
+  /// Add Tags: Sort by Usage · My Order, remembered.
   Widget _buildSortButton(AppLocalizations l10n) {
     String label(TagSortMode mode) => switch (mode) {
-          TagSortMode.recent => l10n.addTagsSortRecent,
           TagSortMode.usage => l10n.addTagsSortUsage,
           TagSortMode.manual => l10n.addTagsSortManual,
         };

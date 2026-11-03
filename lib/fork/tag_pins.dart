@@ -181,14 +181,15 @@ class PinnedTagsSection extends StatelessWidget {
                     fallback: theme.colorScheme.secondary);
                 return QuickFilterChip(
                   label: tag.name,
-                  icon: TagIconGlyph(
+                  icon: (iconColor) => TagIconGlyph(
                     icon: tag.icon,
                     iconType: tag.iconType,
                     fallbackIcon: tag.typeIcon,
-                    color: color,
+                    color: iconColor,
                     size: 20,
                   ),
                   color: color,
+                  tracker: tag.tagType == TagType.tracker,
                   selected: onIds.contains(tag.id),
                   compact: compact,
                   onTap: () => onToggleTag(tag),

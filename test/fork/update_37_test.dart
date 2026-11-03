@@ -16,6 +16,7 @@ import 'package:daily_you/pages/settings/tags_settings.dart';
 import 'package:daily_you/providers/entries_provider.dart';
 import 'package:daily_you/providers/entry_attachments_provider.dart';
 import 'package:daily_you/providers/tags_provider.dart';
+import 'package:daily_you/widgets/action_pill.dart';
 import 'package:daily_you/widgets/tag_attachment_source.dart';
 import 'package:daily_you/widgets/tag_picker_dialog.dart';
 import 'package:easy_debounce/easy_debounce.dart';
@@ -177,8 +178,8 @@ void main() {
       expect(hobbies(TagSortMode.usage), ['Walking', 'Games', 'Steps']);
     });
 
-    test('Recent puts the last used first', () {
-      expect(hobbies(TagSortMode.recent), ['Games', 'Walking', 'Steps']);
+    test('a saved Recent choice falls back to Sort by Usage', () {
+      expect(TagSortMode.fromKey('recent'), TagSortMode.usage);
     });
 
     test('My Order follows Settings › Tags', () {
@@ -260,7 +261,8 @@ void main() {
               mode: TagPickerMode.attach, source: TagAttachmentSource()));
       await tester.tap(find.byIcon(Icons.sort_rounded));
       await tester.pumpAndSettle();
-      expect(find.text('Recent'), findsOneWidget);
+      // Recent was removed in 3.7.0.40
+      expect(find.text('Recent'), findsNothing);
       expect(find.text('Sort by Usage'), findsOneWidget);
       expect(find.text('My Order'), findsOneWidget);
       await tester.tap(find.text('My Order'));
@@ -418,12 +420,33 @@ void main() {
     const height = 960.0;
     const width = 432.0;
 
-    testWidgets('+ sits at the bottom-right when the page opens',
+    // 3.7.0.40: the floating + moved into the search bar, which stays on
+    // top, and the pill is centred at the bottom
+    testWidgets('+ sits in the search bar at the top', (tester) async {
+      await _openSettings(tester);
+      final plus = tester.getRect(find.byTooltip('Add a category or tag'));
+      final search = tester.getRect(find.byType(SearchBar));
+      expect(search.overlaps(plus), isTrue);
+      expect(plus.top, lessThan(height / 3));
+    });
+
+    testWidgets('the + opens Category and Tag', (tester) async {
+      await _openSettings(tester);
+      await tester.tap(find.byTooltip('Add a category or tag'));
+      await tester.pumpAndSettle();
+      expect(find.text('Category'), findsOneWidget);
+      expect(find.text('Tag'), findsOneWidget);
+    });
+
+    testWidgets('the search bar stays on top while the list scrolls',
         (tester) async {
       await _openSettings(tester);
-      final plus = tester.getRect(find.byIcon(Icons.add));
-      expect(plus.bottom, greaterThan(height - 60));
-      expect(plus.right, greaterThan(width - 60));
+      await tester.tap(find.byTooltip('Expand all'));
+      await tester.pumpAndSettle();
+      final before = tester.getRect(find.byType(SearchBar)).top;
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+      await tester.pumpAndSettle();
+      expect(tester.getRect(find.byType(SearchBar)).top, before);
     });
 
     testWidgets('the pill stays at the bottom while and after it opens',
@@ -438,12 +461,13 @@ void main() {
       await tester.pumpAndSettle();
       final delete = tester.getRect(find.byTooltip('Delete'));
       expect(delete.bottom, greaterThan(height - 70));
-      expect(delete.right, greaterThan(width - 70));
-      // Back to the + at the bottom when select mode closes
+      // Centred: the pill's middle sits in the middle of the screen
+      final pill = tester.getRect(find.byType(ActionPill));
+      expect((pill.center.dx - width / 2).abs(), lessThan(2));
+      // Gone again when select mode closes
       await tester.tap(find.byTooltip('Close'));
       await tester.pumpAndSettle();
-      expect(tester.getRect(find.byIcon(Icons.add)).bottom,
-          greaterThan(height - 60));
+      expect(find.byType(ActionPill), findsNothing);
     });
 
     bool searchFocused(WidgetTester tester) => tester

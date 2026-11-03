@@ -44,11 +44,19 @@ class VerticalCalendar extends StatefulWidget {
   final ScrollController scrollController;
   final void Function(BuildContext context, DateTime date)? onDaySelected;
 
+  /// Home's calendar only: scrolls back to the current month when the Home
+  /// tab is tapped while already on Home (3.7.0.40).
+  final bool followsHomeTab;
+
   const VerticalCalendar({
     super.key,
     required this.scrollController,
     this.onDaySelected,
+    this.followsHomeTab = false,
   });
+
+  /// Bumped when the Home tab is tapped again while on Home.
+  static final ValueNotifier<int> homeTabRetapped = ValueNotifier(0);
 
   @override
   State<VerticalCalendar> createState() => _VerticalCalendarState();
@@ -111,6 +119,9 @@ class _VerticalCalendarState extends State<VerticalCalendar>
   void initState() {
     super.initState();
     widget.scrollController.addListener(_onScroll);
+    if (widget.followsHomeTab) {
+      VerticalCalendar.homeTabRetapped.addListener(_onHomeTabRetapped);
+    }
     WidgetsBinding.instance.addObserver(this);
     _scheduleMidnightCheck();
   }
@@ -187,6 +198,7 @@ class _VerticalCalendarState extends State<VerticalCalendar>
 
   @override
   void dispose() {
+    VerticalCalendar.homeTabRetapped.removeListener(_onHomeTabRetapped);
     _midnightTimer?.cancel();
     _sticky.dispose();
     WidgetsBinding.instance.removeObserver(this);
@@ -413,6 +425,10 @@ class _VerticalCalendarState extends State<VerticalCalendar>
     return target.clamp(0.0, maxExtent < 0 ? 0.0 : maxExtent);
   }
 
+  void _onHomeTabRetapped() {
+    if (mounted) _scrollToToday();
+  }
+
   void _scrollToToday({bool animate = true}) {
     if (!widget.scrollController.hasClients) return;
     final target = _homeOffset;
@@ -623,6 +639,13 @@ class _VerticalCalendarState extends State<VerticalCalendar>
     );
   }
 
+  /// Today's column in the weekday row, given the first day of the week
+  /// (labels start Monday at index 0).
+  int get _todayColumn {
+    final first = _lastFirstDayIndex ?? 0;
+    return (_today.weekday - 1 - first) % 7;
+  }
+
   Widget _buildWeekdayHeader(BuildContext context, List<String> dayLabels) {
     final theme = Theme.of(context);
     return Container(
@@ -638,16 +661,38 @@ class _VerticalCalendarState extends State<VerticalCalendar>
       child: SizedBox(
         height: _daysOfWeekRowHeight,
         child: Row(
-          children: dayLabels.map((label) {
-            return Expanded(
-              child: Center(
-                child: Text(
-                  label,
-                  style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-                ),
+          children: [
+            for (var i = 0; i < dayLabels.length; i++)
+              Expanded(
+                child: i == _todayColumn
+                    // Today's day in the accent colour (3.7.0.40); follows
+                    // Use System Accent Color through the theme
+                    ? Center(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary
+                                .withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            dayLabels[i],
+                            style: TextStyle(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: Text(
+                          dayLabels[i],
+                          style: TextStyle(
+                              color: theme.colorScheme.onSurfaceVariant),
+                        ),
+                      ),
               ),
-            );
-          }).toList(),
+          ],
         ),
       ),
     );
@@ -902,13 +947,24 @@ class _VerticalCalendarState extends State<VerticalCalendar>
           TimeManager.formatMonthYear(month, context),
           style: TextStyle(
               fontSize: 16,
-              fontWeight: FontWeight.w500,
+              // The current month stands out in bold (3.7.0.40)
+              fontWeight:
+                  _isCurrentMonth(month) ? FontWeight.w800 : FontWeight.w500,
               // Upcoming months shown only for spacing are greyed out
               color:
                   _isGreyMonth(month) ? Theme.of(context).disabledColor : null),
         ),
       ),
     );
+  }
+
+  bool _isCurrentMonth(DateTime monthStart) {
+    if (_isJalali) {
+      final today = Jalali.fromDateTime(_today);
+      final month = Jalali.fromDateTime(monthStart);
+      return today.year == month.year && today.month == month.month;
+    }
+    return monthStart.year == _today.year && monthStart.month == _today.month;
   }
 
   bool _isGreyMonth(DateTime monthStart) =>

@@ -4,6 +4,7 @@
 
 import 'dart:io';
 
+import 'package:daily_you/widgets/vertical_calendar.dart';
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/fork/flashback_styles.dart';
 import 'package:daily_you/fork/home_greeting.dart';
@@ -373,6 +374,10 @@ class _MobileScaffoldState extends State<MobileScaffold> {
           elevation: 1,
           selectedIndex: currentIndex,
           onDestinationSelected: (index) {
+            // Tapping Home again centres the current month (3.7.0.40)
+            if (index == 0 && currentIndex == 0) {
+              VerticalCalendar.homeTabRetapped.value++;
+            }
             EasyDebounce.cancel("page-change");
             setState(() {
               currentIndex = index;

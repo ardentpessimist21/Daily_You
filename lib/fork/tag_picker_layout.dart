@@ -46,8 +46,8 @@ class TagPickerContent {
 
 /// How tags are ordered inside each group of the Add Tags popup.
 enum TagSortMode {
-  /// Last used first
-  recent,
+  // "Recent" (last used first) was removed in 3.7.0.40; a saved "recent"
+  // falls back to usage.
 
   /// Most used in the window first (the default)
   usage,
@@ -116,20 +116,6 @@ class TagPickerLayout {
     return (a.id ?? 0).compareTo(b.id ?? 0);
   }
 
-  static int compareByRecent(Tag a, Tag b, Map<int, TagUsage> usage) {
-    final lastA = usage[a.id]?.lastUsed;
-    final lastB = usage[b.id]?.lastUsed;
-    if (lastA != null && lastB != null) {
-      final byLast = lastB.compareTo(lastA);
-      if (byLast != 0) return byLast;
-    } else if (lastA != null) {
-      return -1;
-    } else if (lastB != null) {
-      return 1;
-    }
-    return compareBySettings(a, b);
-  }
-
   static int compareBySettings(Tag a, Tag b) {
     final bySettings = a.sortOrder.compareTo(b.sortOrder);
     if (bySettings != 0) return bySettings;
@@ -167,7 +153,6 @@ class TagPickerLayout {
     // Frequent is always by usage; the sort choice orders the groups
     int byUsage(Tag a, Tag b) => compareByUsage(a, b, usage);
     int sorter(Tag a, Tag b) => switch (sortMode) {
-          TagSortMode.recent => compareByRecent(a, b, usage),
           TagSortMode.usage => compareByUsage(a, b, usage),
           TagSortMode.manual => compareBySettings(a, b),
         };

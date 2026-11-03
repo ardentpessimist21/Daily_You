@@ -290,7 +290,8 @@ class _HomePageState extends State<HomePage>
           if (showFlashbacks && FlashbackStyle.current == FlashbackStyle.chips)
             FlashbackChipsRow(flashbacks: flashbacks),
           Expanded(
-            child: VerticalCalendar(scrollController: _scrollController),
+            child: VerticalCalendar(
+                scrollController: _scrollController, followsHomeTab: true),
           ),
         ],
       ),

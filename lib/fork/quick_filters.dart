@@ -4,6 +4,7 @@
 
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/fork/favourites.dart';
+import 'package:daily_you/fork/place_filter.dart';
 import 'package:daily_you/fork/tag_pins.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
@@ -15,7 +16,7 @@ import 'package:daily_you/widgets/tag_icon_glyph.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// The Gallery filter's Quick filters: ⭐ Favourite, Trackers, Last Edited,
-/// then up to [maxPins] tags pinned in Settings › Tags. Unlike tags they're
+/// 📍 Places, then up to [maxPins] tags pinned in Settings › Tags. Unlike tags they're
 /// switches: tapping one tints it in place. Favourite, Last Edited and the
 /// pinned tags narrow the Gallery (each one that's on must match, and they
 /// combine with the tag filter); Trackers only switches the popup's list to
@@ -80,8 +81,11 @@ class QuickFilters {
   }
 }
 
-/// One Quick filter: an outlined pill with its own colour and icon, tinted
-/// while on. [compact] shows the icon only (its name on long-press).
+/// One Quick filter: an outlined pill with its own colour and icon. While
+/// on it fills solid with its colour, with dark or light text to suit
+/// (3.7.0.40). [compact] shows the icon only (its name on long-press).
+/// [tracker] adds the # badge trackers carry elsewhere: after the name, or
+/// on the icon's corner when compact. [onClear] adds an ✕ (Places).
 class QuickFilterChip extends StatelessWidget {
   const QuickFilterChip({
     super.key,
@@ -91,57 +95,112 @@ class QuickFilterChip extends StatelessWidget {
     required this.selected,
     required this.compact,
     required this.onTap,
+    this.tracker = false,
+    this.onClear,
   });
 
   final String label;
-  final Widget icon;
+
+  /// Builds the icon in the colour it should be drawn in.
+  final Widget Function(Color color) icon;
   final Color color;
   final bool selected;
   final bool compact;
   final VoidCallback? onTap;
+  final bool tracker;
+  final VoidCallback? onClear;
 
   static const double height = 40;
   static const double compactWidth = 46;
 
+  /// Text and icons drawn on a chip filled with [fill].
+  static Color onFill(Color fill) =>
+      ThemeData.estimateBrightnessForColor(fill) == Brightness.dark
+          ? Colors.white
+          : const Color(0xFF14181C);
+
+  Widget _trackerBadge(Color background, Color foreground, double size) =>
+      Container(
+        padding: EdgeInsets.symmetric(horizontal: size / 3),
+        height: size,
+        constraints: BoxConstraints(minWidth: size),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(size / 2),
+        ),
+        child: Icon(Icons.numbers_rounded, size: size * 0.7, color: foreground),
+      );
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final ink = selected ? onFill(color) : colorScheme.onSurface;
+    final iconColor = selected ? ink : color;
     final shape = BoxDecoration(
       borderRadius: BorderRadius.circular(height / 2),
       border: Border.all(color: color, width: 2),
-      color: selected ? color.withValues(alpha: 0.28) : Colors.transparent,
+      color: selected ? color : Colors.transparent,
     );
-    final content = compact
-        ? SizedBox(
-            width: compactWidth - 4,
-            height: height - 4,
-            child: Center(child: icon),
-          )
-        : Padding(
-            padding: const EdgeInsets.only(left: 10, right: 14),
-            child: SizedBox(
-              height: height - 4,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  icon,
-                  const SizedBox(width: 8),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 160),
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      softWrap: false,
-                      overflow: TextOverflow.ellipsis,
-                      style:
-                          TextStyle(fontSize: 15, color: colorScheme.onSurface),
-                    ),
-                  ),
-                ],
+    final Widget content;
+    if (compact) {
+      content = SizedBox(
+        width: compactWidth - 4,
+        height: height - 4,
+        child: Center(child: icon(iconColor)),
+      );
+    } else {
+      content = Padding(
+        padding: EdgeInsets.only(left: 10, right: onClear != null ? 4 : 14),
+        child: SizedBox(
+          height: height - 4,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              icon(iconColor),
+              const SizedBox(width: 8),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 160),
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 15,
+                      color: ink,
+                      fontWeight: selected ? FontWeight.w600 : null),
+                ),
               ),
-            ),
-          );
-    final chip = Semantics(
+              if (tracker) ...[
+                const SizedBox(width: 6),
+                _trackerBadge(
+                    selected
+                        ? ink.withValues(alpha: 0.18)
+                        : colorScheme.surfaceContainerHighest,
+                    ink.withValues(alpha: 0.75),
+                    18),
+              ],
+              if (onClear != null)
+                SizedBox(
+                  width: 30,
+                  height: 30,
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    iconSize: 16,
+                    color: ink,
+                    tooltip:
+                        MaterialLocalizations.of(context).deleteButtonTooltip,
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: onClear,
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
+    Widget chip = Semantics(
       button: true,
       selected: selected,
       label: label,
@@ -155,6 +214,30 @@ class QuickFilterChip extends StatelessWidget {
         ),
       ),
     );
+    if (compact && tracker) {
+      // The # sits on the corner, in the chip's colour, ringed with the
+      // background so it reads against the outline
+      chip = Stack(
+        clipBehavior: Clip.none,
+        children: [
+          chip,
+          PositionedDirectional(
+            end: -4,
+            bottom: -4,
+            child: IgnorePointer(
+              child: Container(
+                padding: const EdgeInsets.all(1.5),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHigh,
+                  shape: BoxShape.circle,
+                ),
+                child: _trackerBadge(color, onFill(color), 17),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
     return compact ? Tooltip(message: label, child: chip) : chip;
   }
 }
@@ -176,6 +259,10 @@ class QuickFiltersSection extends StatelessWidget {
     required this.onToggleTrackers,
     required this.onToggleLastEdited,
     required this.onToggleCompact,
+    this.showPlaces = false,
+    this.place,
+    this.onPickPlace,
+    this.onClearPlace,
   });
 
   final Tag? favourite;
@@ -191,6 +278,13 @@ class QuickFiltersSection extends StatelessWidget {
   final VoidCallback onToggleLastEdited;
   final VoidCallback onToggleCompact;
 
+  /// 📍 Places (3.7.0.40): shown once any entry has a place. [place] is the
+  /// picked one, shown in the chip with an ✕.
+  final bool showPlaces;
+  final String? place;
+  final VoidCallback? onPickPlace;
+  final VoidCallback? onClearPlace;
+
   Widget _tagChip(BuildContext context, Tag tag, Color fallback) {
     final color = tag.resolvedColor(context, fallback: fallback);
     final isFavourite = Favourites.isFavouriteTag(tag);
@@ -198,14 +292,15 @@ class QuickFiltersSection extends StatelessWidget {
       label: isFavourite
           ? AppLocalizations.of(context)!.quickFilterFavourite
           : tag.name,
-      icon: TagIconGlyph(
+      icon: (iconColor) => TagIconGlyph(
         icon: tag.icon,
         iconType: isFavourite ? TagIconType.character : tag.iconType,
         fallbackIcon: tag.typeIcon,
-        color: color,
+        color: iconColor,
         size: 20,
       ),
       color: color,
+      tracker: tag.tagType == TagType.tracker,
       selected: activeTagIds.contains(tag.id),
       compact: compact,
       onTap: enabled ? () => onToggleTag(tag) : null,
@@ -227,8 +322,8 @@ class QuickFiltersSection extends StatelessWidget {
       if (showTrackers)
         QuickFilterChip(
           label: l10n.tagFilterTrackers,
-          icon: const Icon(Icons.numbers_rounded,
-              size: 20, color: QuickFilters.trackersColor),
+          icon: (iconColor) =>
+              Icon(Icons.numbers_rounded, size: 20, color: iconColor),
           color: QuickFilters.trackersColor,
           selected: trackersOn,
           compact: compact,
@@ -236,13 +331,24 @@ class QuickFiltersSection extends StatelessWidget {
         ),
       QuickFilterChip(
         label: l10n.quickFilterLastEdited,
-        icon: const Icon(Icons.history_rounded,
-            size: 20, color: QuickFilters.lastEditedColor),
+        icon: (iconColor) =>
+            Icon(Icons.history_rounded, size: 20, color: iconColor),
         color: QuickFilters.lastEditedColor,
         selected: lastEditedOn,
         compact: compact,
         onTap: enabled ? onToggleLastEdited : null,
       ),
+      if (showPlaces || place != null)
+        QuickFilterChip(
+          label: place ?? l10n.quickFilterPlaces,
+          icon: (iconColor) =>
+              Icon(Icons.place_rounded, size: 20, color: iconColor),
+          color: PlaceFilter.color,
+          selected: place != null,
+          compact: compact,
+          onTap: enabled ? onPickPlace : null,
+          onClear: place != null && !compact ? onClearPlace : null,
+        ),
       for (final tag in pinned)
         _tagChip(context, tag, theme.colorScheme.secondary),
     ];

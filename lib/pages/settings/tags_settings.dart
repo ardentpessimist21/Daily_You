@@ -6,6 +6,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:daily_you/fork/favourites.dart';
+import 'package:daily_you/fork/place_filter.dart';
 import 'package:daily_you/fork/quick_filters.dart';
 import 'package:daily_you/fork/tag_bulk_move.dart';
 import 'package:daily_you/fork/tag_pins.dart';
@@ -17,11 +18,11 @@ import 'package:daily_you/utils/operation_outcome.dart';
 import 'package:daily_you/utils/tag_category_visuals.dart';
 import 'package:daily_you/utils/tag_visuals.dart';
 import 'package:daily_you/utils/templates_tags_transfer.dart';
+import 'package:daily_you/widgets/action_pill.dart';
 import 'package:daily_you/widgets/app_dialog.dart';
 import 'package:daily_you/widgets/color_picker_dialog.dart';
 import 'package:daily_you/widgets/edit_category.dart';
 import 'package:daily_you/widgets/edit_tag.dart';
-import 'package:daily_you/widgets/expressive_fab_menu.dart';
 import 'package:daily_you/widgets/failure_dialog.dart';
 import 'package:daily_you/widgets/tag_chip.dart';
 import 'package:daily_you/widgets/tag_icon_glyph.dart';
@@ -405,11 +406,40 @@ class _TagsSettingsState extends State<TagsSettings> {
 
   // Top bar actions
 
-  void _showEditTagDialog(BuildContext context, Tag? tag) {
+  void _showEditTagDialog(BuildContext context, Tag? tag,
+      {String? initialName}) {
     showAppDialog(
       context: context,
-      builder: (context) => EditTag(tag: tag),
+      builder: (context) => EditTag(tag: tag, initialName: initialName),
     );
+  }
+
+  /// The search bar's +: a small Category | Tag pill (3.7.0.40). A new tag
+  /// starts with the typed search as its name.
+  Future<void> _showAddPill(BuildContext anchor) async {
+    final box = anchor.findRenderObject() as RenderBox?;
+    final overlay = Overlay.of(anchor).context.findRenderObject() as RenderBox?;
+    if (box == null || overlay == null) return;
+    final topLeft = box.localToGlobal(Offset.zero, ancestor: overlay);
+    final position = RelativeRect.fromRect(
+      Rect.fromLTWH(
+          topLeft.dx, topLeft.dy + box.size.height + 4, box.size.width, 0),
+      Offset.zero & overlay.size,
+    );
+    final choice = await showMenu<String>(
+      context: anchor,
+      position: position,
+      shape: const StadiumBorder(),
+      menuPadding: EdgeInsets.zero,
+      items: [_AddPillEntry(l10n: AppLocalizations.of(anchor)!)],
+    );
+    if (!mounted) return;
+    if (choice == 'category') {
+      _showCategoryDialog(context, null);
+    } else if (choice == 'tag') {
+      _showEditTagDialog(context, null,
+          initialName: _searching ? _query.trim() : null);
+    }
   }
 
   void _showCategoryDialog(BuildContext context, TagCategory? category) {
@@ -593,57 +623,64 @@ class _TagsSettingsState extends State<TagsSettings> {
       trailingAction = const SizedBox.shrink();
     }
 
-    return Material(
+    // A card, so categories stand apart from the tags indented under them
+    // (3.7.0.40)
+    return Padding(
       key: key,
-      color: Theme.of(context).colorScheme.surfaceContainerLow,
-      child: InkWell(
-        onTap: _searching ? null : () => _toggleCollapse(category?.id),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
-          child: Row(
-            children: [
-              const SizedBox(height: kMinInteractiveDimension),
-              if (canDrag)
-                ReorderableDragStartListener(
-                  index: index,
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12.0),
-                    child: Icon(Icons.drag_handle_rounded, size: 20),
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 2),
+      child: Material(
+        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: _searching ? null : () => _toggleCollapse(category?.id),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              children: [
+                const SizedBox(height: kMinInteractiveDimension),
+                if (canDrag)
+                  ReorderableDragStartListener(
+                    index: index,
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12.0),
+                      child: Icon(Icons.drag_handle_rounded, size: 20),
+                    ),
+                  )
+                else
+                  const SizedBox(width: 44),
+                if (!isUncategorized) ...[
+                  TagIconGlyph(
+                    icon: category.icon,
+                    iconType: category.iconType,
+                    fallbackIcon: Icons.folder_rounded,
+                    color: category.resolvedColor(context),
+                    size: 20,
                   ),
-                )
-              else
-                const SizedBox(width: 44),
-              if (!isUncategorized) ...[
-                TagIconGlyph(
-                  icon: category.icon,
-                  iconType: category.iconType,
-                  fallbackIcon: Icons.folder_rounded,
-                  color: category.resolvedColor(context),
-                  size: 20,
+                  const SizedBox(width: 10),
+                ],
+                Expanded(
+                  child: Text(
+                    name,
+                    overflow: TextOverflow.fade,
+                    softWrap: false,
+                    maxLines: 1,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
                 ),
-                const SizedBox(width: 10),
+                trailingAction,
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Icon(
+                    isCollapsed
+                        ? Icons.expand_more_rounded
+                        : Icons.expand_less_rounded,
+                  ),
+                ),
               ],
-              Expanded(
-                child: Text(
-                  name,
-                  overflow: TextOverflow.fade,
-                  softWrap: false,
-                  maxLines: 1,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ),
-              trailingAction,
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Icon(
-                  isCollapsed
-                      ? Icons.expand_more_rounded
-                      : Icons.expand_less_rounded,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -689,24 +726,19 @@ class _TagsSettingsState extends State<TagsSettings> {
             : () => _showEditTagDialog(context, tag),
         onLongPress: () => _toggleSelected(tag),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
+          // Indented under their category's card
+          padding:
+              const EdgeInsetsDirectional.only(start: 16, top: 4, bottom: 4),
           child: Row(
             children: [
               leading,
               Expanded(
                 child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: TagPinList.pinnedAnywhere(tag.id!)
-                      ? Row(mainAxisSize: MainAxisSize.min, children: [
-                          Flexible(child: TagChip(tag: tag)),
-                          const SizedBox(width: 6),
-                          Icon(Icons.push_pin_rounded,
-                              size: 16,
-                              semanticLabel:
-                                  AppLocalizations.of(context)!.pinnedTagsTitle,
-                              color: Theme.of(context).colorScheme.primary),
-                        ])
-                      : TagChip(tag: tag),
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Flexible(child: TagChip(tag: tag)),
+                    ..._pinMarkers(context, tag.id!),
+                  ]),
                 ),
               ),
               Padding(
@@ -729,6 +761,25 @@ class _TagsSettingsState extends State<TagsSettings> {
         ),
       ),
     );
+  }
+
+  /// Where a tag is pinned (3.7.0.40): a funnel for Gallery › Filter, a tag
+  /// for Add Tags, both when it's in both.
+  List<Widget> _pinMarkers(BuildContext context, int tagId) {
+    final l10n = AppLocalizations.of(context)!;
+    final color = Theme.of(context).colorScheme.primary;
+    return [
+      if (TagPinList.gallery.contains(tagId)) ...[
+        const SizedBox(width: 6),
+        Icon(Icons.filter_alt_rounded,
+            size: 16, color: color, semanticLabel: l10n.tagsPinnedGallery),
+      ],
+      if (TagPinList.addTags.contains(tagId)) ...[
+        const SizedBox(width: 4),
+        Icon(Icons.local_offer_rounded,
+            size: 15, color: color, semanticLabel: l10n.tagsPinnedAddTags),
+      ],
+    ];
   }
 
   /// Pinned · Gallery / Pinned · Add Tags: a collapsible row like a
@@ -780,13 +831,6 @@ class _TagsSettingsState extends State<TagsSettings> {
 
     if (!open) return header;
 
-    final freeSlot = list.free > 0
-        ? Padding(
-            padding: const EdgeInsetsDirectional.only(start: 4),
-            child: _DashedSlot(label: l10n.tagPinsFree(list.free)),
-          )
-        : const SizedBox.shrink();
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -812,34 +856,37 @@ class _TagsSettingsState extends State<TagsSettings> {
                       _LockedChip(
                           label: l10n.quickFilterLastEdited,
                           color: QuickFilters.lastEditedColor),
+                      _LockedChip(
+                          label: l10n.quickFilterPlaces,
+                          color: PlaceFilter.color),
                     ],
                   ),
                 ),
-              SizedBox(
-                height: 40,
-                child: ReorderableListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  buildDefaultDragHandles: false,
-                  itemCount: pins.length,
-                  footer: freeSlot,
-                  onReorderItem: (from, to) async {
-                    await list.move(from, to);
-                    if (mounted) setState(() {});
-                  },
-                  itemBuilder: (context, index) => Padding(
-                    key: ValueKey(
-                        'pin_${isGallery ? 'g' : 'a'}_${pins[index].id}'),
-                    padding: const EdgeInsetsDirectional.only(end: 6),
-                    child: _PinChip(
+              // Wraps onto more lines instead of scrolling sideways;
+              // drag a chip by its grip onto another to move it (3.7.0.40)
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (var index = 0; index < pins.length; index++)
+                    _DraggablePin(
+                      key: ValueKey(
+                          'pin_${isGallery ? 'g' : 'a'}_${pins[index].id}'),
                       tag: pins[index],
                       index: index,
+                      group: isGallery ? 'g' : 'a',
+                      onMove: (from, to) async {
+                        await list.move(from, to);
+                        if (mounted) setState(() {});
+                      },
                       onRemove: () async {
                         await list.unpin([pins[index].id!]);
                         if (mounted) setState(() {});
                       },
                     ),
-                  ),
-                ),
+                  if (list.free > 0)
+                    _DashedSlot(label: l10n.tagPinsFree(list.free)),
+                ],
               ),
               if (pins.isEmpty)
                 Padding(
@@ -879,6 +926,15 @@ class _TagsSettingsState extends State<TagsSettings> {
                 setState(() => _query = '');
               },
             ),
+          // Replaces the floating + (3.7.0.40)
+          if (!_selectMode)
+            Builder(
+              builder: (anchor) => IconButton(
+                icon: const Icon(Icons.add_rounded),
+                tooltip: l10n.tagsAddNew,
+                onPressed: () => _showAddPill(anchor),
+              ),
+            ),
         ],
         onChanged: (value) => setState(() => _query = value),
       ),
@@ -887,7 +943,6 @@ class _TagsSettingsState extends State<TagsSettings> {
 
   Widget _buildSelectionPill(BuildContext context, TagsProvider provider) {
     final l10n = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
     final hasSelection = _selectedIds.isNotEmpty;
     VoidCallback? when(VoidCallback action) => hasSelection ? action : null;
 
@@ -953,31 +1008,7 @@ class _TagsSettingsState extends State<TagsSettings> {
       );
     }
 
-    return Material(
-      color: theme.colorScheme.primaryContainer,
-      shape: const StadiumBorder(),
-      elevation: 2,
-      shadowColor: theme.shadowColor.withValues(alpha: 0.4),
-      clipBehavior: Clip.antiAlias,
-      child: IconTheme.merge(
-        data: IconThemeData(color: theme.colorScheme.primary),
-        child: AnimatedSize(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
-          alignment: AlignmentDirectional.centerEnd,
-          child: Padding(
-            padding: const EdgeInsets.all(4),
-            child: SizedBox(
-              height: 48,
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 180),
-                child: content,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+    return ActionPill(child: content);
   }
 
   @override
@@ -1008,19 +1039,6 @@ class _TagsSettingsState extends State<TagsSettings> {
     );
 
     final allOpen = _allOpen(provider);
-    final fab = ExpressiveFabMenu(
-      key: const ValueKey('fab'),
-      items: [
-        ExpressiveFabMenuItem(
-            icon: Icons.folder_rounded,
-            label: l10n.tagCategoryLabel,
-            onTap: () => _showCategoryDialog(context, null)),
-        ExpressiveFabMenuItem(
-            icon: Icons.local_offer_rounded,
-            label: l10n.tagLabel,
-            onTap: () => _showEditTagDialog(context, null)),
-      ],
-    );
 
     return Focus(
       focusNode: _pageFocus,
@@ -1055,162 +1073,153 @@ class _TagsSettingsState extends State<TagsSettings> {
                     ),
                   ],
                 ),
-          // The + button stretches into the action pill in select mode
-          floatingActionButton: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 260),
-            switchInCurve: Curves.easeOutBack,
-            switchOutCurve: Curves.easeIn,
-            layoutBuilder: (current, previous) => Stack(
-              alignment: AlignmentDirectional.bottomEnd,
-              children: [...previous, if (current != null) current],
-            ),
-            transitionBuilder: (child, animation) => FadeTransition(
-              opacity: animation,
-              child: SizeTransition(
-                sizeFactor: animation,
-                axis: Axis.horizontal,
-                // Stretch sideways only: without a height factor the
-                // transition fills the screen's height and centres the button
-                alignment: AlignmentDirectional.bottomEnd,
-                fixedCrossAxisSizeFactor: 1,
-                child: child,
-              ),
-            ),
-            child: _selectMode
-                ? KeyedSubtree(
-                    key: const ValueKey('pill'),
-                    child: _buildSelectionPill(context, provider),
-                  )
-                : fab,
-          ),
-          body: isEmpty
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 48),
-                    child: Text(l10n.noResults),
-                  ),
-                )
-              : Builder(builder: (context) {
-                  final allItems = _buildFlatItems(provider);
-                  // Keep the uncategorized header out of the reorderable range so
-                  // nothing can be dragged above
-                  final hasUncategorizedHeader = allItems.isNotEmpty &&
-                      allItems[0] is _HeaderItem &&
-                      (allItems[0] as _HeaderItem).category == null;
-                  final items =
-                      hasUncategorizedHeader ? allItems.sublist(1) : allItems;
+          // Select mode's actions, centred at the bottom above gesture
+          // navigation (3.7.0.40)
+          floatingActionButtonLocation: ActionPill.location,
+          floatingActionButton:
+              _selectMode ? _buildSelectionPill(context, provider) : null,
+          // The search bar stays on top while the list scrolls (3.7.0.40)
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildSearchField(l10n),
+              Expanded(
+                child: isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 48),
+                          child: Text(l10n.noResults),
+                        ),
+                      )
+                    : Builder(builder: (context) {
+                        final allItems = _buildFlatItems(provider);
+                        // Keep the uncategorized header out of the reorderable range so
+                        // nothing can be dragged above
+                        final hasUncategorizedHeader = allItems.isNotEmpty &&
+                            allItems[0] is _HeaderItem &&
+                            (allItems[0] as _HeaderItem).category == null;
+                        final items = hasUncategorizedHeader
+                            ? allItems.sublist(1)
+                            : allItems;
 
-                  return CustomScrollView(
-                    slivers: [
-                      SliverToBoxAdapter(child: _buildSearchField(l10n)),
-                      if (!_searching) ...[
-                        SliverToBoxAdapter(
-                          child: _buildPinnedSection(
-                            context,
-                            TagPinList.gallery,
-                            _galleryPinsOpen,
-                            () => setState(
-                                () => _galleryPinsOpen = !_galleryPinsOpen),
-                          ),
-                        ),
-                        SliverToBoxAdapter(
-                          child: _buildPinnedSection(
-                            context,
-                            TagPinList.addTags,
-                            _addTagsPinsOpen,
-                            () => setState(
-                                () => _addTagsPinsOpen = !_addTagsPinsOpen),
-                          ),
-                        ),
-                        const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                      ],
-                      if (_searching && items.isEmpty)
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Center(child: Text(l10n.noResults)),
-                          ),
-                        ),
-                      if (hasUncategorizedHeader)
-                        SliverToBoxAdapter(
-                          child: _buildHeaderRow(
-                            context,
-                            0,
-                            null,
-                            provider,
-                            key: const ValueKey('hdr_null'),
-                          ),
-                        ),
-                      SliverReorderableList(
-                        itemCount: items.length,
-                        onReorderStart: (index) {
-                          if (!_isDraggingCategory &&
-                              index < items.length &&
-                              items[index] is _HeaderItem &&
-                              (items[index] as _HeaderItem).category != null) {
-                            WidgetsBinding.instance.addPostFrameCallback((_) {
-                              if (mounted) {
-                                setState(() => _isDraggingCategory = true);
-                              }
-                            });
-                          }
-                        },
-                        onReorderEnd: (_) {
-                          if (_isDraggingCategory) {
-                            setState(() => _isDraggingCategory = false);
-                          }
-                        },
-                        onReorderItem: (from, to) {
-                          final snapshot = List<_ListItem>.from(items);
-                          _onReorder(from, to, provider, snapshot);
-                        },
-                        itemBuilder: (context, index) {
-                          final item = items[index];
-                          if (item is _HeaderItem) {
-                            return _buildHeaderRow(
-                              context,
-                              index,
-                              item.category,
-                              provider,
-                              key: ValueKey(
-                                  'hdr_${item.category?.id ?? 'null'}'),
-                            );
-                          } else {
-                            final tagItem = item as _TagItem;
-                            return _buildTagRow(
-                              context,
-                              index,
-                              tagItem.tag,
-                              provider,
-                              key: ValueKey('tag_${tagItem.tag.id}'),
-                            );
-                          }
-                        },
-                      ),
-                      // Room for the pill or + button
-                      const SliverToBoxAdapter(
-                        child: SizedBox(height: 96),
-                      ),
-                    ],
-                  );
-                }),
+                        return CustomScrollView(
+                          slivers: [
+                            if (!_searching) ...[
+                              SliverToBoxAdapter(
+                                child: _buildPinnedSection(
+                                  context,
+                                  TagPinList.gallery,
+                                  _galleryPinsOpen,
+                                  () => setState(() =>
+                                      _galleryPinsOpen = !_galleryPinsOpen),
+                                ),
+                              ),
+                              SliverToBoxAdapter(
+                                child: _buildPinnedSection(
+                                  context,
+                                  TagPinList.addTags,
+                                  _addTagsPinsOpen,
+                                  () => setState(() =>
+                                      _addTagsPinsOpen = !_addTagsPinsOpen),
+                                ),
+                              ),
+                              const SliverToBoxAdapter(
+                                  child: SizedBox(height: 8)),
+                            ],
+                            if (_searching && items.isEmpty)
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: Center(child: Text(l10n.noResults)),
+                                ),
+                              ),
+                            if (hasUncategorizedHeader)
+                              SliverToBoxAdapter(
+                                child: _buildHeaderRow(
+                                  context,
+                                  0,
+                                  null,
+                                  provider,
+                                  key: const ValueKey('hdr_null'),
+                                ),
+                              ),
+                            SliverReorderableList(
+                              itemCount: items.length,
+                              onReorderStart: (index) {
+                                if (!_isDraggingCategory &&
+                                    index < items.length &&
+                                    items[index] is _HeaderItem &&
+                                    (items[index] as _HeaderItem).category !=
+                                        null) {
+                                  WidgetsBinding.instance
+                                      .addPostFrameCallback((_) {
+                                    if (mounted) {
+                                      setState(
+                                          () => _isDraggingCategory = true);
+                                    }
+                                  });
+                                }
+                              },
+                              onReorderEnd: (_) {
+                                if (_isDraggingCategory) {
+                                  setState(() => _isDraggingCategory = false);
+                                }
+                              },
+                              onReorderItem: (from, to) {
+                                final snapshot = List<_ListItem>.from(items);
+                                _onReorder(from, to, provider, snapshot);
+                              },
+                              itemBuilder: (context, index) {
+                                final item = items[index];
+                                if (item is _HeaderItem) {
+                                  return _buildHeaderRow(
+                                    context,
+                                    index,
+                                    item.category,
+                                    provider,
+                                    key: ValueKey(
+                                        'hdr_${item.category?.id ?? 'null'}'),
+                                  );
+                                } else {
+                                  final tagItem = item as _TagItem;
+                                  return _buildTagRow(
+                                    context,
+                                    index,
+                                    tagItem.tag,
+                                    provider,
+                                    key: ValueKey('tag_${tagItem.tag.id}'),
+                                  );
+                                }
+                              },
+                            ),
+                            // Room for the pill
+                            const SliverToBoxAdapter(
+                              child: SizedBox(height: ActionPill.clearance),
+                            ),
+                          ],
+                        );
+                      }),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// A pinned tag in Settings › Tags: grip to reorder, × to unpin.
+/// A pinned tag in Settings › Tags: [grip] to reorder, × to unpin, and the
+/// # badge for trackers (3.7.0.40).
 class _PinChip extends StatelessWidget {
   const _PinChip({
     required this.tag,
-    required this.index,
+    required this.grip,
     required this.onRemove,
   });
 
   final Tag tag;
-  final int index;
-  final VoidCallback onRemove;
+  final Widget grip;
+  final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -1227,14 +1236,7 @@ class _PinChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ReorderableDragStartListener(
-            index: index,
-            child: Padding(
-              padding: const EdgeInsets.only(left: 6, right: 2),
-              child: Icon(Icons.drag_indicator_rounded,
-                  size: 18, color: theme.colorScheme.onSurfaceVariant),
-            ),
-          ),
+          grip,
           TagIconGlyph(
             icon: tag.icon,
             iconType: tag.iconType,
@@ -1251,16 +1253,31 @@ class _PinChip extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(color: theme.colorScheme.onSurface)),
           ),
+          if (tag.tagType == TagType.tracker) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.numbers_rounded,
+                  size: 12,
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.7)),
+            ),
+          ],
           SizedBox(
             width: 32,
             height: 32,
-            child: IconButton(
-              padding: EdgeInsets.zero,
-              iconSize: 16,
-              tooltip: AppLocalizations.of(context)!.quickFilterUnpin,
-              icon: const Icon(Icons.close_rounded),
-              onPressed: onRemove,
-            ),
+            child: onRemove == null
+                ? null
+                : IconButton(
+                    padding: EdgeInsets.zero,
+                    iconSize: 16,
+                    tooltip: AppLocalizations.of(context)!.quickFilterUnpin,
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: onRemove,
+                  ),
           ),
         ],
       ),
@@ -1268,7 +1285,128 @@ class _PinChip extends StatelessWidget {
   }
 }
 
-/// Favourite, Trackers and Last Edited: always first in the Gallery filter.
+typedef _PinDrag = ({String group, int index});
+
+/// A pinned chip in a wrapping row: drag it by the grip and drop it on
+/// another chip to move it there.
+class _DraggablePin extends StatefulWidget {
+  const _DraggablePin({
+    super.key,
+    required this.tag,
+    required this.index,
+    required this.group,
+    required this.onMove,
+    required this.onRemove,
+  });
+
+  final Tag tag;
+  final int index;
+
+  /// Which pin list, so chips only drop within their own row.
+  final String group;
+  final Future<void> Function(int from, int to) onMove;
+  final VoidCallback onRemove;
+
+  @override
+  State<_DraggablePin> createState() => _DraggablePinState();
+}
+
+class _DraggablePinState extends State<_DraggablePin> {
+  bool _dragging = false;
+
+  Widget _gripIcon(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(left: 6, right: 2),
+        child: Icon(Icons.drag_indicator_rounded,
+            size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final grip = Draggable<_PinDrag>(
+      data: (group: widget.group, index: widget.index),
+      onDragStarted: () => setState(() => _dragging = true),
+      onDragEnd: (_) => setState(() => _dragging = false),
+      feedback: Material(
+        type: MaterialType.transparency,
+        elevation: 6,
+        borderRadius: BorderRadius.circular(20),
+        child:
+            _PinChip(tag: widget.tag, grip: _gripIcon(context), onRemove: null),
+      ),
+      child: _gripIcon(context),
+    );
+    return DragTarget<_PinDrag>(
+      onWillAcceptWithDetails: (details) =>
+          details.data.group == widget.group &&
+          details.data.index != widget.index,
+      onAcceptWithDetails: (details) =>
+          widget.onMove(details.data.index, widget.index),
+      builder: (context, candidates, _) {
+        final hovering = candidates.isNotEmpty;
+        return AnimatedOpacity(
+          duration: const Duration(milliseconds: 120),
+          opacity: _dragging ? 0.35 : 1,
+          child: AnimatedScale(
+            duration: const Duration(milliseconds: 120),
+            scale: hovering ? 1.06 : 1,
+            child: _PinChip(
+                tag: widget.tag, grip: grip, onRemove: widget.onRemove),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// The search bar +'s popup: a pill with Category | Tag side by side.
+class _AddPillEntry extends PopupMenuEntry<String> {
+  const _AddPillEntry({required this.l10n});
+
+  final AppLocalizations l10n;
+
+  @override
+  double get height => 52;
+
+  @override
+  bool represents(String? value) => false;
+
+  @override
+  State<_AddPillEntry> createState() => _AddPillEntryState();
+}
+
+class _AddPillEntryState extends State<_AddPillEntry> {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    Widget option(String value, IconData icon, String label) => InkWell(
+          borderRadius: BorderRadius.circular(26),
+          onTap: () => Navigator.pop(context, value),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 20, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(label, style: theme.textTheme.labelLarge),
+              ],
+            ),
+          ),
+        );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        option('category', Icons.folder_rounded, widget.l10n.tagCategoryLabel),
+        Container(
+            width: 1, height: 24, color: theme.colorScheme.outlineVariant),
+        option('tag', Icons.local_offer_rounded, widget.l10n.tagLabel),
+      ],
+    );
+  }
+}
+
+/// Favourite, Trackers, Last Edited and Places: always first in the Gallery
+/// filter.
 class _LockedChip extends StatelessWidget {
   const _LockedChip({required this.label, required this.color});
 
@@ -1310,13 +1448,16 @@ class _DashedSlot extends StatelessWidget {
     final theme = Theme.of(context);
     return CustomPaint(
       painter: _DashedBorderPainter(theme.colorScheme.outline),
+      // Sized to its label, so it sits in the chip row (3.7.0.40)
       child: Container(
         height: 40,
         padding: const EdgeInsets.symmetric(horizontal: 14),
-        alignment: Alignment.center,
-        child: Text(label,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        child: Center(
+          widthFactor: 1,
+          child: Text(label,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        ),
       ),
     );
   }

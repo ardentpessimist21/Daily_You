@@ -84,6 +84,9 @@ class ScaledMarkdown extends StatelessWidget {
             onTap: () => onCheckboxTap!(index),
           );
         }),
+      // `---` as a thin, muted line that follows the theme (3.7.0.40); the
+      // default is 2px, and pure white in dark mode
+      HrConfig(height: 1, color: theme.colorScheme.outlineVariant),
       // Entry links open in the app; websites and places outside it.
       LinkConfig(
         style: TextStyle(

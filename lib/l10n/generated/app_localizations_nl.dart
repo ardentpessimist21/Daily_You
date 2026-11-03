@@ -1691,6 +1691,15 @@ class AppLocalizationsNl extends AppLocalizations {
   String get quickFilterLastEdited => 'Last Edited';
 
   @override
+  String get quickFilterPlaces => 'Places';
+
+  @override
+  String get placeFilterSearchHint => 'Search places';
+
+  @override
+  String get placeFilterEmpty => 'No entries have a place yet.';
+
+  @override
   String get quickFilterPin => 'Pin to Quick filters';
 
   @override
@@ -1716,6 +1725,9 @@ class AppLocalizationsNl extends AppLocalizations {
 
   @override
   String get pinnedTagsTitle => 'Pinned';
+
+  @override
+  String get tagsAddNew => 'Add a category or tag';
 
   @override
   String get tagsPinnedGallery => 'Pinned · Gallery';

@@ -4,6 +4,7 @@
 
 import 'dart:async';
 
+import 'package:daily_you/fork/place_filter.dart';
 import 'package:daily_you/fork/quick_filters.dart';
 import 'package:daily_you/fork/selection_actions.dart';
 import 'package:daily_you/config_provider.dart';
@@ -51,11 +52,15 @@ class _GalleryPageState extends State<GalleryPage>
   Set<int> _quickTagIds = {};
   bool _lastEdited = false;
 
+  /// 📍 Places: the picked place's name (3.7.0.40).
+  String? _place;
+
   bool get _hasTagFilter =>
       _filterTagIds.isNotEmpty ||
       _filterNoTags ||
       _quickTagIds.isNotEmpty ||
-      _lastEdited;
+      _lastEdited ||
+      _place != null;
 
   // Entry ids picked in select mode (started by long-pressing a tile)
   final Set<int> _selected = {};
@@ -219,19 +224,20 @@ class _GalleryPageState extends State<GalleryPage>
     final filtered =
         _applyTagFilter(entriesProvider.getFilteredEntries(), tagsProvider);
     final sorted = _applyTrackerSort(filtered, entriesProvider, tagsProvider);
-    if (_filterNoTags) return sorted;
-    return QuickFilters.apply(sorted,
+    // Quick filters and Places also combine with No Tags (3.7.0.40)
+    final quick = QuickFilters.apply(sorted,
         tagIds: _quickTagIds,
         lastEdited: _lastEdited,
         ascending: entriesProvider.sortOrder == SortOrder.ascending);
+    final place = _place;
+    if (place == null) return quick;
+    return quick.where((entry) => PlaceFilter.matches(entry, place)).toList();
   }
 
   List<Entry> _applyTagFilter(List<Entry> entries, TagsProvider tagsProvider) {
     if (_filterNoTags) {
-      return entries
-          .where((entry) =>
-              tagsProvider.getEntryTagsForEntry(entry.id ?? -1).isEmpty)
-          .toList();
+      // ⭐ Favourite doesn't count as a tag here
+      return entries.where(PlaceFilter.isUntagged).toList();
     }
     if (_filterTagIds.isEmpty) return entries;
     return entries.where((entry) {
@@ -305,6 +311,9 @@ class _GalleryPageState extends State<GalleryPage>
           _quickTagIds = tagIds;
           _lastEdited = lastEdited;
         }),
+        initialPlace: _place,
+        onPlaceChanged: (place) => setState(() => _place = place),
+        placeEntries: EntriesProvider.instance.entries,
         onFilterChanged: (tagIds, mode, noTagsOnly) {
           setState(() {
             _filterTagIds = tagIds;
@@ -533,6 +542,7 @@ class _GalleryPageState extends State<GalleryPage>
                                     _filterNoTags = false;
                                     _quickTagIds = {};
                                     _lastEdited = false;
+                                    _place = null;
                                   });
                                 },
                               )
