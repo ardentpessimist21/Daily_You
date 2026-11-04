@@ -3042,6 +3042,24 @@ abstract class AppLocalizations {
   /// **'Clear place'**
   String get placeFilterClear;
 
+  /// No description provided for @placeFilterAny.
+  ///
+  /// In en, this message translates to:
+  /// **'Any place'**
+  String get placeFilterAny;
+
+  /// No description provided for @galleryNoEntriesAtPlace.
+  ///
+  /// In en, this message translates to:
+  /// **'No entries at {place}'**
+  String galleryNoEntriesAtPlace(String place);
+
+  /// No description provided for @galleryNoEntriesWithPlace.
+  ///
+  /// In en, this message translates to:
+  /// **'No entries with a place'**
+  String get galleryNoEntriesWithPlace;
+
   /// No description provided for @quickFilterPin.
   ///
   /// In en, this message translates to:

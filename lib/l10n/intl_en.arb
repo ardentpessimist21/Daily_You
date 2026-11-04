@@ -980,6 +980,18 @@
   "@placeFilterEmpty": {},
   "placeFilterClear": "Clear place",
   "@placeFilterClear": {},
+  "placeFilterAny": "Any place",
+  "@placeFilterAny": {},
+  "galleryNoEntriesAtPlace": "No entries at {place}",
+  "@galleryNoEntriesAtPlace": {
+    "placeholders": {
+      "place": {
+        "type": "String"
+      }
+    }
+  },
+  "galleryNoEntriesWithPlace": "No entries with a place",
+  "@galleryNoEntriesWithPlace": {},
   "quickFilterPin": "Pin to Quick filters",
   "@quickFilterPin": {},
   "quickFilterUnpin": "Unpin from Quick filters",

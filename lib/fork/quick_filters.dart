@@ -340,7 +340,9 @@ class QuickFiltersSection extends StatelessWidget {
       ),
       if (showPlaces || place != null)
         QuickFilterChip(
-          label: place ?? l10n.quickFilterPlaces,
+          label: place == null
+              ? l10n.quickFilterPlaces
+              : PlaceFilter.label(context, place!),
           icon: (iconColor) =>
               Icon(Icons.place_rounded, size: 20, color: iconColor),
           color: PlaceFilter.color,

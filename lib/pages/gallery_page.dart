@@ -654,6 +654,29 @@ class _GalleryPageState extends State<GalleryPage>
     final searchQuery = EntriesProvider.instance.searchText;
     if (entries.isEmpty && upcoming.isEmpty) {
       _gridEntries = const [];
+      final place = _place;
+      if (place != null) {
+        // A place filter with nothing left, e.g. after changing the one
+        // entry's location (3.7.0.42)
+        final l10n = AppLocalizations.of(context)!;
+        return Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(place == PlaceFilter.anyPlace
+                  ? l10n.galleryNoEntriesWithPlace
+                  : l10n.galleryNoEntriesAtPlace(place)),
+              const SizedBox(height: 8),
+              TextButton.icon(
+                style: TextButton.styleFrom(foregroundColor: PlaceFilter.color),
+                icon: const Icon(Icons.close_rounded),
+                label: Text(l10n.placeFilterClear),
+                onPressed: () => setState(() => _place = null),
+              ),
+            ],
+          ),
+        );
+      }
       return Center(
         child: Text(
           _searchController.text.isNotEmpty || _hasTagFilter

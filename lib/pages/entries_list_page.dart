@@ -41,10 +41,48 @@ class _EntriesListPageState extends State<EntriesListPage> {
   /// What's selected right now, for copying with formatting kept.
   String? _selectedText;
 
+  /// The entries to swipe through, fixed when the page opens (3.7.0.42).
+  /// Editing an entry so it leaves a Gallery filter, unstarring it or
+  /// changing its date used to shrink or reorder the list underneath,
+  /// landing on another entry or a black screen. The list now stays as it
+  /// was until you go back, and the Gallery refreshes then.
+  late final List<int> _ids;
+  bool _leaving = false;
+
   @override
   void initState() {
     super.initState();
+    _ids = widget.getEntries().map((entry) => entry.id).nonNulls.toList();
     _pageController = PageController(initialPage: widget.index);
+  }
+
+  /// The fixed list as it is now: up-to-date entries, without any that
+  /// were deleted.
+  List<Entry> _currentEntries() {
+    final byId = {
+      for (final entry in EntriesProvider.instance.entries) entry.id: entry
+    };
+    return [
+      for (final id in _ids)
+        if (byId[id] case final entry?) entry
+    ];
+  }
+
+  /// Nothing left to show: go back instead of showing a blank screen.
+  void _leaveWhenEmpty() {
+    if (_leaving) return;
+    _leaving = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final route = ModalRoute.of(context);
+      final navigator = Navigator.of(context);
+      if (route == null) return;
+      if (route.isCurrent) {
+        navigator.maybePop();
+      } else if (route.isActive) {
+        navigator.removeRoute(route);
+      }
+    });
   }
 
   @override
@@ -66,7 +104,11 @@ class _EntriesListPageState extends State<EntriesListPage> {
   @override
   Widget build(BuildContext context) {
     Provider.of<EntriesProvider>(context);
-    final entries = widget.getEntries();
+    final entries = _currentEntries();
+    if (entries.isEmpty) {
+      _leaveWhenEmpty();
+      return const Scaffold();
+    }
 
     // SelectionArea for entry text sits above the page so it loses to swipe gestures.
     return SelectionArea(
@@ -88,14 +130,8 @@ class _EntriesListPageState extends State<EntriesListPage> {
             return EntryViewPage(
               entryId: entries[index].id!,
               searchQuery: widget.searchQuery,
-              onEntryEdited: (editedEntryId) {
-                final updatedEntries = widget.getEntries();
-                final newIndex =
-                    updatedEntries.indexWhere((e) => e.id == editedEntryId);
-                if (newIndex != -1 && mounted) {
-                  _pageController.jumpToPage(newIndex);
-                }
-              },
+              // The list is fixed, so the edited entry stays where it is
+              onEntryEdited: (_) {},
             );
           }),
     );

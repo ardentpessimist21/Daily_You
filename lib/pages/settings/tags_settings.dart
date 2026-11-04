@@ -416,6 +416,9 @@ class _TagsSettingsState extends State<TagsSettings> {
 
   /// The search bar's +: a small Category | Tag pill (3.7.0.40). A new tag
   /// starts with the typed search as its name.
+  /// The Category | Tags pill is open: the + shows as ✕ (3.7.0.42).
+  bool _addPillOpen = false;
+
   Future<void> _showAddPill(BuildContext anchor) async {
     final box = anchor.findRenderObject() as RenderBox?;
     final overlay = Overlay.of(anchor).context.findRenderObject() as RenderBox?;
@@ -426,6 +429,7 @@ class _TagsSettingsState extends State<TagsSettings> {
           topLeft.dx, topLeft.dy + box.size.height + 4, box.size.width, 0),
       Offset.zero & overlay.size,
     );
+    setState(() => _addPillOpen = true);
     final choice = await showMenu<String>(
       context: anchor,
       position: position,
@@ -434,6 +438,7 @@ class _TagsSettingsState extends State<TagsSettings> {
       items: [_AddPillEntry(l10n: AppLocalizations.of(anchor)!)],
     );
     if (!mounted) return;
+    setState(() => _addPillOpen = false);
     if (choice == 'category') {
       _showCategoryDialog(context, null);
     } else if (choice == 'tag') {
@@ -928,11 +933,16 @@ class _TagsSettingsState extends State<TagsSettings> {
             ),
           // Replaces the floating + (3.7.0.40)
           if (!_selectMode)
+            // The editor toolbar's circle-plus, turning into ✕ while the
+            // Category | Tags pill is open (3.7.0.42)
             Builder(
-              builder: (anchor) => IconButton(
-                icon: const Icon(Icons.add_rounded),
-                tooltip: l10n.tagsAddNew,
-                onPressed: () => _showAddPill(anchor),
+              builder: (anchor) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: _CirclePlusButton(
+                  open: _addPillOpen,
+                  tooltip: l10n.tagsAddNew,
+                  onPressed: () => _showAddPill(anchor),
+                ),
               ),
             ),
         ],
@@ -1495,4 +1505,71 @@ class _DashedBorderPainter extends CustomPainter {
   @override
   bool shouldRepaint(_DashedBorderPainter oldDelegate) =>
       oldDelegate.color != color;
+}
+
+/// A filled circle with a + that turns into ✕ while [open], like the
+/// editor toolbar's button (3.7.0.42).
+class _CirclePlusButton extends StatelessWidget {
+  const _CirclePlusButton(
+      {required this.open, required this.tooltip, required this.onPressed});
+
+  final bool open;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  static const double _size = 36;
+  static const double _iconSize = 22;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: colorScheme.primary,
+        shape: const CircleBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onPressed,
+          customBorder: const CircleBorder(),
+          child: SizedBox(
+            width: _size,
+            height: _size,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(end: open ? 1.0 : 0.0),
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutBack,
+              builder: (context, progress, _) => Stack(
+                alignment: Alignment.center,
+                children: [
+                  Opacity(
+                    opacity: (1 - progress).clamp(0.0, 1.0),
+                    child: Transform.rotate(
+                      angle: progress * math.pi / 4,
+                      child: Transform.scale(
+                        scale: 1.0 - progress * 0.5,
+                        child: Icon(Icons.add_rounded,
+                            size: _iconSize, color: colorScheme.onPrimary),
+                      ),
+                    ),
+                  ),
+                  Opacity(
+                    opacity: progress.clamp(0.0, 1.0),
+                    child: Transform.rotate(
+                      angle: -(1.0 - progress) * math.pi / 4,
+                      child: Transform.scale(
+                        scale: 0.5 + progress * 0.5,
+                        child: Icon(Icons.close_rounded,
+                            size: _iconSize, color: colorScheme.onPrimary),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -25,6 +25,13 @@ import '../pages/settings_page.dart';
 class MobileScaffold extends StatefulWidget {
   const MobileScaffold({super.key});
 
+  static _MobileScaffoldState? _shown;
+
+  /// Switches to the Home tab without an animation, e.g. when something is
+  /// shared into the app from Gallery or Statistics (3.7.0.42), so leaving
+  /// the shared entry ends on the calendar.
+  static void showHome() => _shown?._showHomeNow();
+
   @override
   State<MobileScaffold> createState() => _MobileScaffoldState();
 }
@@ -42,9 +49,17 @@ class _MobileScaffoldState extends State<MobileScaffold> {
     const StatsPage(),
   ];
 
+  void _showHomeNow() {
+    if (!mounted || currentIndex == 0) return;
+    EasyDebounce.cancel("page-change");
+    setState(() => currentIndex = 0);
+    if (_pageController.hasClients) _pageController.jumpToPage(0);
+  }
+
   @override
   void initState() {
     super.initState();
+    MobileScaffold._shown = this;
     _pageController = PageController(initialPage: currentIndex);
     _scrollControllers = List.generate(pages.length, (_) => ScrollController());
     for (int i = 0; i < _scrollControllers.length; i++) {
@@ -57,6 +72,7 @@ class _MobileScaffoldState extends State<MobileScaffold> {
 
   @override
   void dispose() {
+    if (MobileScaffold._shown == this) MobileScaffold._shown = null;
     _pageController.dispose();
     for (final c in _scrollControllers) {
       c.dispose();

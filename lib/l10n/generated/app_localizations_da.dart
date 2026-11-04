@@ -1694,6 +1694,17 @@ class AppLocalizationsDa extends AppLocalizations {
   String get placeFilterClear => 'Clear place';
 
   @override
+  String get placeFilterAny => 'Any place';
+
+  @override
+  String galleryNoEntriesAtPlace(String place) {
+    return 'No entries at $place';
+  }
+
+  @override
+  String get galleryNoEntriesWithPlace => 'No entries with a place';
+
+  @override
   String get quickFilterPin => 'Pin to Quick filters';
 
   @override

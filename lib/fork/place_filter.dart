@@ -45,8 +45,22 @@ class PlaceFilter {
     return list;
   }
 
-  /// Whether [entry] has the place called [name].
+  /// The pick for 📍 Any place (3.7.0.42): every entry with a location.
+  /// Not a name anyone can type, so it never clashes with a real place.
+  static const String anyPlace = '\u0000any-place';
+
+  /// The chip and empty-state text for a pick.
+  static String label(BuildContext context, String place) =>
+      place == anyPlace ? AppLocalizations.of(context)!.placeFilterAny : place;
+
+  /// Whether [entry] has any place at all.
+  static bool hasPlace(Entry entry) =>
+      EntryLocations.placesOf(entry.text).isNotEmpty;
+
+  /// Whether [entry] has the place called [name], or any place for
+  /// [anyPlace].
   static bool matches(Entry entry, String name) {
+    if (name == anyPlace) return hasPlace(entry);
     final key = _key(name);
     return EntryLocations.placesOf(entry.text)
         .any((place) => _key(place.name) == key);
@@ -76,17 +90,23 @@ class PlaceFilter {
   static Future<String?> pick(BuildContext context, List<Entry> entries,
       {String? current}) {
     final places = placesIn(entries);
+    final anyCount = entries.where(hasPlace).length;
     return showAppDialog<String>(
       context: context,
-      builder: (_) => _PlacePicker(places: places, current: current),
+      builder: (_) =>
+          _PlacePicker(places: places, anyCount: anyCount, current: current),
     );
   }
 }
 
 class _PlacePicker extends StatefulWidget {
-  const _PlacePicker({required this.places, this.current});
+  const _PlacePicker(
+      {required this.places, required this.anyCount, this.current});
 
   final List<PlaceCount> places;
+
+  /// How many entries have any place, for the 📍 Any place row.
+  final int anyCount;
   final String? current;
 
   /// Tighter rows, and about 6 show before the list scrolls (3.7.0.41).
@@ -104,7 +124,7 @@ class _PlacePickerState extends State<_PlacePicker> {
       widget.current != null &&
       widget.current!.trim().toLowerCase() == name.trim().toLowerCase();
 
-  Widget _row(BuildContext context, PlaceCount place) {
+  Widget _row(BuildContext context, PlaceCount place, {String? label}) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
     final picked = _isCurrent(place.name);
@@ -125,7 +145,7 @@ class _PlacePickerState extends State<_PlacePicker> {
             const Icon(Icons.place_rounded, size: 18, color: PlaceFilter.color),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(place.name,
+              child: Text(label ?? place.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodyMedium
@@ -144,6 +164,13 @@ class _PlacePickerState extends State<_PlacePicker> {
       ),
     );
   }
+
+  /// 📍 Any place, at the top of the list while nothing is typed.
+  Widget _anyRow(BuildContext context) => _row(
+        context,
+        (name: PlaceFilter.anyPlace, count: widget.anyCount),
+        label: AppLocalizations.of(context)!.placeFilterAny,
+      );
 
   /// About 6 rows, the next one fading in to show there's more.
   Widget _list(BuildContext context, List<PlaceCount> shown) {
@@ -210,8 +237,13 @@ class _PlacePickerState extends State<_PlacePicker> {
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: Text(l10n.noResults),
               )
-            else
+            else ...[
+              if (_query.trim().isEmpty) ...[
+                _anyRow(context),
+                Divider(height: 9, color: theme.colorScheme.outlineVariant),
+              ],
               _list(context, shown),
+            ],
           ],
         ),
       ),
