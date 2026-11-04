@@ -20,7 +20,10 @@ import 'package:material_ui/material_ui.dart';
 class EntryLocations {
   static const String separator = ' · ';
 
-  static final RegExp _linked = RegExp(r'^\[([^\[\]\n]+)\]\(([^()\s]+)\)$');
+  /// `[name](address)`, or `[name](address "description")` (3.7.0.43). A
+  /// link title is plain Markdown, so the official app still reads it.
+  static final RegExp _linked =
+      RegExp(r'^\[([^\[\]\n]+)\]\(([^()\s"]+)(?: "([^"\n]*)")?\)$');
 
   /// Whether the location buttons show in the entry view and Timeline.
   static bool get showButtons =>
@@ -71,9 +74,21 @@ class EntryLocations {
 
   static String _item(Place place) {
     final name = _clean(place.name);
-    final address = place.address.trim().replaceAll(RegExp(r'[()\s]'), '');
-    return address.isEmpty ? name : '[$name]($address)';
+    final description = _cleanDescription(place.description);
+    var address = place.address.trim().replaceAll(RegExp(r'[()\s"]'), '');
+    // A description needs a link to sit on: a name-only place gets the
+    // same name search it opens anyway.
+    if (address.isEmpty && description.isNotEmpty) {
+      address = Places.typedPlace(name).address;
+    }
+    if (address.isEmpty) return name;
+    return description.isEmpty
+        ? '[$name]($address)'
+        : '[$name]($address "$description")';
   }
+
+  static String _cleanDescription(String description) => Place.clipDescription(
+      description.replaceAll('"', "'").replaceAll(separator.trim(), ' '));
 
   static String _clean(String name) {
     var clean = name.trim();
@@ -99,7 +114,8 @@ class EntryLocations {
       if (item.isEmpty) return null;
       final match = _linked.firstMatch(item);
       if (match != null) {
-        places.add(Place(match.group(1)!.trim(), match.group(2)!));
+        places.add(Place(match.group(1)!.trim(), match.group(2)!,
+            Place.clipDescription(match.group(3) ?? '')));
       } else if (RegExp(r'[\[\]()]').hasMatch(item)) {
         // Brackets that aren't a link: ordinary writing, not places.
         return null;
@@ -266,7 +282,7 @@ class LocationRows extends StatelessWidget {
   final List<Place> places;
   final void Function(int index) onRemove;
 
-  /// Tapping a row renames it.
+  /// Tapping a row opens its Name · Map link · Description dialog.
   final void Function(int index) onRename;
 
   @override
@@ -293,10 +309,27 @@ class LocationRows extends StatelessWidget {
                           size: 20, color: colorScheme.primary),
                       const SizedBox(width: 10),
                       Expanded(
-                        child: Text(
-                          places[i].name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              places[i].name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (places[i].description.isNotEmpty)
+                              Text(
+                                places[i].description,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                        color: colorScheme.onSurfaceVariant),
+                              ),
+                          ],
                         ),
                       ),
                       IconButton(
@@ -310,67 +343,6 @@ class LocationRows extends StatelessWidget {
               ),
             ),
           ),
-      ],
-    );
-  }
-}
-
-/// Asks for a place's name. Null when cancelled or left empty.
-Future<String?> askPlaceName(BuildContext context, String current) async {
-  final name = await showDialog<String>(
-    context: context,
-    builder: (context) =>
-        _PlaceNameDialog(initial: current == Places.unnamed ? '' : current),
-  );
-  final trimmed = name?.trim() ?? '';
-  return trimmed.isEmpty ? null : trimmed;
-}
-
-class _PlaceNameDialog extends StatefulWidget {
-  const _PlaceNameDialog({required this.initial});
-
-  final String initial;
-
-  @override
-  State<_PlaceNameDialog> createState() => _PlaceNameDialogState();
-}
-
-class _PlaceNameDialogState extends State<_PlaceNameDialog> {
-  late final TextEditingController _controller =
-      TextEditingController(text: widget.initial);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return AlertDialog(
-      title: Text(l10n.locationNameTitle),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        textCapitalization: TextCapitalization.words,
-        textInputAction: TextInputAction.done,
-        onSubmitted: (value) => Navigator.pop(context, value),
-        decoration: InputDecoration(
-          labelText: l10n.placeName,
-          hintText: l10n.locationNameHint,
-          border: const OutlineInputBorder(),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, _controller.text),
-          child: Text(MaterialLocalizations.of(context).saveButtonLabel),
-        ),
       ],
     );
   }

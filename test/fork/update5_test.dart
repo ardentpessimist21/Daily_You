@@ -305,20 +305,42 @@ void main() {
       Places.addToEditor!(
           const Place(Places.unnamed, 'https://maps.app.goo.gl/q'));
       await tester.pumpAndSettle();
-      expect(find.text('Name this place'), findsOneWidget);
-      await tester.enterText(find.byType(TextField).last, 'Night market');
+      expect(find.text('Place in this entry'), findsOneWidget);
+      await tester.enterText(
+          find
+              .descendant(
+                  of: find.byType(AlertDialog),
+                  matching: find.byType(TextField))
+              .first,
+          'Night market');
+      await tester.pump();
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
       expect(find.text('Night market'), findsOneWidget);
       expect(find.text(Places.unnamed), findsNothing);
 
-      // Tapping a row renames it.
+      // Tapping a row opens Name · Map link · Description (3.7.0.43).
       await tester.tap(find.text('Uni'));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField).last, 'University');
+      await tester.enterText(
+          find
+              .descendant(
+                  of: find.byType(AlertDialog),
+                  matching: find.byType(TextField))
+              .first,
+          'University');
+      await tester.enterText(
+          find
+              .descendant(
+                  of: find.byType(AlertDialog),
+                  matching: find.byType(TextField))
+              .last,
+          'Lecture hall');
+      await tester.pump();
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
       expect(find.text('University'), findsOneWidget);
+      expect(find.text('Lecture hall'), findsOneWidget);
       expect(field.controller!.text, 'Lunch break');
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(seconds: 6));

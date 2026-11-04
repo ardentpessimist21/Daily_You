@@ -44,7 +44,6 @@ import 'package:daily_you/widgets/editor_action_bar/toolbar_menu_action.dart';
 import 'package:daily_you/widgets/entry_attachment_editable_list.dart';
 import 'package:daily_you/widgets/icons/svg_icon.dart';
 import 'package:easy_debounce/easy_debounce.dart';
-import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
@@ -710,7 +709,7 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
       _savedSplit = EntryLocations.split(_entry.text);
     }
     final (savedBody, savedPlaces) = _savedSplit;
-    text = body == savedBody && listEquals(_places, savedPlaces)
+    text = body == savedBody && _samePlaces(_places, savedPlaces)
         ? _entry.text
         : EntryLocations.join(body, _places);
     _syncedBody = body;
@@ -736,16 +735,40 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
     }
   }
 
+  /// Tapping a place in the editor (3.7.0.43): Name, Map link and
+  /// Description for this entry only. Saved places aren't touched.
   Future<void> _renamePlace(int index) async {
     if (!mounted || index < 0 || index >= _places.length) return;
     final place = _places[index];
-    final name = await askPlaceName(context, place.name);
-    if (name == null || !mounted || index >= _places.length) return;
-    if (_places[index] != place) return;
-    setState(
-        () => _places = [..._places]..[index] = Place(name, place.address));
+    final l10n = AppLocalizations.of(context)!;
+    final result = await showPlaceDialog(
+      context,
+      title: l10n.placeInEntry,
+      initial: place,
+      footnote: l10n.placeInEntryHint,
+      removeLabel: l10n.placeRemove,
+    );
+    if (result == null || !mounted || index >= _places.length) return;
+    if (!identical(_places[index], place)) return;
+    if (result.removed) {
+      _removePlace(index);
+      return;
+    }
+    final edited = result.place!;
+    if (edited.sameAs(place)) return;
+    setState(() => _places = [..._places]..[index] = edited);
     _syncText();
     _scheduleSave();
+  }
+
+  /// Places compared with their descriptions, so a description-only edit
+  /// still saves.
+  static bool _samePlaces(List<Place> a, List<Place> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!a[i].sameAs(b[i])) return false;
+    }
+    return true;
   }
 
   void _removePlace(int index) {

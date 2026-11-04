@@ -82,12 +82,12 @@ void main() {
       expect(const Place('Home').toJson().containsKey('description'), isFalse);
     });
 
-    test('is one line of at most 20 characters', () {
+    test('is one line of at most 40 characters', () {
       expect(Place.clipDescription('  Night\nshift  '), 'Night shift');
-      final long = Place.clipDescription('A very long description indeed');
+      final long = Place.clipDescription('A very long description indeed, far past the limit');
       expect(long.length, lessThanOrEqualTo(Place.descriptionMaxLength));
       expect(
-          Place.fromJson({'name': 'X', 'description': 'x' * 40})!
+          Place.fromJson({'name': 'X', 'description': 'x' * 60})!
               .description
               .length,
           Place.descriptionMaxLength);

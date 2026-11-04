@@ -1586,6 +1586,92 @@ class AppLocalizationsDe extends AppLocalizations {
       'In the entry view and the Timeline. Tap one to open it in Maps.';
 
   @override
+  String get placeSearchHint => 'Search places';
+
+  @override
+  String placeAddTyped(String name) {
+    return 'Add \"$name\"';
+  }
+
+  @override
+  String get placeAddTypedHint => 'New place, name only';
+
+  @override
+  String placeSearchInMaps(String name) {
+    return 'Search \"$name\" in Google Maps';
+  }
+
+  @override
+  String get placeSearchInMapsHint => 'Then tap Share › Daily You';
+
+  @override
+  String get placeMatches => 'Matches';
+
+  @override
+  String get placeMatchSaved => 'Saved';
+
+  @override
+  String placeMatchRecent(String date) {
+    return 'Recent · Used $date';
+  }
+
+  @override
+  String get placeNoMatches => 'No matches';
+
+  @override
+  String get placeRecent => 'Recent places';
+
+  @override
+  String get placeRecentPinHint => 'Pin to save';
+
+  @override
+  String placeRecentUsed(String date, int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count entries',
+      one: '1 entry',
+    );
+    return 'Used $date · $_temp0';
+  }
+
+  @override
+  String get placePinToSaved => 'Add to saved places';
+
+  @override
+  String placePinned(String name) {
+    return '$name added to saved places';
+  }
+
+  @override
+  String get placeAddDescription => 'Tap to add a description';
+
+  @override
+  String get placeEdit => 'Edit place';
+
+  @override
+  String get placeDelete => 'Delete';
+
+  @override
+  String placeDeleteTitle(String name) {
+    return 'Delete \"$name\"?';
+  }
+
+  @override
+  String placeDeleteBody(String name) {
+    return 'It\'s removed from Saved places. Entries that already use $name keep it.';
+  }
+
+  @override
+  String get placeInEntry => 'Place in this entry';
+
+  @override
+  String get placeInEntryHint => 'Changes stay in this entry.';
+
+  @override
+  String get placeRemove => 'Remove';
+
+  @override
   String get locationRemove => 'Remove location';
 
   @override

@@ -2826,6 +2826,138 @@ abstract class AppLocalizations {
   /// **'In the entry view and the Timeline. Tap one to open it in Maps.'**
   String get settingsShowLocationButtonsHint;
 
+  /// No description provided for @placeSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search places'**
+  String get placeSearchHint;
+
+  /// No description provided for @placeAddTyped.
+  ///
+  /// In en, this message translates to:
+  /// **'Add \"{name}\"'**
+  String placeAddTyped(String name);
+
+  /// No description provided for @placeAddTypedHint.
+  ///
+  /// In en, this message translates to:
+  /// **'New place, name only'**
+  String get placeAddTypedHint;
+
+  /// No description provided for @placeSearchInMaps.
+  ///
+  /// In en, this message translates to:
+  /// **'Search \"{name}\" in Google Maps'**
+  String placeSearchInMaps(String name);
+
+  /// No description provided for @placeSearchInMapsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Then tap Share › Daily You'**
+  String get placeSearchInMapsHint;
+
+  /// No description provided for @placeMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'Matches'**
+  String get placeMatches;
+
+  /// No description provided for @placeMatchSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Saved'**
+  String get placeMatchSaved;
+
+  /// No description provided for @placeMatchRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent · Used {date}'**
+  String placeMatchRecent(String date);
+
+  /// No description provided for @placeNoMatches.
+  ///
+  /// In en, this message translates to:
+  /// **'No matches'**
+  String get placeNoMatches;
+
+  /// No description provided for @placeRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent places'**
+  String get placeRecent;
+
+  /// No description provided for @placeRecentPinHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin to save'**
+  String get placeRecentPinHint;
+
+  /// No description provided for @placeRecentUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Used {date} · {count, plural, =1{1 entry} other{{count} entries}}'**
+  String placeRecentUsed(String date, int count);
+
+  /// No description provided for @placePinToSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to saved places'**
+  String get placePinToSaved;
+
+  /// No description provided for @placePinned.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} added to saved places'**
+  String placePinned(String name);
+
+  /// No description provided for @placeAddDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to add a description'**
+  String get placeAddDescription;
+
+  /// No description provided for @placeEdit.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit place'**
+  String get placeEdit;
+
+  /// No description provided for @placeDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get placeDelete;
+
+  /// No description provided for @placeDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete \"{name}\"?'**
+  String placeDeleteTitle(String name);
+
+  /// No description provided for @placeDeleteBody.
+  ///
+  /// In en, this message translates to:
+  /// **'It\'s removed from Saved places. Entries that already use {name} keep it.'**
+  String placeDeleteBody(String name);
+
+  /// No description provided for @placeInEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Place in this entry'**
+  String get placeInEntry;
+
+  /// No description provided for @placeInEntryHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Changes stay in this entry.'**
+  String get placeInEntryHint;
+
+  /// No description provided for @placeRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get placeRemove;
+
   /// No description provided for @locationRemove.
   ///
   /// In en, this message translates to:
