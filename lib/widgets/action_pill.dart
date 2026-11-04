@@ -51,3 +51,71 @@ class ActionPill extends StatelessWidget {
     );
   }
 }
+
+/// Holds an [ActionPill] as a Scaffold's floating action button and slides
+/// it up from below the screen when [visible] turns on, and back down when
+/// it turns off (3.7.0.41), instead of the Scaffold's zoom. Once it's gone
+/// it takes no room, so snack bars sit at the bottom as usual.
+class ActionPillSlot extends StatefulWidget {
+  const ActionPillSlot({super.key, required this.visible, required this.pill});
+
+  final bool visible;
+
+  /// Built only while shown or sliding.
+  final WidgetBuilder pill;
+
+  @override
+  State<ActionPillSlot> createState() => _ActionPillSlotState();
+}
+
+class _ActionPillSlotState extends State<ActionPillSlot>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 260),
+    reverseDuration: const Duration(milliseconds: 200),
+    value: widget.visible ? 1 : 0,
+  );
+  late final Animation<Offset> _slide = Tween(
+    begin: const Offset(0, 1.6),
+    end: Offset.zero,
+  ).animate(CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOutCubic,
+    reverseCurve: Curves.easeInCubic,
+  ));
+
+  @override
+  void didUpdateWidget(ActionPillSlot oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.visible != oldWidget.visible) {
+      widget.visible ? _controller.forward() : _controller.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        if (_controller.isDismissed) return const SizedBox.shrink();
+        return IgnorePointer(
+          ignoring: !widget.visible,
+          child: SlideTransition(
+            position: _slide,
+            child: FadeTransition(
+              opacity: _controller,
+              child: widget.pill(context),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}

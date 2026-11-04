@@ -1076,8 +1076,11 @@ class _TagsSettingsState extends State<TagsSettings> {
           // Select mode's actions, centred at the bottom above gesture
           // navigation (3.7.0.40)
           floatingActionButtonLocation: ActionPill.location,
-          floatingActionButton:
-              _selectMode ? _buildSelectionPill(context, provider) : null,
+          // Slides up from the bottom (3.7.0.41)
+          floatingActionButton: ActionPillSlot(
+            visible: _selectMode,
+            pill: (context) => _buildSelectionPill(context, provider),
+          ),
           // The search bar stays on top while the list scrolls (3.7.0.40)
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,

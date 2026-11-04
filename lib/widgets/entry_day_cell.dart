@@ -8,6 +8,7 @@ import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/models/attachment.dart';
 import 'package:daily_you/models/tag.dart';
+import 'package:daily_you/fork/share_return.dart';
 import 'package:daily_you/pages/edit_entry_page.dart';
 import 'package:daily_you/pages/entry_timeline_page.dart';
 import 'package:daily_you/providers/entries_provider.dart';
@@ -237,14 +238,24 @@ class EntryDayCell extends StatelessWidget {
         ),
       ));
     } else if (result == 'new_entry') {
-      await Navigator.of(context).push(MaterialPageRoute(
-        allowSnapshotting: false,
-        builder: (context) => AddEditEntryPage(
-          overrideCreateDate: TimeManager.currentTimeOnDifferentDate(date)
-              .copyWith(isUtc: false),
-        ),
-      ));
+      await _newEntry(context);
     }
+  }
+
+  /// A new entry on this day. Leaving it goes to its entry view, then the
+  /// day's Timeline if it has others, then the calendar on its month
+  /// (3.7.0.41).
+  Future<void> _newEntry(BuildContext context) async {
+    final navigator = Navigator.of(context);
+    await navigator.push(MaterialPageRoute(
+      allowSnapshotting: false,
+      builder: (context) => AddEditEntryPage(
+        overrideCreateDate:
+            TimeManager.currentTimeOnDifferentDate(date).copyWith(isUtc: false),
+        onLeave: (kept, removedId) => ShareReturn.show(navigator,
+            kept: kept, day: date, removedId: removedId),
+      ),
+    ));
   }
 
   @override
@@ -379,17 +390,7 @@ class EntryDayCell extends StatelessWidget {
       return MergeSemantics(
           child: GestureDetector(
               behavior: HitTestBehavior.translucent,
-              onTap: selectDay ??
-                  () async {
-                    await Navigator.of(context).push(MaterialPageRoute(
-                      allowSnapshotting: false,
-                      builder: (context) => AddEditEntryPage(
-                        overrideCreateDate:
-                            TimeManager.currentTimeOnDifferentDate(date)
-                                .copyWith(isUtc: false),
-                      ),
-                    ));
-                  },
+              onTap: selectDay ?? () => _newEntry(context),
               onLongPress:
                   selectDay ?? () => _showPopupMenu(context, entriesProvider),
               child: SizedBox(

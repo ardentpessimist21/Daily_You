@@ -535,8 +535,10 @@ class _MobileScaffoldState extends State<MobileScaffold> {
 
   DateTime? _lastBackOnHome;
 
-  /// Back on Gallery or Statistics goes to Home. On Home, the first back
-  /// only shows "Swipe again to exit", so the app never closes by accident.
+  /// Back on Gallery or Statistics goes to Home. On Home, Back first
+  /// scrolls the calendar back to the present month if it's away; then the
+  /// first back only shows "Swipe again to exit", so the app never closes
+  /// by accident.
   void _onBack(AppLocalizations l10n) {
     if (currentIndex != 0) {
       EasyDebounce.cancel("page-change");
@@ -545,6 +547,12 @@ class _MobileScaffoldState extends State<MobileScaffold> {
         _pageController.animateToPage(0,
             duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
       }
+      return;
+    }
+    // Scrolled away from the present month: Back goes there first
+    // (3.7.0.41), then the usual swipe-again-to-exit
+    if (VerticalCalendar.homeBackToNow()) {
+      _lastBackOnHome = null;
       return;
     }
     final now = DateTime.now();

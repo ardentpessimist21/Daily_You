@@ -58,6 +58,20 @@ class VerticalCalendar extends StatefulWidget {
   /// Bumped when the Home tab is tapped again while on Home.
   static final ValueNotifier<int> homeTabRetapped = ValueNotifier(0);
 
+  /// Home's calendar centres this month and flashes it (3.7.0.41), e.g.
+  /// when leaving an entry from May 2021 brings you back to May 2021.
+  static final ValueNotifier<(DateTime, int)?> _homeLand = ValueNotifier(null);
+  static int _landCount = 0;
+  static void landHomeOn(DateTime date) =>
+      _homeLand.value = (date, ++_landCount);
+
+  static _VerticalCalendarState? _home;
+
+  /// Back on Home (3.7.0.41): when the calendar is scrolled away from the
+  /// present month, scrolls back to it and returns true (the back is used
+  /// up). False when it's already there.
+  static bool homeBackToNow() => _home?._backToNow() ?? false;
+
   @override
   State<VerticalCalendar> createState() => _VerticalCalendarState();
 }
@@ -121,6 +135,8 @@ class _VerticalCalendarState extends State<VerticalCalendar>
     widget.scrollController.addListener(_onScroll);
     if (widget.followsHomeTab) {
       VerticalCalendar.homeTabRetapped.addListener(_onHomeTabRetapped);
+      VerticalCalendar._homeLand.addListener(_onHomeLand);
+      VerticalCalendar._home = this;
     }
     WidgetsBinding.instance.addObserver(this);
     _scheduleMidnightCheck();
@@ -199,6 +215,9 @@ class _VerticalCalendarState extends State<VerticalCalendar>
   @override
   void dispose() {
     VerticalCalendar.homeTabRetapped.removeListener(_onHomeTabRetapped);
+    VerticalCalendar._homeLand.removeListener(_onHomeLand);
+    if (VerticalCalendar._home == this) VerticalCalendar._home = null;
+    _flashTimer?.cancel();
     _midnightTimer?.cancel();
     _sticky.dispose();
     WidgetsBinding.instance.removeObserver(this);
@@ -429,6 +448,68 @@ class _VerticalCalendarState extends State<VerticalCalendar>
     if (mounted) _scrollToToday();
   }
 
+  void _onHomeLand() {
+    final land = VerticalCalendar._homeLand.value;
+    if (land == null || !mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _jumpToMonth(land.$1);
+    });
+  }
+
+  bool _backToNow() {
+    final controller = widget.scrollController;
+    if (!mounted || !controller.hasClients) return false;
+    if ((controller.offset - _homeOffset).abs() <= _weekRowHeight * 2) {
+      return false;
+    }
+    _scrollToToday();
+    return true;
+  }
+
+  // The month just landed on, lit in the accent colour then fading back
+  DateTime? _flashMonth;
+  bool _flashLit = false;
+  Timer? _flashTimer;
+
+  void _flash(DateTime monthStart) {
+    _flashTimer?.cancel();
+    setState(() {
+      _flashMonth = monthStart;
+      _flashLit = true;
+    });
+    _flashTimer = Timer(const Duration(milliseconds: 450), () {
+      if (!mounted) return;
+      setState(() => _flashLit = false);
+      _flashTimer = Timer(const Duration(milliseconds: 1200), () {
+        if (mounted) setState(() => _flashMonth = null);
+      });
+    });
+  }
+
+  /// The month that holds [date]: its start in [_monthOffsets] (newest
+  /// first), so it works for Jalali months too.
+  (double, DateTime)? _monthHolding(DateTime date) {
+    final day = DateUtils.dateOnly(date);
+    for (final entry in _monthOffsets) {
+      if (!entry.$2.isAfter(day)) return entry;
+    }
+    return null;
+  }
+
+  /// Where to scroll so the month starting at [start] sits in the middle.
+  double _centreOffsetFor(DateTime start, double startOffset) {
+    final header = _headerOffsets.where((h) => h.$2 == start).firstOrNull;
+    final end = (header?.$1 ?? startOffset) + _weekRowHeight;
+    final controller = widget.scrollController;
+    if (!controller.hasClients || !controller.position.hasViewportDimension) {
+      return startOffset;
+    }
+    final visible = controller.position.viewportDimension -
+        _listBottomPadding -
+        _headerBoxHeight;
+    return ((startOffset + end) / 2 - visible / 2).clamp(0.0, double.infinity);
+  }
+
   void _scrollToToday({bool animate = true}) {
     if (!widget.scrollController.hasClients) return;
     final target = _homeOffset;
@@ -444,14 +525,18 @@ class _VerticalCalendarState extends State<VerticalCalendar>
     _updateVisibleMonthFromOffset(target);
   }
 
+  /// Centres the month holding [month] and flashes it (3.7.0.41).
   void _jumpToMonth(DateTime month) {
     if (!widget.scrollController.hasClients) return;
-    final monthOffset = _monthOffsets
+    final exact = _monthOffsets
         .where((offset) =>
             offset.$2.year == month.year && offset.$2.month == month.month)
         .firstOrNull;
+    final monthOffset = exact ?? _monthHolding(month);
     if (monthOffset == null) return;
-    _jumpToOffsetIteratively(monthOffset.$1);
+    _jumpToOffsetIteratively(_centreOffsetFor(monthOffset.$2, monthOffset.$1));
+    _updateVisibleMonthFromOffset(monthOffset.$1);
+    _flash(monthOffset.$2);
   }
 
   void _jumpToOffsetIteratively(double target, [double? previousMaxExtent]) {
@@ -633,7 +718,8 @@ class _VerticalCalendarState extends State<VerticalCalendar>
               ),
               // Shown on the share screen too, with Jump to month only
               _buildCalendarControls(context),
-              _buildJumpToTodayButton(context),
+              // Home uses re-tapping Home and Back instead (3.7.0.41)
+              if (!widget.followsHomeTab) _buildJumpToTodayButton(context),
             ]);
       },
     );
@@ -930,11 +1016,16 @@ class _VerticalCalendarState extends State<VerticalCalendar>
   }
 
   Widget _monthHeaderBox(BuildContext context, DateTime month) {
-    return Container(
+    final scheme = Theme.of(context).colorScheme;
+    final lit = _flashLit && _flashMonth == month;
+    return AnimatedContainer(
+      // Lights up fast, fades back slowly
+      duration: Duration(milliseconds: lit ? 150 : 1100),
+      curve: Curves.easeOut,
       height: _daysOfWeekRowHeight,
       margin: const EdgeInsets.only(bottom: 2.0),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerLow,
+        color: lit ? scheme.primary : scheme.surfaceContainerLow,
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(14),
           topRight: Radius.circular(14),
@@ -943,16 +1034,20 @@ class _VerticalCalendarState extends State<VerticalCalendar>
         ),
       ),
       child: Center(
-        child: Text(
-          TimeManager.formatMonthYear(month, context),
-          style: TextStyle(
+        child: AnimatedDefaultTextStyle(
+          duration: Duration(milliseconds: lit ? 150 : 1100),
+          style: DefaultTextStyle.of(context).style.copyWith(
               fontSize: 16,
               // The current month stands out in bold (3.7.0.40)
               fontWeight:
                   _isCurrentMonth(month) ? FontWeight.w800 : FontWeight.w500,
               // Upcoming months shown only for spacing are greyed out
-              color:
-                  _isGreyMonth(month) ? Theme.of(context).disabledColor : null),
+              color: lit
+                  ? scheme.onPrimary
+                  : _isGreyMonth(month)
+                      ? Theme.of(context).disabledColor
+                      : scheme.onSurface),
+          child: Text(TimeManager.formatMonthYear(month, context)),
         ),
       ),
     );

@@ -978,6 +978,8 @@
   "@placeFilterSearchHint": {},
   "placeFilterEmpty": "No entries have a place yet.",
   "@placeFilterEmpty": {},
+  "placeFilterClear": "Clear place",
+  "@placeFilterClear": {},
   "quickFilterPin": "Pin to Quick filters",
   "@quickFilterPin": {},
   "quickFilterUnpin": "Unpin from Quick filters",

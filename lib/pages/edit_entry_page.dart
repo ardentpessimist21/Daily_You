@@ -60,10 +60,11 @@ class AddEditEntryPage extends StatefulWidget {
   final List<EntryAttachment> attachments;
   final String? sharedText;
 
-  /// Opened from a share (3.7.0.39): called once the editor has closed and
-  /// saved, with the entry that's left (null if discarded or deleted) and the
-  /// id of an entry being deleted. Back then leaves only the editor.
-  final void Function(Entry? kept, int? removedId)? onShareExit;
+  /// Opened from a share (3.7.0.39) or as a new entry from the calendar or
+  /// a Timeline (3.7.0.41): called once the editor has closed and saved,
+  /// with the entry that's left (null if discarded or deleted) and the id
+  /// of an entry being deleted. Back then leaves only the editor.
+  final void Function(Entry? kept, int? removedId)? onLeave;
 
   const AddEditEntryPage({
     super.key,
@@ -72,7 +73,7 @@ class AddEditEntryPage extends StatefulWidget {
     this.openCamera = false,
     this.attachments = const <EntryAttachment>[],
     this.sharedText,
-    this.onShareExit,
+    this.onLeave,
   });
 
   static String mergeSharedText(String baseText, String? sharedText,
@@ -301,7 +302,7 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
                 // Pop edit page
                 navigator.pop();
                 if (!_creatingNewEntry &&
-                    widget.onShareExit == null &&
+                    widget.onLeave == null &&
                     navigator.canPop()) {
                   // Pop view page
                   navigator.pop();
@@ -335,10 +336,10 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
               if (!_deletingEntry) {
                 await _saveEntry();
               }
-              final onShareExit = widget.onShareExit;
-              if (onShareExit != null) {
+              final onLeave = widget.onLeave;
+              if (onLeave != null) {
                 final kept = _deletingEntry || _newEntry ? null : _entry;
-                onShareExit(kept, _deletingEntry ? _entry.id : null);
+                onLeave(kept, _deletingEntry ? _entry.id : null);
               }
             },
             child: Scaffold(
@@ -350,7 +351,7 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
                       // Pop edit page
                       Navigator.of(context).pop();
                       if (!_creatingNewEntry &&
-                          widget.onShareExit == null &&
+                          widget.onLeave == null &&
                           Navigator.of(context).canPop()) {
                         // Pop view page
                         Navigator.of(context).pop();

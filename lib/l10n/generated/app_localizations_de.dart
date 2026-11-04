@@ -1699,6 +1699,9 @@ class AppLocalizationsDe extends AppLocalizations {
   String get placeFilterEmpty => 'No entries have a place yet.';
 
   @override
+  String get placeFilterClear => 'Clear place';
+
+  @override
   String get quickFilterPin => 'Pin to Quick filters';
 
   @override

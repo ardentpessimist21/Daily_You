@@ -68,20 +68,30 @@ class PlaceFilter {
         .every((entryTag) => entryTag.tagId == favouriteId);
   }
 
-  /// The place list with a search box at the top. Returns the picked name.
-  static Future<String?> pick(BuildContext context, List<Entry> entries) {
+  /// What [pick] returns for Clear place.
+  static const String cleared = '';
+
+  /// The place list with a search box at the top. Returns the picked name,
+  /// [cleared] for Clear place (shown when [current] is set), or null.
+  static Future<String?> pick(BuildContext context, List<Entry> entries,
+      {String? current}) {
     final places = placesIn(entries);
     return showAppDialog<String>(
       context: context,
-      builder: (_) => _PlacePicker(places: places),
+      builder: (_) => _PlacePicker(places: places, current: current),
     );
   }
 }
 
 class _PlacePicker extends StatefulWidget {
-  const _PlacePicker({required this.places});
+  const _PlacePicker({required this.places, this.current});
 
   final List<PlaceCount> places;
+  final String? current;
+
+  /// Tighter rows, and about 6 show before the list scrolls (3.7.0.41).
+  static const double rowHeight = 40;
+  static const double visibleRows = 6.5;
 
   @override
   State<_PlacePicker> createState() => _PlacePickerState();
@@ -89,6 +99,77 @@ class _PlacePicker extends StatefulWidget {
 
 class _PlacePickerState extends State<_PlacePicker> {
   String _query = '';
+
+  bool _isCurrent(String name) =>
+      widget.current != null &&
+      widget.current!.trim().toLowerCase() == name.trim().toLowerCase();
+
+  Widget _row(BuildContext context, PlaceCount place) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    final picked = _isCurrent(place.name);
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => Navigator.pop(context, place.name),
+      child: Container(
+        height: _PlacePicker.rowHeight,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        decoration: picked
+            ? BoxDecoration(
+                color: PlaceFilter.color.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(12),
+              )
+            : null,
+        child: Row(
+          children: [
+            const Icon(Icons.place_rounded, size: 18, color: PlaceFilter.color),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(place.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(fontWeight: picked ? FontWeight.w600 : null)),
+            ),
+            if (picked) ...[
+              const Icon(Icons.check_rounded,
+                  size: 18, color: PlaceFilter.color),
+              const SizedBox(width: 6),
+            ],
+            Text(l10n.logCount(place.count),
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// About 6 rows, the next one fading in to show there's more.
+  Widget _list(BuildContext context, List<PlaceCount> shown) {
+    final scrolls = shown.length > _PlacePicker.visibleRows;
+    final list = SizedBox(
+      height: _PlacePicker.rowHeight *
+          (scrolls ? _PlacePicker.visibleRows : shown.length.toDouble()),
+      child: ListView.builder(
+        padding: EdgeInsets.zero,
+        itemExtent: _PlacePicker.rowHeight,
+        itemCount: shown.length,
+        itemBuilder: (context, index) => _row(context, shown[index]),
+      ),
+    );
+    if (!scrolls) return list;
+    return ShaderMask(
+      shaderCallback: (rect) => const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Colors.white, Colors.white, Colors.transparent],
+        stops: [0, 0.86, 1],
+      ).createShader(rect),
+      blendMode: BlendMode.dstIn,
+      child: list,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -130,29 +211,17 @@ class _PlacePickerState extends State<_PlacePicker> {
                 child: Text(l10n.noResults),
               )
             else
-              Flexible(
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: shown.length,
-                  itemBuilder: (context, index) {
-                    final place = shown[index];
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                      leading: const Icon(Icons.place_rounded,
-                          color: PlaceFilter.color),
-                      title: Text(place.name,
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
-                      trailing: Text(l10n.logCount(place.count),
-                          style: theme.textTheme.bodySmall),
-                      onTap: () => Navigator.pop(context, place.name),
-                    );
-                  },
-                ),
-              ),
+              _list(context, shown),
           ],
         ),
       ),
       actions: [
+        if (widget.current != null)
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: PlaceFilter.color),
+            onPressed: () => Navigator.pop(context, PlaceFilter.cleared),
+            child: Text(l10n.placeFilterClear),
+          ),
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text(MaterialLocalizations.of(context).cancelButtonLabel),

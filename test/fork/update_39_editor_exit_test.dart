@@ -64,7 +64,7 @@ void main() {
                 onPressed: () => Navigator.of(context).push(MaterialPageRoute(
                     builder: (_) => AddEditEntryPage(
                           entry: entry,
-                          onShareExit: (k, _) {
+                          onLeave: (k, _) {
                             kept = k;
                             calls++;
                           },

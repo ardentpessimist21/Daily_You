@@ -346,7 +346,13 @@ class QuickFiltersSection extends StatelessWidget {
           color: PlaceFilter.color,
           selected: place != null,
           compact: compact,
-          onTap: enabled ? onPickPlace : null,
+          // Collapsed there's no ✕, so tapping a picked place turns it off
+          // (3.7.0.41)
+          onTap: !enabled
+              ? null
+              : place != null && compact
+                  ? onClearPlace
+                  : onPickPlace,
           onClear: place != null && !compact ? onClearPlace : null,
         ),
       for (final tag in pinned)

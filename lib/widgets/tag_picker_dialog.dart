@@ -205,8 +205,13 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
   }
 
   Future<void> _pickPlace() async {
-    final picked = await PlaceFilter.pick(context, widget.placeEntries);
+    final picked =
+        await PlaceFilter.pick(context, widget.placeEntries, current: _place);
     if (picked == null || !mounted) return;
+    if (picked == PlaceFilter.cleared) {
+      _clearPlace();
+      return;
+    }
     setState(() => _place = picked);
     widget.onPlaceChanged?.call(_place);
   }

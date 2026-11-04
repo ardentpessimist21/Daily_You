@@ -564,8 +564,24 @@ class _GalleryPageState extends State<GalleryPage>
                         ),
                         onPressed: () => _showTagFilterDialog(context),
                       ),
+                      // Shows the direction (3.7.0.41): lines long to short
+                      // for newest first; flipped and in the accent colour
+                      // for oldest first
                       IconButton(
-                        icon: const Icon(Icons.sort_rounded),
+                        tooltip:
+                            entriesProvider.sortOrder == SortOrder.ascending
+                                ? AppLocalizations.of(context)!
+                                    .sortOrderAscendingTitle
+                                : AppLocalizations.of(context)!
+                                    .sortOrderDescendingTitle,
+                        icon: entriesProvider.sortOrder == SortOrder.ascending
+                            ? Transform.flip(
+                                flipY: true,
+                                child: Icon(Icons.sort_rounded,
+                                    color:
+                                        Theme.of(context).colorScheme.primary),
+                              )
+                            : const Icon(Icons.sort_rounded),
                         onPressed: () => _showSortSelectionPopup(context),
                       ),
                     ],

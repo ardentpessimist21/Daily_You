@@ -15,6 +15,7 @@ import 'package:daily_you/fork/search_highlight.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/models/attachment.dart';
+import 'package:daily_you/fork/share_return.dart';
 import 'package:daily_you/pages/edit_entry_page.dart';
 import 'package:daily_you/pages/attachment_view_page.dart';
 import 'package:daily_you/providers/entries_provider.dart';
@@ -291,12 +292,20 @@ class _EntryViewPageState extends State<EntryViewPage> {
       tooltip: AppLocalizations.of(context)!.timelineAddEntry,
       icon: const Icon(Icons.add_rounded),
       onPressed: () async {
-        await Navigator.of(context).push(MaterialPageRoute(
+        // Leaving it goes to the new entry's view, then back here
+        // (3.7.0.41)
+        final navigator = Navigator.of(context);
+        await navigator.push(MaterialPageRoute(
           allowSnapshotting: false,
           builder: (context) => AddEditEntryPage(
             overrideCreateDate:
                 TimeManager.currentTimeOnDifferentDate(entry.timeCreate)
                     .copyWith(isUtc: false),
+            onLeave: (kept, removedId) => ShareReturn.show(navigator,
+                kept: kept,
+                day: entry.timeCreate,
+                removedId: removedId,
+                timelineBelow: true),
           ),
         ));
       },

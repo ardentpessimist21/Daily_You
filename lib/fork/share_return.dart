@@ -7,14 +7,17 @@ import 'package:daily_you/pages/entries_list_page.dart';
 import 'package:daily_you/pages/entry_timeline_page.dart';
 import 'package:daily_you/providers/entries_provider.dart';
 import 'package:daily_you/time_manager.dart';
+import 'package:daily_you/widgets/vertical_calendar.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// Where leaving the editor goes after sharing into Daily You (3.7.0.39).
 enum ShareReturnStop { timeline, entryView }
 
-/// After sharing media or a link into an entry, leaving the editor goes back
-/// the way a calendar tap would have come in: that entry's view, then the
-/// day's Timeline when the day has other entries, then the calendar.
+/// After sharing media or a link into an entry (3.7.0.39), or making a new
+/// entry from the calendar or a Timeline (3.7.0.41), leaving the editor
+/// goes back the way a calendar tap would have come in: that entry's view,
+/// then the day's Timeline when the day has other entries, then the
+/// calendar, centred on the entry's month.
 class ShareReturn {
   ShareReturn._();
 
@@ -59,27 +62,47 @@ class ShareReturn {
     required DateTime day,
     int? removedId,
     int? share,
+    bool timelineBelow = false,
   }) {
     if (!navigator.mounted) return;
     if (share != null && share != _share) return;
     final entries = EntriesProvider.instance.entries;
     final shownDay = DateUtils.dateOnly(kept?.timeCreate ?? day);
-    for (final stop in stops(
-        kept: kept, day: day, entries: entries, removedId: removedId)) {
+    // Opened from a Timeline or entry view, that page is still underneath:
+    // no second Timeline, and Back ends there rather than on the calendar
+    final pages = stops(
+            kept: kept, day: day, entries: entries, removedId: removedId)
+        .where((stop) => !(timelineBelow && stop == ShareReturnStop.timeline));
+    Future<void>? firstClosed;
+    for (final stop in pages) {
+      final Future<void> closed;
       switch (stop) {
         case ShareReturnStop.timeline:
-          navigator.push(_InstantRoute(
+          closed = navigator.push(_InstantRoute(
             builder: (context) => EntryTimelinePage.forDay(context, shownDay),
           ));
         case ShareReturnStop.entryView:
           final id = kept!.id!;
-          navigator.push(_InstantRoute(
+          closed = navigator.push(_InstantRoute(
             builder: (context) => EntriesListPage(
               index: EntriesProvider.instance.getIndexOfEntry(id),
               getEntries: () => EntriesProvider.instance.entries,
             ),
           ));
       }
+      firstClosed ??= closed;
+    }
+    if (timelineBelow) return;
+    // Back on the calendar: centre the entry's month and flash it
+    void land() {
+      if (share != null && share != _share) return;
+      VerticalCalendar.landHomeOn(shownDay);
+    }
+
+    if (firstClosed == null) {
+      land();
+    } else {
+      firstClosed.then((_) => land());
     }
   }
 }

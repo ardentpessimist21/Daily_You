@@ -164,7 +164,7 @@ class _SharePageState extends State<SharePage> {
             attachments: EntryAttachment.appendRanked(const [], newAttachments,
                 entryId: -1),
             sharedText: widget.payload.text,
-            onShareExit: onShareExit,
+            onLeave: onShareExit,
           )
         : AddEditEntryPage(
             entry: entry,
@@ -173,7 +173,7 @@ class _SharePageState extends State<SharePage> {
                 newAttachments,
                 entryId: entry.id!),
             sharedText: widget.payload.text,
-            onShareExit: onShareExit,
+            onLeave: onShareExit,
           );
     await navigator.pushReplacement(MaterialPageRoute(
       allowSnapshotting: false,

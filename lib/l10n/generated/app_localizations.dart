@@ -3036,6 +3036,12 @@ abstract class AppLocalizations {
   /// **'No entries have a place yet.'**
   String get placeFilterEmpty;
 
+  /// No description provided for @placeFilterClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear place'**
+  String get placeFilterClear;
+
   /// No description provided for @quickFilterPin.
   ///
   /// In en, this message translates to:

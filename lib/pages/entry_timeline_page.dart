@@ -6,6 +6,7 @@ import 'package:daily_you/fork/selection_actions.dart';
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
+import 'package:daily_you/fork/share_return.dart';
 import 'package:daily_you/pages/edit_entry_page.dart';
 import 'package:daily_you/pages/entries_list_page.dart';
 import 'package:daily_you/providers/entries_provider.dart';
@@ -147,12 +148,17 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
       ));
   }
 
+  /// Leaving the new entry goes to its entry view, then back to this
+  /// Timeline (3.7.0.41).
   Future<void> _addEntry(DateTime date) async {
-    await Navigator.of(context).push(MaterialPageRoute(
+    final navigator = Navigator.of(context);
+    await navigator.push(MaterialPageRoute(
       allowSnapshotting: false,
       builder: (context) => AddEditEntryPage(
         overrideCreateDate:
             TimeManager.currentTimeOnDifferentDate(date).copyWith(isUtc: false),
+        onLeave: (kept, removedId) => ShareReturn.show(navigator,
+            kept: kept, day: date, removedId: removedId, timelineBelow: true),
       ),
     ));
   }

@@ -5,6 +5,7 @@
 import 'package:daily_you/fork/checklists.dart';
 import 'package:daily_you/fork/hyphenation.dart';
 import 'package:daily_you/fork/links.dart';
+import 'package:daily_you/fork/markdown_theme.dart';
 import 'package:daily_you/fork/search_highlight.dart';
 import 'package:daily_you/widgets/markdown_highlight_syntax.dart';
 import 'package:material_ui/material_ui.dart';
@@ -86,7 +87,9 @@ class ScaledMarkdown extends StatelessWidget {
         }),
       // `---` as a thin, muted line that follows the theme (3.7.0.40); the
       // default is 2px, and pure white in dark mode
-      HrConfig(height: 1, color: theme.colorScheme.outlineVariant),
+      HrConfig(height: 1, color: MarkdownTheme.rule(theme)),
+      // Inline code and code blocks in theme colours (3.7.0.41)
+      ...MarkdownTheme.configs(theme, baseConfig),
       // Entry links open in the app; websites and places outside it.
       LinkConfig(
         style: TextStyle(
@@ -119,7 +122,11 @@ class ScaledMarkdown extends StatelessWidget {
       config: config,
       generator: MarkdownGenerator(
         inlineSyntaxList: [HighlightSyntax()],
-        generators: [highlightGenerator(Colors.yellow.shade700)],
+        generators: [
+          highlightGenerator(Colors.yellow.shade700),
+          // Headings and quotes in theme colours (3.7.0.41)
+          ...MarkdownTheme.generators(theme),
+        ],
         spanNodeBuilder: justify
             ? (node) {
                 final built = node.build();
