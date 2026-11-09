@@ -22,6 +22,7 @@ import 'package:daily_you/widgets/auto_backup_settings_dialog.dart';
 import 'package:daily_you/widgets/failure_dialog.dart';
 import 'package:daily_you/widgets/settings_icon_action.dart';
 import 'package:daily_you/widgets/settings_toggle.dart';
+import 'package:daily_you/widgets/settings_group.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -257,103 +258,113 @@ class _BackupRestoreSettingsState extends State<BackupRestoreSettings> {
         centerTitle: true,
       ),
       body: ListView(
+        padding: const EdgeInsets.only(top: 8, bottom: 8),
         children: [
-          SettingsIconAction(
-              title: AppLocalizations.of(context)!.settingsRestore,
-              icon: Icon(Icons.restore_rounded),
-              onPressed: () async {
-                await _showRestoreWarning();
-              }),
-          SettingsIconAction(
-              title: AppLocalizations.of(context)!.settingsBackup,
-              hint: _lastBackupText(configProvider.get(Settings.lastBackup)),
-              icon: Icon(Icons.backup_rounded),
-              onPressed: () async {
-                await _backupData(context);
-              }),
-          SettingsIconAction(
-              title: AppLocalizations.of(context)!.settingsBackupFolder,
-              hint: configProvider.get(Settings.backupLocationUri).isEmpty
-                  ? AppLocalizations.of(context)!.settingsBackupFolderUnset
-                  : StoragePicker.displayName(
-                      configProvider.get(Settings.backupLocationUri)),
-              icon: Icon(Icons.folder_rounded),
-              onPressed: () async {
-                await BackupRestoreUtils.pickBackupFolder();
-              }),
-          if (Platform.isAndroid)
-            SettingsToggle(
-              title: AppLocalizations.of(context)!.settingsAutoBackup,
-              hint: configProvider.get(Settings.autoBackupEnabled)
-                  ? _nextAutoBackupText(configProvider)
-                  : null,
-              setting: Settings.autoBackupEnabled,
-              secondaryIcon: configProvider.get(Settings.autoBackupEnabled)
-                  ? Icon(Icons.edit_rounded)
-                  : null,
-              onSecondaryPressed: _showAutoBackupSettings,
-              onChanged: (value) async {
-                if (value) {
-                  if (!await NotificationManager.instance
-                      .hasNotificationPermission()) {
+          SettingsGroup(children: [
+            SettingsIconAction(
+                title: AppLocalizations.of(context)!.settingsRestore,
+                leading: Icons.restore_rounded,
+                icon: Icon(Icons.restore_rounded),
+                onPressed: () async {
+                  await _showRestoreWarning();
+                }),
+            SettingsIconAction(
+                title: AppLocalizations.of(context)!.settingsBackup,
+                leading: Icons.backup_outlined,
+                hint: _lastBackupText(configProvider.get(Settings.lastBackup)),
+                icon: Icon(Icons.backup_rounded),
+                onPressed: () async {
+                  await _backupData(context);
+                }),
+            SettingsIconAction(
+                title: AppLocalizations.of(context)!.settingsBackupFolder,
+                leading: Icons.folder_outlined,
+                hint: configProvider.get(Settings.backupLocationUri).isEmpty
+                    ? AppLocalizations.of(context)!.settingsBackupFolderUnset
+                    : StoragePicker.displayName(
+                        configProvider.get(Settings.backupLocationUri)),
+                icon: Icon(Icons.folder_rounded),
+                onPressed: () async {
+                  await BackupRestoreUtils.pickBackupFolder();
+                }),
+            if (Platform.isAndroid)
+              SettingsToggle(
+                title: AppLocalizations.of(context)!.settingsAutoBackup,
+                leading: Icons.schedule_rounded,
+                hint: configProvider.get(Settings.autoBackupEnabled)
+                    ? _nextAutoBackupText(configProvider)
+                    : null,
+                setting: Settings.autoBackupEnabled,
+                secondaryIcon: configProvider.get(Settings.autoBackupEnabled)
+                    ? Icon(Icons.edit_rounded)
+                    : null,
+                onSecondaryPressed: _showAutoBackupSettings,
+                onChanged: (value) async {
+                  if (value) {
+                    if (!await NotificationManager.instance
+                        .hasNotificationPermission()) {
+                      return;
+                    }
+                    if (configProvider.get(Settings.autoBackupLocationUri) ==
+                        '') {
+                      final directory = await StoragePicker.pickDirectory();
+                      if (directory == null) return;
+                      await configProvider.set(
+                          Settings.autoBackupLocationUri, directory.uri);
+                    }
+                    await configProvider.set(Settings.autoBackupEnabled, true);
+                    await _showAutoBackupSettings();
                     return;
                   }
-                  if (configProvider.get(Settings.autoBackupLocationUri) ==
-                      '') {
-                    final directory = await StoragePicker.pickDirectory();
-                    if (directory == null) return;
-                    await configProvider.set(
-                        Settings.autoBackupLocationUri, directory.uri);
-                  }
-                  await configProvider.set(Settings.autoBackupEnabled, true);
-                  await _showAutoBackupSettings();
-                  return;
-                }
-                await configProvider.set(Settings.autoBackupEnabled, false);
-                await armAutoBackupWork();
-              },
-            ),
-          SettingsToggle(
-            title: AppLocalizations.of(context)!.settingsBackupPasswordProtect,
-            setting: Settings.backupPasswordEnabled,
-            secondaryIcon: configProvider.get(Settings.backupPasswordEnabled)
-                ? Icon(Icons.edit_rounded)
-                : null,
-            onSecondaryPressed: () async => _showBackupPasswordDialog(
-                AppLocalizations.of(context)!.settingsSecurityChangePassword),
-            onChanged: (DeviceInfoService().supportsSecureStorage ?? false)
-                ? (value) async {
-                    if (value) {
-                      await _showBackupPasswordDialog(
-                          AppLocalizations.of(context)!
-                              .settingsSecuritySetPassword);
-                      await configProvider.set(Settings.backupPasswordEnabled,
-                          BackupPasswordStore.password.isNotEmpty);
-                    } else {
-                      await configProvider.set(Settings.backupPassword, "");
-                      await configProvider.set(
-                          Settings.backupPasswordEnabled, false);
-                    }
-                  }
-                : null,
-          ),
-          Padding(
-            padding: const EdgeInsets.only(left: 8.0, right: 8.0),
-            child: Divider(),
-          ),
-          SettingsIconAction(
-              title: AppLocalizations.of(context)!.settingsImportFromAnotherApp,
-              icon: Icon(Icons.download_rounded),
-              onPressed: () async {
-                await _showImportSelectionPopup();
-              }),
-          SettingsIconAction(
+                  await configProvider.set(Settings.autoBackupEnabled, false);
+                  await armAutoBackupWork();
+                },
+              ),
+            SettingsToggle(
               title:
-                  AppLocalizations.of(context)!.settingsExportToAnotherFormat,
-              icon: Icon(Icons.upload_rounded),
-              onPressed: () async {
-                await _showExportSelectionPopup();
-              }),
+                  AppLocalizations.of(context)!.settingsBackupPasswordProtect,
+              leading: Icons.lock_outline_rounded,
+              setting: Settings.backupPasswordEnabled,
+              secondaryIcon: configProvider.get(Settings.backupPasswordEnabled)
+                  ? Icon(Icons.edit_rounded)
+                  : null,
+              onSecondaryPressed: () async => _showBackupPasswordDialog(
+                  AppLocalizations.of(context)!.settingsSecurityChangePassword),
+              onChanged: (DeviceInfoService().supportsSecureStorage ?? false)
+                  ? (value) async {
+                      if (value) {
+                        await _showBackupPasswordDialog(
+                            AppLocalizations.of(context)!
+                                .settingsSecuritySetPassword);
+                        await configProvider.set(Settings.backupPasswordEnabled,
+                            BackupPasswordStore.password.isNotEmpty);
+                      } else {
+                        await configProvider.set(Settings.backupPassword, "");
+                        await configProvider.set(
+                            Settings.backupPasswordEnabled, false);
+                      }
+                    }
+                  : null,
+            ),
+          ]),
+          SettingsGroup(children: [
+            SettingsIconAction(
+                title:
+                    AppLocalizations.of(context)!.settingsImportFromAnotherApp,
+                leading: Icons.download_rounded,
+                icon: Icon(Icons.download_rounded),
+                onPressed: () async {
+                  await _showImportSelectionPopup();
+                }),
+            SettingsIconAction(
+                title:
+                    AppLocalizations.of(context)!.settingsExportToAnotherFormat,
+                leading: Icons.upload_rounded,
+                icon: Icon(Icons.upload_rounded),
+                onPressed: () async {
+                  await _showExportSelectionPopup();
+                }),
+          ]),
         ],
       ),
     );

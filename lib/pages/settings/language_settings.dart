@@ -10,6 +10,7 @@ import 'package:daily_you/device_info_service.dart';
 import 'package:daily_you/language_option.dart';
 import 'package:daily_you/widgets/settings_dropdown.dart';
 import 'package:daily_you/widgets/settings_icon_action.dart';
+import 'package:daily_you/widgets/settings_group.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -37,38 +38,43 @@ class _LanguageSettingsState extends State<LanguageSettings> {
         centerTitle: true,
       ),
       body: ListView(
+        padding: const EdgeInsets.only(top: 8, bottom: 8),
         children: [
-          if (Platform.isAndroid &&
-              DeviceInfoService().androidSdk != null &&
-              DeviceInfoService().androidSdk! >= 33)
-            SettingsIconAction(
-                title: AppLocalizations.of(context)!.settingsAppLanguageTitle,
-                icon: Icon(Icons.language_rounded),
-                onPressed: () => AppSettings.openAppSettings(
-                    type: AppSettingsType.appLocale)),
-          SettingsDropdown<LanguageOption?>(
-              title: (Platform.isAndroid &&
-                      DeviceInfoService().androidSdk != null &&
-                      DeviceInfoService().androidSdk! >= 33)
-                  ? AppLocalizations.of(context)!
-                      .settingsOverrideAppLanguageTitle
-                  : AppLocalizations.of(context)!.settingsAppLanguageTitle,
-              value: LanguageOption.fromJsonOrNull(
-                  configProvider.get(Settings.overrideLanguage)),
-              options: [
-                DropdownMenuItem(
-                    value: null,
-                    child: Text(AppLocalizations.of(context)!.themeSystem)),
-                for (var locale in AppLocalizations.supportedLocales)
+          SettingsGroup(children: [
+            if (Platform.isAndroid &&
+                DeviceInfoService().androidSdk != null &&
+                DeviceInfoService().androidSdk! >= 33)
+              SettingsIconAction(
+                  title: AppLocalizations.of(context)!.settingsAppLanguageTitle,
+                  leading: Icons.language_rounded,
+                  icon: Icon(Icons.language_rounded),
+                  onPressed: () => AppSettings.openAppSettings(
+                      type: AppSettingsType.appLocale)),
+            SettingsDropdown<LanguageOption?>(
+                leading: Icons.translate_rounded,
+                title: (Platform.isAndroid &&
+                        DeviceInfoService().androidSdk != null &&
+                        DeviceInfoService().androidSdk! >= 33)
+                    ? AppLocalizations.of(context)!
+                        .settingsOverrideAppLanguageTitle
+                    : AppLocalizations.of(context)!.settingsAppLanguageTitle,
+                value: LanguageOption.fromJsonOrNull(
+                    configProvider.get(Settings.overrideLanguage)),
+                options: [
                   DropdownMenuItem(
-                      value: LanguageOption.fromLocale(locale),
-                      child:
-                          Text(LanguageOption.fromLocale(locale).displayName()))
-              ],
-              onChanged: (LanguageOption? newValue) {
-                configProvider.set(
-                    Settings.overrideLanguage, newValue?.toJson());
-              }),
+                      value: null,
+                      child: Text(AppLocalizations.of(context)!.themeSystem)),
+                  for (var locale in AppLocalizations.supportedLocales)
+                    DropdownMenuItem(
+                        value: LanguageOption.fromLocale(locale),
+                        child: Text(
+                            LanguageOption.fromLocale(locale).displayName()))
+                ],
+                onChanged: (LanguageOption? newValue) {
+                  configProvider.set(
+                      Settings.overrideLanguage, newValue?.toJson());
+                }),
+          ]),
           Padding(
             padding: const EdgeInsets.only(top: 16.0),
             child: Column(

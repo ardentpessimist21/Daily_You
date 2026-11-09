@@ -10,6 +10,7 @@ import 'package:daily_you/widgets/app_dialog.dart';
 import 'package:daily_you/widgets/auth_popup.dart';
 import 'package:daily_you/widgets/settings_icon_action.dart';
 import 'package:daily_you/widgets/settings_toggle.dart';
+import 'package:daily_you/widgets/settings_group.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:flutter/services.dart';
@@ -40,135 +41,142 @@ class SecuritySettingsPageState extends State<SecuritySettings> {
         centerTitle: true,
       ),
       body: ListView(
+        padding: const EdgeInsets.only(top: 8, bottom: 8),
         children: [
-          SettingsToggle(
-              title:
-                  AppLocalizations.of(context)!.settingsSecurityRequirePassword,
-              setting: Settings.requirePassword,
-              onChanged: (DeviceInfoService().supportsSecureStorage ?? false)
-                  ? (value) async {
-                      if (!configProvider.get(Settings.requirePassword)) {
-                        bool setPassword = false;
-                        await showAppDialog(
-                            context: context,
-                            builder: (context) => AuthPopup(
-                                  mode: AuthPopupMode.setPassword,
-                                  title: AppLocalizations.of(context)!
-                                      .settingsSecuritySetPassword,
-                                  showBiometrics: false,
-                                  dismissable: true,
-                                  onSuccess: (_) {
-                                    setPassword = true;
-                                  },
-                                ));
-                        await configProvider.set(
-                            Settings.requirePassword, setPassword);
-                        if (setPassword && context.mounted) {
-                          await PasswordRecovery.makeNewCode(context);
-                        }
-                      } else {
-                        await showAppDialog(
-                            context: context,
-                            builder: (context) => AuthPopup(
-                                  mode: AuthPopupMode.unlock,
-                                  title: AppLocalizations.of(context)!
-                                      .settingsSecurityEnterPassword,
-                                  showBiometrics: false,
-                                  dismissable: true,
-                                  onSuccess: (_) {
-                                    configProvider.set(
-                                        Settings.requirePassword, false);
-                                    // No password, so no code to reset it.
-                                    RecoveryCodeStore.clear();
-                                  },
-                                ));
-                      }
-                    }
-                  : null),
-          if (configProvider.get(Settings.requirePassword))
-            SettingsIconAction(
-                title: AppLocalizations.of(context)!
-                    .settingsSecurityChangePassword,
-                icon: Icon(Icons.edit_rounded),
-                onPressed: () async {
-                  var changed = false;
-                  await showAppDialog(
-                      context: context,
-                      builder: (context) => AuthPopup(
-                            mode: AuthPopupMode.changePassword,
-                            title: AppLocalizations.of(context)!
-                                .settingsSecurityChangePassword,
-                            showBiometrics: false,
-                            dismissable: true,
-                            onSuccess: (_) => changed = true,
-                          ));
-                  if (changed && context.mounted) {
-                    await PasswordRecovery.makeNewCode(context);
-                  }
-                }),
-          if (configProvider.get(Settings.requirePassword))
-            SettingsIconAction(
-                title: AppLocalizations.of(context)!.recoveryCodeSetting,
-                hint: RecoveryCodeStore.hasCode
-                    ? AppLocalizations.of(context)!.recoveryCodeSettingHasCode
-                    : AppLocalizations.of(context)!.recoveryCodeSettingNoCode,
-                icon: const Icon(Icons.password_rounded),
-                onPressed: () async {
-                  var confirmed = false;
-                  await showAppDialog(
-                      context: context,
-                      builder: (context) => AuthPopup(
-                            mode: AuthPopupMode.unlock,
-                            title: AppLocalizations.of(context)!
-                                .settingsSecurityEnterPassword,
-                            showBiometrics: false,
-                            dismissable: true,
-                            onSuccess: (_) => confirmed = true,
-                          ));
-                  if (confirmed && context.mounted) {
-                    await PasswordRecovery.makeNewCode(context);
-                  }
-                }),
-          if (configProvider.get(Settings.requirePassword) &&
-              (DeviceInfoService().supportsBiometrics ?? false))
+          SettingsGroup(children: [
             SettingsToggle(
                 title: AppLocalizations.of(context)!
-                    .settingsSecurityBiometricUnlock,
-                setting: Settings.biometricUnlock,
-                onChanged: (value) async {
-                  await showAppDialog(
-                      context: context,
-                      builder: (context) => AuthPopup(
-                            mode: AuthPopupMode.unlock,
-                            title: AppLocalizations.of(context)!
-                                .settingsSecurityEnterPassword,
-                            showBiometrics: false,
-                            dismissable: true,
-                            onSuccess: (_) async {
-                              bool success = true;
-                              // Only require biometric authentication when enabling biometric unlock
-                              if (value == true) {
-                                try {
-                                  final bool didAuthenticate =
-                                      await auth.authenticate(
-                                          persistAcrossBackgrounding: false,
-                                          biometricOnly: true,
-                                          localizedReason:
-                                              AppLocalizations.of(context)!
-                                                  .unlockAppPrompt);
-                                  success = didAuthenticate;
-                                } on PlatformException {
-                                  success = false;
+                    .settingsSecurityRequirePassword,
+                leading: Icons.lock_outline_rounded,
+                setting: Settings.requirePassword,
+                onChanged: (DeviceInfoService().supportsSecureStorage ?? false)
+                    ? (value) async {
+                        if (!configProvider.get(Settings.requirePassword)) {
+                          bool setPassword = false;
+                          await showAppDialog(
+                              context: context,
+                              builder: (context) => AuthPopup(
+                                    mode: AuthPopupMode.setPassword,
+                                    title: AppLocalizations.of(context)!
+                                        .settingsSecuritySetPassword,
+                                    showBiometrics: false,
+                                    dismissable: true,
+                                    onSuccess: (_) {
+                                      setPassword = true;
+                                    },
+                                  ));
+                          await configProvider.set(
+                              Settings.requirePassword, setPassword);
+                          if (setPassword && context.mounted) {
+                            await PasswordRecovery.makeNewCode(context);
+                          }
+                        } else {
+                          await showAppDialog(
+                              context: context,
+                              builder: (context) => AuthPopup(
+                                    mode: AuthPopupMode.unlock,
+                                    title: AppLocalizations.of(context)!
+                                        .settingsSecurityEnterPassword,
+                                    showBiometrics: false,
+                                    dismissable: true,
+                                    onSuccess: (_) {
+                                      configProvider.set(
+                                          Settings.requirePassword, false);
+                                      // No password, so no code to reset it.
+                                      RecoveryCodeStore.clear();
+                                    },
+                                  ));
+                        }
+                      }
+                    : null),
+            if (configProvider.get(Settings.requirePassword))
+              SettingsIconAction(
+                  title: AppLocalizations.of(context)!
+                      .settingsSecurityChangePassword,
+                  leading: Icons.password_rounded,
+                  icon: Icon(Icons.edit_rounded),
+                  onPressed: () async {
+                    var changed = false;
+                    await showAppDialog(
+                        context: context,
+                        builder: (context) => AuthPopup(
+                              mode: AuthPopupMode.changePassword,
+                              title: AppLocalizations.of(context)!
+                                  .settingsSecurityChangePassword,
+                              showBiometrics: false,
+                              dismissable: true,
+                              onSuccess: (_) => changed = true,
+                            ));
+                    if (changed && context.mounted) {
+                      await PasswordRecovery.makeNewCode(context);
+                    }
+                  }),
+            if (configProvider.get(Settings.requirePassword))
+              SettingsIconAction(
+                  title: AppLocalizations.of(context)!.recoveryCodeSetting,
+                  leading: Icons.key_outlined,
+                  hint: RecoveryCodeStore.hasCode
+                      ? AppLocalizations.of(context)!.recoveryCodeSettingHasCode
+                      : AppLocalizations.of(context)!.recoveryCodeSettingNoCode,
+                  icon: const Icon(Icons.password_rounded),
+                  onPressed: () async {
+                    var confirmed = false;
+                    await showAppDialog(
+                        context: context,
+                        builder: (context) => AuthPopup(
+                              mode: AuthPopupMode.unlock,
+                              title: AppLocalizations.of(context)!
+                                  .settingsSecurityEnterPassword,
+                              showBiometrics: false,
+                              dismissable: true,
+                              onSuccess: (_) => confirmed = true,
+                            ));
+                    if (confirmed && context.mounted) {
+                      await PasswordRecovery.makeNewCode(context);
+                    }
+                  }),
+            if (configProvider.get(Settings.requirePassword) &&
+                (DeviceInfoService().supportsBiometrics ?? false))
+              SettingsToggle(
+                  title: AppLocalizations.of(context)!
+                      .settingsSecurityBiometricUnlock,
+                  leading: Icons.fingerprint_rounded,
+                  setting: Settings.biometricUnlock,
+                  onChanged: (value) async {
+                    await showAppDialog(
+                        context: context,
+                        builder: (context) => AuthPopup(
+                              mode: AuthPopupMode.unlock,
+                              title: AppLocalizations.of(context)!
+                                  .settingsSecurityEnterPassword,
+                              showBiometrics: false,
+                              dismissable: true,
+                              onSuccess: (_) async {
+                                bool success = true;
+                                // Only require biometric authentication when enabling biometric unlock
+                                if (value == true) {
+                                  try {
+                                    final bool didAuthenticate =
+                                        await auth.authenticate(
+                                            persistAcrossBackgrounding: false,
+                                            biometricOnly: true,
+                                            localizedReason:
+                                                AppLocalizations.of(context)!
+                                                    .unlockAppPrompt);
+                                    success = didAuthenticate;
+                                  } on PlatformException {
+                                    success = false;
+                                  }
                                 }
-                              }
 
-                              if (success) {
-                                configProvider.set(
-                                    Settings.biometricUnlock, value);
-                              }
-                            },
-                          ));
-                }),
+                                if (success) {
+                                  configProvider.set(
+                                      Settings.biometricUnlock, value);
+                                }
+                              },
+                            ));
+                  }),
+          ]),
         ],
       ),
     );

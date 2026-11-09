@@ -5,8 +5,8 @@
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/widgets/settings_dropdown.dart';
 import 'package:daily_you/fork/flashback_styles.dart';
-import 'package:daily_you/widgets/settings_header.dart';
 import 'package:daily_you/widgets/settings_toggle.dart';
+import 'package:daily_you/widgets/settings_group.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -34,49 +34,57 @@ class _FlashbackSettingsPageState extends State<FlashbackSettings> {
         centerTitle: true,
       ),
       body: ListView(
+        padding: const EdgeInsets.only(top: 8, bottom: 8),
         children: [
-          SettingsToggle(
-              title: AppLocalizations.of(context)!.settingsShowFlashbacks,
-              setting: Settings.showFlashbacks,
-              onChanged: (value) {
-                configProvider.set(Settings.showFlashbacks, value);
-              }),
-          if (configProvider.get(Settings.showFlashbacks))
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8.0),
-              child: SettingsDropdown<String>(
-                  title: AppLocalizations.of(context)!.settingsFlashbackStyle,
-                  value: configProvider.get(Settings.flashbackStyle),
-                  options: [
-                    DropdownMenuItem<String>(
-                        value: FlashbackStyle.cards,
-                        child: Text(AppLocalizations.of(context)!
-                            .flashbackStyleCards)),
-                    DropdownMenuItem<String>(
-                        value: FlashbackStyle.chips,
-                        child: Text(AppLocalizations.of(context)!
-                            .flashbackStyleChips)),
-                    DropdownMenuItem<String>(
-                        value: FlashbackStyle.icon,
-                        child: Text(AppLocalizations.of(context)!
-                            .flashbackStyleIcon)),
-                  ],
-                  onChanged: (String? newValue) {
-                    if (newValue == null) return;
-                    configProvider.set(Settings.flashbackStyle, newValue);
-                  }),
-            ),
-          if (configProvider.get(Settings.showFlashbacks))
+          SettingsGroup(children: [
             SettingsToggle(
-                title: AppLocalizations.of(context)!
-                    .settingsFlashbacksExcludeBadDays,
-                setting: Settings.excludeBadDaysFromFlashbacks,
+                title: AppLocalizations.of(context)!.settingsShowFlashbacks,
+                leading: Icons.history_rounded,
+                setting: Settings.showFlashbacks,
                 onChanged: (value) {
-                  configProvider.set(
-                      Settings.excludeBadDaysFromFlashbacks, value);
+                  configProvider.set(Settings.showFlashbacks, value);
                 }),
+            if (configProvider.get(Settings.showFlashbacks))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: SettingsDropdown<String>(
+                    title: AppLocalizations.of(context)!.settingsFlashbackStyle,
+                    leading: Icons.style_outlined,
+                    value: configProvider.get(Settings.flashbackStyle),
+                    options: [
+                      DropdownMenuItem<String>(
+                          value: FlashbackStyle.cards,
+                          child: Text(AppLocalizations.of(context)!
+                              .flashbackStyleCards)),
+                      DropdownMenuItem<String>(
+                          value: FlashbackStyle.chips,
+                          child: Text(AppLocalizations.of(context)!
+                              .flashbackStyleChips)),
+                      DropdownMenuItem<String>(
+                          value: FlashbackStyle.icon,
+                          child: Text(AppLocalizations.of(context)!
+                              .flashbackStyleIcon)),
+                    ],
+                    onChanged: (String? newValue) {
+                      if (newValue == null) return;
+                      configProvider.set(Settings.flashbackStyle, newValue);
+                    }),
+              ),
+            if (configProvider.get(Settings.showFlashbacks))
+              SettingsToggle(
+                  title: AppLocalizations.of(context)!
+                      .settingsFlashbacksExcludeBadDays,
+                  leading: Icons.sentiment_dissatisfied_outlined,
+                  setting: Settings.excludeBadDaysFromFlashbacks,
+                  onChanged: (value) {
+                    configProvider.set(
+                        Settings.excludeBadDaysFromFlashbacks, value);
+                  }),
+          ]),
           if (configProvider.get(Settings.showFlashbacks))
-            ...buildFlashbackOptions(configProvider),
+            SettingsGroup(
+                title: AppLocalizations.of(context)!.flashbacksTitle,
+                children: buildFlashbackOptions(configProvider)),
         ],
       ),
     );
@@ -84,47 +92,44 @@ class _FlashbackSettingsPageState extends State<FlashbackSettings> {
 
   List<Widget> buildFlashbackOptions(ConfigProvider configProvider) {
     return [
-      Padding(
-        padding: const EdgeInsets.only(left: 8.0, right: 8.0),
-        child:
-            SettingsHeader(text: AppLocalizations.of(context)!.flashbacksTitle),
-      ),
-      Padding(
-        padding: const EdgeInsets.only(left: 8.0, right: 8.0),
-        child: Divider(),
-      ),
       SettingsToggle(
           title: AppLocalizations.of(context)!.flashbackOnThisDay,
+          leading: Icons.event_repeat_outlined,
           setting: Settings.showflashbackYearsAgo,
           onChanged: (value) {
             configProvider.set(Settings.showflashbackYearsAgo, value);
           }),
       SettingsToggle(
           title: AppLocalizations.of(context)!.flashbackMonth(6),
+          leading: Icons.date_range_outlined,
           setting: Settings.showflashback6MonthsAgo,
           onChanged: (value) {
             configProvider.set(Settings.showflashback6MonthsAgo, value);
           }),
       SettingsToggle(
           title: AppLocalizations.of(context)!.flashbackMonth(1),
+          leading: Icons.calendar_month_outlined,
           setting: Settings.showflashback1MonthAgo,
           onChanged: (value) {
             configProvider.set(Settings.showflashback1MonthAgo, value);
           }),
       SettingsToggle(
           title: AppLocalizations.of(context)!.flashbackWeek(1),
+          leading: Icons.view_week_outlined,
           setting: Settings.showflashback1WeekAgo,
           onChanged: (value) {
             configProvider.set(Settings.showflashback1WeekAgo, value);
           }),
       SettingsToggle(
           title: AppLocalizations.of(context)!.flashbackGoodDay,
+          leading: Icons.sentiment_satisfied_outlined,
           setting: Settings.showflashbackGoodDay,
           onChanged: (value) {
             configProvider.set(Settings.showflashbackGoodDay, value);
           }),
       SettingsToggle(
           title: AppLocalizations.of(context)!.flashbackRandomDay,
+          leading: Icons.shuffle_rounded,
           setting: Settings.showflashbackRandomDay,
           onChanged: (value) {
             configProvider.set(Settings.showflashbackRandomDay, value);

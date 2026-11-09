@@ -1123,5 +1123,7 @@
   "settingsGroupReminders": "Reminders and memories",
   "@settingsGroupReminders": {},
   "settingsGroupYourData": "Your data",
-  "@settingsGroupYourData": {}
+  "@settingsGroupYourData": {},
+  "settingsStorageTotal": "total",
+  "@settingsStorageTotal": {}
 }

@@ -7,6 +7,7 @@ import 'package:daily_you/device_info_service.dart';
 import 'package:daily_you/theme_mode_provider.dart';
 import 'package:daily_you/widgets/app_dialog.dart';
 import 'package:daily_you/widgets/settings_icon_action.dart';
+import 'package:daily_you/widgets/settings_group.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -39,97 +40,104 @@ class _AboutSettingsState extends State<AboutSettings> {
         centerTitle: true,
       ),
       body: ListView(
+        padding: const EdgeInsets.only(top: 8, bottom: 8),
         children: [
-          GestureDetector(
-            child: SettingsIconAction(
-                title: AppLocalizations.of(context)!.settingsVersion,
-                hint: DeviceInfoService().appInfo?.version ?? "0.0.0",
+          SettingsGroup(children: [
+            GestureDetector(
+              child: SettingsIconAction(
+                  title: AppLocalizations.of(context)!.settingsVersion,
+                  leading: Icons.info_outline_rounded,
+                  hint: DeviceInfoService().appInfo?.version ?? "0.0.0",
+                  icon: Icon(Icons.open_in_new_rounded),
+                  onPressed: () async {
+                    await launchUrl(
+                        Uri.https("github.com", "/Demizo/Daily_You/releases"),
+                        mode: LaunchMode.externalApplication);
+                  }),
+              onTap: () async {
+                versionTapCount += 1;
+                if (versionTapCount > 5) {
+                  versionTapCount = 0;
+
+                  await configProvider.set(Settings.followSystemColor, false);
+
+                  themeProvider.accentColor = pinkAccentColor;
+                  themeProvider.updateAccentColor();
+
+                  if (!context.mounted) return;
+                  await showAppDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return AlertDialog(
+                        title: Center(
+                            child: Text(AppLocalizations.of(context)!
+                                .settingsMadeWithLove)),
+                      );
+                    },
+                  );
+                }
+              },
+            ),
+            SettingsIconAction(
+                title: AppLocalizations.of(context)!.settingsSourceCode,
+                leading: Icons.code_rounded,
+                hint: "github.com/Demizo/Daily_You",
+                icon: Icon(Icons.open_in_new_rounded),
+                onPressed: () async {
+                  await launchUrl(Uri.https("github.com", "/Demizo/Daily_You"),
+                      mode: LaunchMode.externalApplication);
+                }),
+            SettingsIconAction(
+                title: AppLocalizations.of(context)!.settingsLicense,
+                leading: Icons.gavel_rounded,
+                hint: AppLocalizations.of(context)!.licenseGPLv3,
                 icon: Icon(Icons.open_in_new_rounded),
                 onPressed: () async {
                   await launchUrl(
-                      Uri.https("github.com", "/Demizo/Daily_You/releases"),
+                      Uri(
+                          scheme: "https",
+                          host: "github.com",
+                          path: "/Demizo/Daily_You",
+                          fragment: "license"),
                       mode: LaunchMode.externalApplication);
                 }),
-            onTap: () async {
-              versionTapCount += 1;
-              if (versionTapCount > 5) {
-                versionTapCount = 0;
-
-                await configProvider.set(Settings.followSystemColor, false);
-
-                themeProvider.accentColor = pinkAccentColor;
-                themeProvider.updateAccentColor();
-
-                if (!context.mounted) return;
-                await showAppDialog(
-                  context: context,
-                  builder: (BuildContext context) {
-                    return AlertDialog(
-                      title: Center(
-                          child: Text(AppLocalizations.of(context)!
-                              .settingsMadeWithLove)),
-                    );
-                  },
-                );
-              }
-            },
-          ),
-          SettingsIconAction(
-              title: AppLocalizations.of(context)!.settingsSourceCode,
-              hint: "github.com/Demizo/Daily_You",
-              icon: Icon(Icons.open_in_new_rounded),
-              onPressed: () async {
-                await launchUrl(Uri.https("github.com", "/Demizo/Daily_You"),
-                    mode: LaunchMode.externalApplication);
-              }),
-          SettingsIconAction(
-              title: AppLocalizations.of(context)!.settingsLicense,
-              hint: AppLocalizations.of(context)!.licenseGPLv3,
+            SettingsIconAction(
+                title: AppLocalizations.of(context)!.settingsOpenSourceLicenses,
+                leading: Icons.description_outlined,
+                icon: Icon(Icons.chevron_right_rounded),
+                onPressed: () async {
+                  await Navigator.of(context).push(MaterialPageRoute(
+                      builder: (context) => LicensePage(
+                            applicationName:
+                                AppLocalizations.of(context)!.appTitle,
+                            applicationVersion:
+                                DeviceInfoService().appInfo?.version,
+                          )));
+                }),
+          ]),
+          SettingsGroup(children: [
+            SettingsIconAction(
+              title: AppLocalizations.of(context)!.settingsHelpTranslate,
+              leading: Icons.translate_rounded,
+              hint: "hosted.weblate.org/projects/daily-you",
               icon: Icon(Icons.open_in_new_rounded),
               onPressed: () async {
                 await launchUrl(
-                    Uri(
-                        scheme: "https",
-                        host: "github.com",
-                        path: "/Demizo/Daily_You",
-                        fragment: "license"),
+                    Uri.https("hosted.weblate.org", "/projects/daily-you"),
                     mode: LaunchMode.externalApplication);
-              }),
-          SettingsIconAction(
-              title: AppLocalizations.of(context)!.settingsOpenSourceLicenses,
-              icon: Icon(Icons.chevron_right_rounded),
-              onPressed: () async {
-                await Navigator.of(context).push(MaterialPageRoute(
-                    builder: (context) => LicensePage(
-                          applicationName:
-                              AppLocalizations.of(context)!.appTitle,
-                          applicationVersion:
-                              DeviceInfoService().appInfo?.version,
-                        )));
-              }),
-          Padding(
-            padding: const EdgeInsets.only(left: 8.0, right: 8.0),
-            child: Divider(),
-          ),
-          SettingsIconAction(
-            title: AppLocalizations.of(context)!.settingsHelpTranslate,
-            hint: "hosted.weblate.org/projects/daily-you",
-            icon: Icon(Icons.open_in_new_rounded),
-            onPressed: () async {
-              await launchUrl(
-                  Uri.https("hosted.weblate.org", "/projects/daily-you"),
-                  mode: LaunchMode.externalApplication);
-            },
-          ),
-          SettingsIconAction(
-              title: AppLocalizations.of(context)!.errorReport,
-              hint: "github.com/Demizo/Daily_You/issues",
-              icon: Icon(Icons.open_in_new_rounded),
-              onPressed: () async {
-                await launchUrl(
-                    Uri.https("github.com", "/Demizo/Daily_You/issues"),
-                    mode: LaunchMode.externalApplication);
-              }),
+              },
+            ),
+            SettingsIconAction(
+                title: AppLocalizations.of(context)!.errorReport,
+                leading: Icons.bug_report_outlined,
+                hint: "github.com/Demizo/Daily_You/issues",
+                icon: Icon(Icons.open_in_new_rounded),
+                onPressed: () async {
+                  await launchUrl(
+                      Uri.https("github.com", "/Demizo/Daily_You/issues"),
+                      mode: LaunchMode.externalApplication);
+                }),
+          ]),
         ],
       ),
     );

@@ -18,12 +18,11 @@ import 'package:daily_you/widgets/attachment_type_presentation.dart';
 import 'package:daily_you/widgets/database_overwrite_dialog.dart';
 import 'package:daily_you/widgets/external_sync_dialog.dart';
 import 'package:daily_you/widgets/failure_dialog.dart';
-import 'package:daily_you/widgets/file_size_row.dart';
 import 'package:daily_you/widgets/media_quality_dialog.dart';
-import 'package:daily_you/widgets/settings_header.dart';
 import 'package:daily_you/widgets/settings_icon_action.dart';
 import 'package:daily_you/widgets/settings_toggle.dart';
 import 'package:daily_you/widgets/sync_progress_dialog.dart';
+import 'package:daily_you/widgets/settings_group.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -195,19 +194,6 @@ class _StorageSettingsState extends State<StorageSettings> {
   String _formatBytes(int bytes) =>
       formatFileSize(bytes, AppLocalizations.of(context)!.localeName);
 
-  Widget _storageUsageRow(IconData icon, String label, Future<int> usage) {
-    return FutureBuilder<int>(
-      future: usage,
-      builder: (context, snapshot) {
-        final sizeText = snapshot.hasData ? _formatBytes(snapshot.data!) : '';
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: FileSizeRow(icon: icon, label: label, sizeText: sizeText),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -221,47 +207,147 @@ class _StorageSettingsState extends State<StorageSettings> {
         centerTitle: true,
       ),
       body: ListView(
+        padding: const EdgeInsets.only(top: 8, bottom: 8),
         children: [
-          SettingsToggle(
-            title: l10n.settingsExternalSyncTitle,
-            hint: syncedFolder == null
-                ? null
-                : StoragePicker.displayName(syncedFolder),
-            value: syncSettings.isOn,
-            onChanged: _toggleSync,
-            secondaryIcon:
-                syncSettings.isOn ? const Icon(Icons.edit_rounded) : null,
-            onSecondaryPressed: _editSync,
-          ),
-          const Padding(
-            padding: EdgeInsets.only(left: 8.0, right: 8.0),
-            child: Divider(),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(left: 8.0, right: 8.0, bottom: 8.0),
-            child: SettingsHeader(text: l10n.settingsStorageUsage),
-          ),
-          for (final type in AttachmentType.values)
-            _storageUsageRow(type.icon, type.label(l10n), _usage[type]!),
-          SettingsIconAction(
-            title: l10n.settingsMediaQualityTitle,
-            icon: const Icon(Icons.chevron_right_rounded),
-            onPressed: () => showAppDialog(
-                context: context, builder: (_) => const MediaQualityDialog()),
-          ),
-          const Padding(
-            padding: EdgeInsets.only(left: 8.0, right: 8.0),
-            child: Divider(),
-          ),
-          SettingsIconAction(
-              title: AppLocalizations.of(context)!.settingsDeleteAllLogsTitle,
-              icon: Icon(Icons.delete_forever_rounded),
-              onPressed: () => _showDeleteAllLogsDialog(
-                  context,
-                  AppLocalizations.of(context)!.settingsDeleteAllLogsTitle,
-                  () => _deleteAllLogs(context))),
+          SettingsGroup(children: [
+            SettingsToggle(
+              title: l10n.settingsExternalSyncTitle,
+              leading: Icons.sync_rounded,
+              hint: syncedFolder == null
+                  ? null
+                  : StoragePicker.displayName(syncedFolder),
+              value: syncSettings.isOn,
+              onChanged: _toggleSync,
+              secondaryIcon:
+                  syncSettings.isOn ? const Icon(Icons.edit_rounded) : null,
+              onSecondaryPressed: _editSync,
+            ),
+          ]),
+          SettingsGroup(title: l10n.settingsStorageUsage, children: [
+            _StorageUsageCard(usage: _usage, format: _formatBytes),
+            SettingsIconAction(
+              title: l10n.settingsMediaQualityTitle,
+              leading: Icons.high_quality_outlined,
+              icon: const Icon(Icons.chevron_right_rounded),
+              onPressed: () => showAppDialog(
+                  context: context, builder: (_) => const MediaQualityDialog()),
+            ),
+          ]),
+          SettingsGroup(children: [
+            SettingsIconAction(
+                title: AppLocalizations.of(context)!.settingsDeleteAllLogsTitle,
+                leading: Icons.delete_forever_outlined,
+                icon: Icon(Icons.delete_forever_rounded),
+                onPressed: () => _showDeleteAllLogsDialog(
+                    context,
+                    AppLocalizations.of(context)!.settingsDeleteAllLogsTitle,
+                    () => _deleteAllLogs(context))),
+          ]),
         ],
       ),
+    );
+  }
+}
+
+/// Storage Usage (3.7.0.46): the total, a bar split by type, and one line
+/// per type with its colour, icon and size.
+class _StorageUsageCard extends StatelessWidget {
+  const _StorageUsageCard({required this.usage, required this.format});
+
+  final Map<AttachmentType, Future<int>> usage;
+  final String Function(int bytes) format;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final colors = Theme.of(context).colorScheme;
+    final types = AttachmentType.values;
+    Color colorOf(AttachmentType type) => [
+          colors.primary,
+          colors.tertiary,
+          colors.secondary
+        ][types.indexOf(type) % 3];
+    return FutureBuilder<List<int>>(
+      future: Future.wait([for (final type in types) usage[type]!]),
+      builder: (context, snapshot) {
+        final sizes = snapshot.data;
+        final total = sizes?.fold<int>(0, (sum, size) => sum + size) ?? 0;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    sizes == null ? '…' : format(total),
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineSmall
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(l10n.settingsStorageTotal,
+                      style: TextStyle(color: colors.onSurfaceVariant)),
+                ],
+              ),
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: SizedBox(
+                  height: 10,
+                  child: total == 0
+                      ? ColoredBox(color: colors.surfaceContainerHighest)
+                      : Row(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (var i = 0; i < types.length; i++)
+                              if (sizes![i] > 0)
+                                Expanded(
+                                  // At least a sliver, so small types show
+                                  flex:
+                                      (sizes[i] * 1000 ~/ total).clamp(8, 1000),
+                                  child: ColoredBox(color: colorOf(types[i])),
+                                ),
+                          ],
+                        ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              for (var i = 0; i < types.length; i++)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 5),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                            color: colorOf(types[i]), shape: BoxShape.circle),
+                      ),
+                      const SizedBox(width: 12),
+                      Icon(types[i].icon,
+                          size: 20, color: colors.onSurfaceVariant),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(types[i].label(l10n),
+                            overflow: TextOverflow.ellipsis),
+                      ),
+                      Text(sizes == null ? '' : format(sizes[i]),
+                          style: TextStyle(
+                              color: colors.onSurfaceVariant,
+                              fontFeatures: const [
+                                FontFeature.tabularFigures()
+                              ])),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

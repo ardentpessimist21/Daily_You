@@ -1976,4 +1976,7 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get settingsGroupYourData => 'Your data';
+
+  @override
+  String get settingsStorageTotal => 'total';
 }

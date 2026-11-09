@@ -526,26 +526,35 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
               Icon(Icons.mood_outlined,
                   color: Theme.of(context).colorScheme.onSurfaceVariant),
               const SizedBox(width: 16),
-              Text(
-                AppLocalizations.of(context)!.settingsChangeMoodIcons,
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              Flexible(
+                child: Text(
+                  AppLocalizations.of(context)!.settingsChangeMoodIcons,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                ),
               ),
             ],
           ),
         ),
         Padding(
-          padding: const EdgeInsets.only(left: 56.0, right: 16.0),
+          padding: const EdgeInsets.fromLTRB(48.0, 0, 8.0, 4.0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  moodIconButton(-2),
-                  moodIconButton(-1),
-                  moodIconButton(0),
-                  moodIconButton(1),
-                  moodIconButton(2),
-                ],
+              // On the narrower card the five buttons shrink to fit
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Row(
+                    children: [
+                      moodIconButton(-2),
+                      moodIconButton(-1),
+                      moodIconButton(0),
+                      moodIconButton(1),
+                      moodIconButton(2),
+                    ],
+                  ),
+                ),
               ),
               IconButton(
                   onPressed: _resetMoodIcons,

@@ -9,6 +9,7 @@ import 'package:daily_you/time_manager.dart';
 import 'package:daily_you/widgets/settings_icon_action.dart';
 import 'package:daily_you/widgets/settings_toggle.dart';
 import 'package:daily_you/widgets/time_range_picker_dialog.dart';
+import 'package:daily_you/widgets/settings_group.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -79,6 +80,7 @@ class NotificationSettings extends StatefulWidget {
     return [
       SettingsToggle(
           title: AppLocalizations.of(context)!.settingsDailyReminderTitle,
+          leading: Icons.notifications_active_outlined,
           hint: AppLocalizations.of(context)!.settingsDailyReminderDescription,
           setting: Settings.dailyReminders,
           onChanged: (value) async {
@@ -99,6 +101,7 @@ class NotificationSettings extends StatefulWidget {
                 title: AppLocalizations.of(context)!.settingsReminderTime,
                 hint: TimeManager.timeOfDayString(
                     context, TimeManager.scheduledReminderTime()),
+                leading: Icons.schedule_rounded,
                 icon: Icon(Icons.schedule_rounded),
                 onPressed: () async {
                   _selectTime(context);
@@ -107,6 +110,7 @@ class NotificationSettings extends StatefulWidget {
                 title: AppLocalizations.of(context)!.settingsReminderTime,
                 hint: TimeManager.timeRangeString(
                     context, TimeManager.getReminderTimeRange()),
+                leading: Icons.schedule_rounded,
                 icon: Icon(Icons.timelapse_rounded),
                 onPressed: () async {
                   _selectTimeRange(context);
@@ -114,6 +118,7 @@ class NotificationSettings extends StatefulWidget {
       if (configProvider.get(Settings.dailyReminders))
         SettingsToggle(
             title: AppLocalizations.of(context)!.settingsFixedReminderTimeTitle,
+            leading: Icons.push_pin_outlined,
             hint: AppLocalizations.of(context)!
                 .settingsFixedReminderTimeDescription,
             setting: Settings.setReminderTime,
@@ -131,6 +136,7 @@ class NotificationSettings extends StatefulWidget {
       SettingsToggle(
           title: AppLocalizations.of(context)!.flashbackOnThisDay,
           hint: AppLocalizations.of(context)!.settingsOnThisDayDescription,
+          leading: Icons.event_repeat_outlined,
           setting: Settings.onThisDayNotifications,
           onChanged: (value) async {
             if (await NotificationManager.instance
@@ -149,6 +155,7 @@ class NotificationSettings extends StatefulWidget {
             title: AppLocalizations.of(context)!.settingsReminderTime,
             hint: TimeManager.timeOfDayString(
                 context, NotificationSettings._onThisDayNotificationTime()),
+            leading: Icons.schedule_rounded,
             icon: Icon(Icons.schedule_rounded),
             onPressed: () async {
               NotificationSettings._selectOnThisDayTime(context);
@@ -172,37 +179,36 @@ class _NotificationSettingsState extends State<NotificationSettings> {
         centerTitle: true,
       ),
       body: ListView(
+        padding: const EdgeInsets.only(top: 8, bottom: 8),
         children: [
-          ...NotificationSettings.buildCoreReminderSettings(context),
-          if (configProvider.get(Settings.dailyReminders))
-            SettingsToggle(
-                title: AppLocalizations.of(context)!
-                    .settingsAlwaysSendReminderTitle,
-                hint: AppLocalizations.of(context)!
-                    .settingsAlwaysSendReminderDescription,
-                setting: Settings.alwaysRemind,
-                onChanged: (value) async {
-                  await configProvider.set(Settings.alwaysRemind, value);
-                }),
-          Padding(
-            padding: const EdgeInsets.only(left: 8.0, right: 8.0),
-            child: Divider(),
-          ),
-          ...NotificationSettings.buildOnThisDaySettings(context),
+          SettingsGroup(children: [
+            ...NotificationSettings.buildCoreReminderSettings(context),
+            if (configProvider.get(Settings.dailyReminders))
+              SettingsToggle(
+                  title: AppLocalizations.of(context)!
+                      .settingsAlwaysSendReminderTitle,
+                  leading: Icons.repeat_rounded,
+                  hint: AppLocalizations.of(context)!
+                      .settingsAlwaysSendReminderDescription,
+                  setting: Settings.alwaysRemind,
+                  onChanged: (value) async {
+                    await configProvider.set(Settings.alwaysRemind, value);
+                  }),
+          ]),
+          SettingsGroup(children: [
+            ...NotificationSettings.buildOnThisDaySettings(context),
+          ]),
           if (configProvider.get(Settings.dailyReminders) ||
               configProvider.get(Settings.onThisDayNotifications))
-            Padding(
-              padding: const EdgeInsets.only(left: 8.0, right: 8.0),
-              child: Divider(),
-            ),
-          if (configProvider.get(Settings.dailyReminders) ||
-              configProvider.get(Settings.onThisDayNotifications))
-            SettingsIconAction(
-                title: AppLocalizations.of(context)!
-                    .settingsCustomizeNotificationTitle,
-                icon: Icon(Icons.edit_notifications_rounded),
-                onPressed: () => AppSettings.openAppSettings(
-                    type: AppSettingsType.notification)),
+            SettingsGroup(children: [
+              SettingsIconAction(
+                  title: AppLocalizations.of(context)!
+                      .settingsCustomizeNotificationTitle,
+                  leading: Icons.tune_rounded,
+                  icon: Icon(Icons.edit_notifications_rounded),
+                  onPressed: () => AppSettings.openAppSettings(
+                      type: AppSettingsType.notification)),
+            ]),
         ],
       ),
     );

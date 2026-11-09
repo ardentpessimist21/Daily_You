@@ -1977,4 +1977,7 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get settingsGroupYourData => 'Your data';
+
+  @override
+  String get settingsStorageTotal => 'total';
 }

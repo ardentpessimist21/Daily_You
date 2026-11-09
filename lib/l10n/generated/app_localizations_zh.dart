@@ -1966,6 +1966,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsGroupYourData => 'Your data';
+
+  @override
+  String get settingsStorageTotal => 'total';
 }
 
 /// The translations for Chinese, using the Han script (`zh_Hant`).

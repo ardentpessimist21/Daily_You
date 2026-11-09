@@ -3455,6 +3455,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your data'**
   String get settingsGroupYourData;
+
+  /// No description provided for @settingsStorageTotal.
+  ///
+  /// In en, this message translates to:
+  /// **'total'**
+  String get settingsStorageTotal;
 }
 
 class _AppLocalizationsDelegate
