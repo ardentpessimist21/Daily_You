@@ -1109,5 +1109,19 @@
   "addTagsAdded": "Added",
   "@addTagsAdded": {},
   "addTagsAddedCount": "{count} added",
-  "@addTagsAddedCount": {"placeholders": {"count": {"type": "int"}}}
+  "@addTagsAddedCount": {"placeholders": {"count": {"type": "int"}}},
+  "settingsHomeAndCalendarTitle": "Home and calendar",
+  "@settingsHomeAndCalendarTitle": {},
+  "settingsWritingTitle": "Writing",
+  "@settingsWritingTitle": {},
+  "settingsReadingTitle": "Reading and browsing",
+  "@settingsReadingTitle": {},
+  "settingsGroupLookAndFeel": "Look and feel",
+  "@settingsGroupLookAndFeel": {},
+  "settingsGroupJournal": "Journal",
+  "@settingsGroupJournal": {},
+  "settingsGroupReminders": "Reminders and memories",
+  "@settingsGroupReminders": {},
+  "settingsGroupYourData": "Your data",
+  "@settingsGroupYourData": {}
 }

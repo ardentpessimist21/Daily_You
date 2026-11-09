@@ -3413,6 +3413,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} added'**
   String addTagsAddedCount(int count);
+
+  /// No description provided for @settingsHomeAndCalendarTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Home and calendar'**
+  String get settingsHomeAndCalendarTitle;
+
+  /// No description provided for @settingsWritingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Writing'**
+  String get settingsWritingTitle;
+
+  /// No description provided for @settingsReadingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading and browsing'**
+  String get settingsReadingTitle;
+
+  /// No description provided for @settingsGroupLookAndFeel.
+  ///
+  /// In en, this message translates to:
+  /// **'Look and feel'**
+  String get settingsGroupLookAndFeel;
+
+  /// No description provided for @settingsGroupJournal.
+  ///
+  /// In en, this message translates to:
+  /// **'Journal'**
+  String get settingsGroupJournal;
+
+  /// No description provided for @settingsGroupReminders.
+  ///
+  /// In en, this message translates to:
+  /// **'Reminders and memories'**
+  String get settingsGroupReminders;
+
+  /// No description provided for @settingsGroupYourData.
+  ///
+  /// In en, this message translates to:
+  /// **'Your data'**
+  String get settingsGroupYourData;
 }
 
 class _AppLocalizationsDelegate

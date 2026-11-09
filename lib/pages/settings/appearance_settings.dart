@@ -19,8 +19,15 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:daily_you/theme_mode_provider.dart';
 
+/// Which part of the old Appearance page to show (Settings regroup): the
+/// visual look, plus three pages split out of it.
+enum AppearanceSection { appearance, homeAndCalendar, writing, reading }
+
 class AppearanceSettings extends StatefulWidget {
-  const AppearanceSettings({super.key});
+  const AppearanceSettings(
+      {super.key, this.section = AppearanceSection.appearance});
+
+  final AppearanceSection section;
 
   @override
   State<AppearanceSettings> createState() => _AppearanceSettingsPageState();
@@ -264,16 +271,20 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeModeProvider>(context);
     final configProvider = Provider.of<ConfigProvider>(context);
+    final l10n = AppLocalizations.of(context)!;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.of(context)!.settingsAppearanceTitle),
-        centerTitle: true,
-      ),
-      body: ListView(
-        children: [
+    final String title = switch (widget.section) {
+      AppearanceSection.appearance => l10n.settingsAppearanceTitle,
+      AppearanceSection.homeAndCalendar => l10n.settingsHomeAndCalendarTitle,
+      AppearanceSection.writing => l10n.settingsWritingTitle,
+      AppearanceSection.reading => l10n.settingsReadingTitle,
+    };
+
+    final List<Widget> rows = switch (widget.section) {
+      AppearanceSection.appearance => [
           SettingsDropdown<String>(
-              title: AppLocalizations.of(context)!.settingsTheme,
+              title: l10n.settingsTheme,
+              leading: Icons.dark_mode_rounded,
               value: configProvider.get(Settings.theme),
               options: [
                 DropdownMenuItem<String>(
@@ -311,7 +322,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
                 configProvider.set(Settings.theme, newValue);
               }),
           SettingsToggle(
-              title: AppLocalizations.of(context)!.settingsUseSystemAccentColor,
+              title: l10n.settingsUseSystemAccentColor,
+              leading: Icons.format_color_fill_rounded,
               setting: Settings.followSystemColor,
               onChanged: (value) {
                 configProvider.set(Settings.followSystemColor, value);
@@ -319,67 +331,39 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
               }),
           if (!configProvider.get(Settings.followSystemColor))
             SettingsIconAction(
-              title: AppLocalizations.of(context)!.settingsCustomAccentColor,
+              title: l10n.settingsCustomAccentColor,
+              leading: Icons.brush_rounded,
               icon: Icon(Icons.colorize_rounded),
               onPressed: () async {
                 _showAccentColorPopup(themeProvider);
               },
             ),
-          SettingsIconAction(
-            title: AppLocalizations.of(context)!.settingsEditorButtons,
-            hint: AppLocalizations.of(context)!.settingsEditorButtonsHint,
-            icon: const Icon(Icons.chevron_right_rounded),
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => const EditorButtonsSettingsPage())),
-          ),
-          SettingsIconAction(
-            title: AppLocalizations.of(context)!.settingsSelectionActions,
-            hint: AppLocalizations.of(context)!.settingsSelectionActionsHint,
-            icon: const Icon(Icons.chevron_right_rounded),
-            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => const SelectionActionsSettingsPage())),
-          ),
+          _moodIconsRow(context),
+        ],
+      AppearanceSection.homeAndCalendar => [
           SettingsToggle(
-            title: AppLocalizations.of(context)!.settingsJustifyText,
-            hint: AppLocalizations.of(context)!.settingsJustifyTextHint,
-            setting: Settings.justifyText,
-            onChanged: (value) =>
-                configProvider.set(Settings.justifyText, value),
-          ),
-          SettingsToggle(
-            title: AppLocalizations.of(context)!.settingsWritingPrompts,
-            hint: AppLocalizations.of(context)!.settingsWritingPromptsHint,
-            setting: Settings.writingPrompts,
-            onChanged: (value) =>
-                configProvider.set(Settings.writingPrompts, value),
-          ),
-          SettingsToggle(
-            title: AppLocalizations.of(context)!.settingsFutureEntries,
-            hint: AppLocalizations.of(context)!.settingsFutureEntriesHint,
-            setting: Settings.allowFutureEntries,
-            onChanged: (value) =>
-                configProvider.set(Settings.allowFutureEntries, value),
-          ),
-          SettingsToggle(
-            title: AppLocalizations.of(context)!.settingsHomeGreeting,
-            hint: AppLocalizations.of(context)!.settingsHomeGreetingHint,
+            title: l10n.settingsHomeGreeting,
+            hint: l10n.settingsHomeGreetingHint,
+            leading: Icons.waving_hand_rounded,
             setting: Settings.homeGreetingEnabled,
             onChanged: (value) =>
                 configProvider.set(Settings.homeGreetingEnabled, value),
           ),
           if (configProvider.get(Settings.homeGreetingEnabled)) ...[
             SettingsIconAction(
-              title: AppLocalizations.of(context)!.settingsYourName,
+              title: l10n.settingsYourName,
               hint: configProvider.get(Settings.homeGreetingName).isEmpty
-                  ? AppLocalizations.of(context)!.settingsYourNameHint
+                  ? l10n.settingsYourNameHint
                   : configProvider.get(Settings.homeGreetingName),
+              leading: Icons.person_rounded,
               icon: const Icon(Icons.edit_rounded),
               onPressed: () => _showNameDialog(configProvider),
             ),
             Padding(
               padding: const EdgeInsets.only(bottom: 8.0),
               child: SettingsDropdown<String>(
-                  title: AppLocalizations.of(context)!.settingsGreetingStyle,
+                  title: l10n.settingsGreetingStyle,
+                  leading: Icons.auto_awesome_rounded,
                   value: configProvider.get(Settings.homeGreetingStyle),
                   options: [
                     DropdownMenuItem<String>(
@@ -400,7 +384,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
           Padding(
             padding: const EdgeInsets.only(bottom: 8.0),
             child: SettingsDropdown<String>(
-                title: AppLocalizations.of(context)!.settingsFirstDayOfWeek,
+                title: l10n.settingsFirstDayOfWeek,
+                leading: Icons.view_week_rounded,
                 value: configProvider.get(Settings.startingDayOfWeek),
                 options: _buildFirstDayOfWeekDropdownItems(context),
                 onChanged: (String? newValue) async {
@@ -412,7 +397,8 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
           Padding(
             padding: const EdgeInsets.only(bottom: 8.0),
             child: SettingsDropdown<String>(
-                title: AppLocalizations.of(context)!.settingsCalendarSystem,
+                title: l10n.settingsCalendarSystem,
+                leading: Icons.public_rounded,
                 value: configProvider.get(Settings.calendarSystem),
                 options: [
                   DropdownMenuItem<String>(
@@ -432,10 +418,61 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
                   await configProvider.set(Settings.calendarSystem, newValue);
                 }),
           ),
+        ],
+      AppearanceSection.writing => [
+          SettingsIconAction(
+            title: l10n.settingsEditorButtons,
+            hint: l10n.settingsEditorButtonsHint,
+            leading: Icons.smart_button_rounded,
+            icon: const Icon(Icons.chevron_right_rounded),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const EditorButtonsSettingsPage())),
+          ),
+          SettingsToggle(
+            title: l10n.settingsWritingPrompts,
+            hint: l10n.settingsWritingPromptsHint,
+            leading: Icons.lightbulb_rounded,
+            setting: Settings.writingPrompts,
+            onChanged: (value) =>
+                configProvider.set(Settings.writingPrompts, value),
+          ),
+          SettingsToggle(
+            title: l10n.settingsFutureEntries,
+            hint: l10n.settingsFutureEntriesHint,
+            leading: Icons.edit_calendar_rounded,
+            setting: Settings.allowFutureEntries,
+            onChanged: (value) =>
+                configProvider.set(Settings.allowFutureEntries, value),
+          ),
+        ],
+      AppearanceSection.reading => [
+          SettingsToggle(
+            title: l10n.settingsJustifyText,
+            hint: l10n.settingsJustifyTextHint,
+            leading: Icons.format_align_justify_rounded,
+            setting: Settings.justifyText,
+            onChanged: (value) =>
+                configProvider.set(Settings.justifyText, value),
+          ),
+          SettingsToggle(
+            title: l10n.settingsTimelineShowFullEntries,
+            hint: l10n.settingsTimelineShowFullEntriesHint,
+            leading: Icons.view_agenda_rounded,
+            setting: Settings.timelineShowFullEntries,
+            onChanged: (value) =>
+                configProvider.set(Settings.timelineShowFullEntries, value),
+          ),
+          SettingsIconAction(
+            title: l10n.settingsHideImages,
+            leading: Icons.hide_image_rounded,
+            icon: const Icon(Icons.chevron_right_rounded),
+            onPressed: () => _showHideImagesDialog(context, configProvider),
+          ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8.0),
             child: SettingsDropdown<String>(
-                title: AppLocalizations.of(context)!.settingsGalleryViewLayout,
+                title: l10n.settingsGalleryViewLayout,
+                leading: Icons.grid_view_rounded,
                 value: configProvider.get(Settings.galleryPageViewMode),
                 options: [
                   DropdownMenuItem<String>(
@@ -454,48 +491,65 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
                 }),
           ),
           SettingsIconAction(
-            title: AppLocalizations.of(context)!.settingsHideImages,
+            title: l10n.settingsSelectionActions,
+            hint: l10n.settingsSelectionActionsHint,
+            leading: Icons.check_box_rounded,
             icon: const Icon(Icons.chevron_right_rounded),
-            onPressed: () => _showHideImagesDialog(context, configProvider),
-          ),
-          SettingsToggle(
-            title:
-                AppLocalizations.of(context)!.settingsTimelineShowFullEntries,
-            hint: AppLocalizations.of(context)!
-                .settingsTimelineShowFullEntriesHint,
-            setting: Settings.timelineShowFullEntries,
-            onChanged: (value) =>
-                configProvider.set(Settings.timelineShowFullEntries, value),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: 16.0, left: 16.0, right: 16.0),
-            child: Text(
-              AppLocalizations.of(context)!.settingsChangeMoodIcons,
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    moodIconButton(-2),
-                    moodIconButton(-1),
-                    moodIconButton(0),
-                    moodIconButton(1),
-                    moodIconButton(2),
-                  ],
-                ),
-                IconButton(
-                    onPressed: _resetMoodIcons,
-                    icon: const Icon(Icons.refresh_rounded))
-              ],
-            ),
+            onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => const SelectionActionsSettingsPage())),
           ),
         ],
+    };
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(title),
+        centerTitle: true,
       ),
+      body: ListView(children: rows),
+    );
+  }
+
+  /// Change Mood Icons: the five mood buttons and reset.
+  Widget _moodIconsRow(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 16.0, left: 16.0, right: 16.0),
+          child: Row(
+            children: [
+              Icon(Icons.mood_rounded,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+              const SizedBox(width: 16),
+              Text(
+                AppLocalizations.of(context)!.settingsChangeMoodIcons,
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 56.0, right: 16.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  moodIconButton(-2),
+                  moodIconButton(-1),
+                  moodIconButton(0),
+                  moodIconButton(1),
+                  moodIconButton(2),
+                ],
+              ),
+              IconButton(
+                  onPressed: _resetMoodIcons,
+                  icon: const Icon(Icons.refresh_rounded))
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

@@ -38,6 +38,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final entriesProvider = Provider.of<EntriesProvider>(context);
+    final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
@@ -88,53 +89,99 @@ class _SettingsPageState extends State<SettingsPage> {
         )
       ],
       body: ListView(
+        padding: const EdgeInsets.only(bottom: 8),
         children: [
+          _GroupLabel(l10n.settingsGroupLookAndFeel),
           SettingsCategory(
-              title: AppLocalizations.of(context)!.settingsAppearanceTitle,
+              title: l10n.settingsAppearanceTitle,
               icon: Icons.palette_rounded,
-              page: AppearanceSettings()),
+              page: const AppearanceSettings()),
           SettingsCategory(
-              title: AppLocalizations.of(context)!.settingsLanguageTitle,
+              title: l10n.settingsHomeAndCalendarTitle,
+              icon: Icons.calendar_month_rounded,
+              page: const AppearanceSettings(
+                  section: AppearanceSection.homeAndCalendar)),
+          SettingsCategory(
+              title: l10n.settingsLanguageTitle,
               icon: Icons.language_rounded,
               page: LanguageSettings()),
-          if (Platform.isAndroid)
-            SettingsCategory(
-                title: AppLocalizations.of(context)!.settingsNotificationsTitle,
-                icon: Icons.notifications_rounded,
-                page: NotificationSettings()),
+          _GroupLabel(l10n.settingsGroupJournal),
           SettingsCategory(
-              title: AppLocalizations.of(context)!.settingsTagsTitle,
+              title: l10n.settingsWritingTitle,
+              icon: Icons.edit_rounded,
+              page:
+                  const AppearanceSettings(section: AppearanceSection.writing)),
+          SettingsCategory(
+              title: l10n.settingsReadingTitle,
+              icon: Icons.menu_book_rounded,
+              page:
+                  const AppearanceSettings(section: AppearanceSection.reading)),
+          SettingsCategory(
+              title: l10n.settingsTagsTitle,
               icon: Icons.local_offer_rounded,
               page: TagsSettings()),
           SettingsCategory(
-              title: AppLocalizations.of(context)!.settingsTemplatesTitle,
+              title: l10n.settingsTemplatesTitle,
               icon: Icons.description_rounded,
               page: TemplateSettings()),
           SettingsCategory(
-              title: AppLocalizations.of(context)!.settingsLocations,
+              title: l10n.settingsLocations,
               icon: Icons.place_rounded,
               page: const SavedPlacesPage()),
+          _GroupLabel(l10n.settingsGroupReminders),
+          if (Platform.isAndroid)
+            SettingsCategory(
+                title: l10n.settingsNotificationsTitle,
+                icon: Icons.notifications_rounded,
+                page: NotificationSettings()),
           SettingsCategory(
-              title: AppLocalizations.of(context)!.flashbacksTitle,
+              title: l10n.flashbacksTitle,
               icon: Icons.history_rounded,
               page: FlashbackSettings()),
+          _GroupLabel(l10n.settingsGroupYourData),
           SettingsCategory(
-              title: AppLocalizations.of(context)!.settingsStorageTitle,
-              icon: Icons.storage_rounded,
-              page: StorageSettings()),
-          SettingsCategory(
-              title: AppLocalizations.of(context)!.settingsSecurityTitle,
-              icon: Icons.security_rounded,
-              page: SecuritySettings()),
-          SettingsCategory(
-              title: AppLocalizations.of(context)!.settingsBackupRestoreTitle,
+              title: l10n.settingsBackupRestoreTitle,
               icon: Icons.settings_backup_restore_rounded,
               page: BackupRestoreSettings()),
           SettingsCategory(
-              title: AppLocalizations.of(context)!.settingsAboutTitle,
+              title: l10n.settingsStorageTitle,
+              icon: Icons.storage_rounded,
+              page: StorageSettings()),
+          SettingsCategory(
+              title: l10n.settingsSecurityTitle,
+              icon: Icons.security_rounded,
+              page: SecuritySettings()),
+          const Divider(indent: 16, endIndent: 16, height: 24),
+          SettingsCategory(
+              title: l10n.settingsAboutTitle,
               icon: Icons.info_rounded,
               page: AboutSettings()),
         ],
+      ),
+    );
+  }
+}
+
+/// A group heading on the main Settings page (Settings regroup).
+class _GroupLabel extends StatelessWidget {
+  const _GroupLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 4),
+      child: Semantics(
+        header: true,
+        child: Text(
+          text,
+          style: theme.textTheme.titleSmall?.copyWith(
+            color: theme.colorScheme.primary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }

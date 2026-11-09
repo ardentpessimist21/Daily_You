@@ -13,6 +13,10 @@ class SettingsDropdown<T> extends StatelessWidget {
   final IconData? leadingIcon;
   final bool expanded;
 
+  /// The row's icon on the left, in the same row style as toggles
+  /// (Settings regroup). [leadingIcon] keeps the older list-tile look.
+  final IconData? leading;
+
   const SettingsDropdown({
     super.key,
     required this.title,
@@ -22,6 +26,7 @@ class SettingsDropdown<T> extends StatelessWidget {
     this.selectedItemBuilder,
     this.leadingIcon,
     this.expanded = false,
+    this.leading,
   });
 
   @override
@@ -55,6 +60,11 @@ class SettingsDropdown<T> extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          if (leading != null) ...[
+            Icon(leading,
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
+            const SizedBox(width: 16),
+          ],
           Expanded(
             child: Text(
               title,

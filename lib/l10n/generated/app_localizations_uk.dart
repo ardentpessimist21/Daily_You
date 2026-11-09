@@ -1964,4 +1964,25 @@ class AppLocalizationsUk extends AppLocalizations {
   String addTagsAddedCount(int count) {
     return '$count added';
   }
+
+  @override
+  String get settingsHomeAndCalendarTitle => 'Home and calendar';
+
+  @override
+  String get settingsWritingTitle => 'Writing';
+
+  @override
+  String get settingsReadingTitle => 'Reading and browsing';
+
+  @override
+  String get settingsGroupLookAndFeel => 'Look and feel';
+
+  @override
+  String get settingsGroupJournal => 'Journal';
+
+  @override
+  String get settingsGroupReminders => 'Reminders and memories';
+
+  @override
+  String get settingsGroupYourData => 'Your data';
 }

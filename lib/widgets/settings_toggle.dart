@@ -16,6 +16,9 @@ class SettingsToggle extends StatelessWidget {
   final Icon? secondaryIcon;
   final Function()? onSecondaryPressed;
 
+  /// The row's icon on the left (Settings regroup).
+  final IconData? leading;
+
   const SettingsToggle({
     super.key,
     required this.title,
@@ -25,6 +28,7 @@ class SettingsToggle extends StatelessWidget {
     required this.onChanged,
     this.secondaryIcon,
     this.onSecondaryPressed,
+    this.leading,
   }) : assert((setting == null) != (value == null));
 
   @override
@@ -36,6 +40,11 @@ class SettingsToggle extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          if (leading != null) ...[
+            Icon(leading,
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
+            const SizedBox(width: 16),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

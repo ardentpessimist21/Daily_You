@@ -12,6 +12,9 @@ class SettingsIconAction extends StatelessWidget {
   final Function() onPressed;
   final Function()? onSecondaryPressed;
 
+  /// The row's icon on the left (Settings regroup).
+  final IconData? leading;
+
   const SettingsIconAction(
       {super.key,
       required this.title,
@@ -19,7 +22,8 @@ class SettingsIconAction extends StatelessWidget {
       required this.icon,
       this.secondaryIcon,
       required this.onPressed,
-      this.onSecondaryPressed});
+      this.onSecondaryPressed,
+      this.leading});
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +33,11 @@ class SettingsIconAction extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          if (leading != null) ...[
+            Icon(leading,
+                color: Theme.of(context).colorScheme.onSurfaceVariant),
+            const SizedBox(width: 16),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
