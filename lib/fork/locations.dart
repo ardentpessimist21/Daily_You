@@ -5,8 +5,10 @@
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/fork/links.dart';
 import 'package:daily_you/fork/places.dart';
+import 'package:daily_you/fork/search_highlight.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
+import 'package:daily_you/utils/color_utils.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// An entry's places, kept without changing the database: they live on the
@@ -135,91 +137,207 @@ Future<void> openPlace(BuildContext context, Place place) => EntryLinks.open(
         ? place.address
         : Places.typedPlace(place.name).address);
 
-/// A raised 📍 button that opens the place in Maps.
-class LocationButton extends StatelessWidget {
-  const LocationButton({
-    super.key,
-    required this.place,
-    this.compact = false,
-    this.count = 0,
-    this.enabled = true,
+/// The raised look shared by every place pill: the secondary container
+/// colour with a darker bottom edge.
+class _PillSurface extends StatelessWidget {
+  const _PillSurface({
+    required this.radius,
+    required this.padding,
+    required this.child,
+    this.onTap,
   });
 
-  final Place place;
-
-  /// The smaller Timeline version.
-  final bool compact;
-
-  /// How many more places the entry has, shown as "+N".
-  final int count;
-
-  /// False while the Timeline is selecting, so taps select the card.
-  final bool enabled;
+  final double radius;
+  final EdgeInsetsGeometry padding;
+  final Widget child;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final background = colorScheme.secondaryContainer;
-    final foreground = colorScheme.onSecondaryContainer;
     final edge = Color.alphaBlend(
         colorScheme.shadow.withValues(alpha: 0.28), background);
-    final radius = BorderRadius.circular(compact ? 10 : 14);
-    final label = count > 0 ? '${place.name}  +$count' : place.name;
-    final button = Container(
-      decoration: BoxDecoration(
-        color: edge,
-        borderRadius: radius,
-      ),
-      padding: EdgeInsets.only(bottom: compact ? 2 : 3),
+    final shape = BorderRadius.circular(radius);
+    return Container(
+      decoration: BoxDecoration(color: edge, borderRadius: shape),
+      padding: const EdgeInsets.only(bottom: 2),
       child: Material(
         color: background,
-        borderRadius: radius,
-        child: InkWell(
-          borderRadius: radius,
-          onTap: enabled ? () => openPlace(context, place) : null,
-          child: Padding(
-            padding: compact
-                ? const EdgeInsets.symmetric(horizontal: 10, vertical: 5)
-                : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            child: Row(
-              mainAxisSize: compact ? MainAxisSize.min : MainAxisSize.max,
-              children: [
-                Icon(Icons.place_rounded,
-                    size: compact ? 15 : 20, color: foreground),
-                SizedBox(width: compact ? 5 : 8),
-                Flexible(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: foreground,
-                      fontSize: compact ? 12 : 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                if (!compact) ...[
-                  const SizedBox(width: 8),
-                  Icon(Icons.open_in_new_rounded,
-                      size: 16, color: foreground.withValues(alpha: 0.7)),
-                ],
-              ],
-            ),
-          ),
-        ),
+        borderRadius: shape,
+        child: onTap == null
+            ? Padding(padding: padding, child: child)
+            : InkWell(
+                borderRadius: shape,
+                onTap: onTap,
+                child: Padding(padding: padding, child: child),
+              ),
       ),
-    );
-    return Semantics(
-      button: true,
-      label: AppLocalizations.of(context)!.locationOpenInMaps(place.name),
-      excludeSemantics: true,
-      child: enabled ? button : IgnorePointer(child: button),
     );
   }
 }
 
-/// The entry view's buttons: one per place, in the order added.
+/// The two-line place pill (3.7.0.44): 📍 and the name, with the place's
+/// description underneath when it has one. Used in the entry view, where
+/// tapping opens Maps, and in the editor, where tapping opens the place
+/// dialog (Remove lives there, so the pill has no ✕).
+class PlacePill extends StatelessWidget {
+  const PlacePill({
+    super.key,
+    required this.place,
+    required this.onTap,
+    required this.semanticsLabel,
+  });
+
+  final Place place;
+  final VoidCallback onTap;
+  final String semanticsLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = Theme.of(context).colorScheme.onSecondaryContainer;
+    final hasDescription = place.description.isNotEmpty;
+    return Semantics(
+      button: true,
+      label: semanticsLabel,
+      excludeSemantics: true,
+      child: _PillSurface(
+        radius: 12,
+        padding: const EdgeInsets.fromLTRB(9, 6, 12, 6),
+        onTap: onTap,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: hasDescription
+              ? CrossAxisAlignment.start
+              : CrossAxisAlignment.center,
+          children: [
+            Padding(
+              padding: EdgeInsets.only(top: hasDescription ? 1 : 0),
+              child: Icon(Icons.place_rounded, size: 15, color: foreground),
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    place.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: foreground,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  if (hasDescription)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 1),
+                      child: Text(
+                        place.description,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: foreground.withValues(alpha: 0.72),
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The small one-line 📍 chip on Timeline and Gallery cards: the first
+/// place's name and "+N" for more. It never takes taps (3.7.0.44), so
+/// tapping it opens the entry like the rest of the card.
+///
+/// [highlight] marks Gallery search matches: the matched part of the name,
+/// or the description after the name when that is what matched.
+class LocationChip extends StatelessWidget {
+  const LocationChip({
+    super.key,
+    required this.place,
+    this.count = 0,
+    this.nameMatch,
+    this.descriptionMatch,
+  });
+
+  final Place place;
+
+  /// How many more places the entry has, shown as "+N".
+  final int count;
+
+  /// Where the search matched, as (start, end) in the name or description.
+  final (int, int)? nameMatch;
+  final (int, int)? descriptionMatch;
+
+  @override
+  Widget build(BuildContext context) {
+    final foreground = Theme.of(context).colorScheme.onSecondaryContainer;
+    final base = TextStyle(
+      color: foreground,
+      fontSize: 12,
+      fontWeight: FontWeight.w500,
+    );
+    final mark = base.copyWith(
+      backgroundColor: SearchHighlight.matchColor,
+      color: contrastingTextColor(SearchHighlight.matchColor),
+    );
+    List<TextSpan> marked(String text, (int, int)? range, TextStyle style) {
+      if (range == null) return [TextSpan(text: text, style: style)];
+      return [
+        if (range.$1 > 0)
+          TextSpan(text: text.substring(0, range.$1), style: style),
+        TextSpan(text: text.substring(range.$1, range.$2), style: mark),
+        if (range.$2 < text.length)
+          TextSpan(text: text.substring(range.$2), style: style),
+      ];
+    }
+
+    final subtle = base.copyWith(
+        color: foreground.withValues(alpha: 0.72), fontWeight: FontWeight.w400);
+    final label = Text.rich(
+      TextSpan(children: [
+        ...marked(place.name, nameMatch, base),
+        if (descriptionMatch != null) ...[
+          TextSpan(text: ' · ', style: subtle),
+          ...marked(place.description, descriptionMatch, subtle),
+        ],
+        if (count > 0) TextSpan(text: '  +$count', style: subtle),
+      ]),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+    return IgnorePointer(
+      child: Semantics(
+        label: place.name,
+        excludeSemantics: true,
+        child: _PillSurface(
+          radius: 10,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.place_rounded, size: 15, color: foreground),
+              const SizedBox(width: 5),
+              Flexible(child: label),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The entry view's place pills: one per place, in the order added,
+/// wrapping onto more lines. Tapping one opens it in Maps.
 class LocationButtons extends StatelessWidget {
   const LocationButtons({super.key, required this.places});
 
@@ -230,15 +348,18 @@ class LocationButtons extends StatelessWidget {
     if (places.isEmpty || !EntryLocations.showButtons) {
       return const SizedBox.shrink();
     }
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 6, 4, 2),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      padding: const EdgeInsets.fromLTRB(4, 6, 4, 4),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 8,
         children: [
           for (final place in places)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: LocationButton(place: place),
+            PlacePill(
+              place: place,
+              onTap: () => openPlace(context, place),
+              semanticsLabel: l10n.locationOpenInMaps(place.name),
             ),
         ],
       ),
@@ -246,13 +367,11 @@ class LocationButtons extends StatelessWidget {
   }
 }
 
-/// The Timeline card's button: the first place, plus how many more.
+/// The Timeline and Gallery card chip: the first place, plus how many more.
 class TimelineLocationButton extends StatelessWidget {
-  const TimelineLocationButton(
-      {super.key, required this.places, this.enabled = true});
+  const TimelineLocationButton({super.key, required this.places});
 
   final List<Place> places;
-  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -261,89 +380,37 @@ class TimelineLocationButton extends StatelessWidget {
     }
     return Align(
       alignment: AlignmentDirectional.centerStart,
-      child: LocationButton(
-        place: places.first,
-        compact: true,
-        count: places.length - 1,
-        enabled: enabled,
-      ),
+      child: LocationChip(place: places.first, count: places.length - 1),
     );
   }
 }
 
-/// The editor's rows under the date: one per place, each with ✕.
+/// The editor's place pills under the date, same look as the entry view.
+/// Tapping one opens its Name · Map link · Description dialog, which has
+/// Remove.
 class LocationRows extends StatelessWidget {
-  const LocationRows(
-      {super.key,
-      required this.places,
-      required this.onRemove,
-      required this.onRename});
+  const LocationRows({super.key, required this.places, required this.onTap});
 
   final List<Place> places;
-  final void Function(int index) onRemove;
-
-  /// Tapping a row opens its Name · Map link · Description dialog.
-  final void Function(int index) onRename;
+  final void Function(int index) onTap;
 
   @override
   Widget build(BuildContext context) {
     if (places.isEmpty) return const SizedBox.shrink();
-    final colorScheme = Theme.of(context).colorScheme;
-    final l10n = AppLocalizations.of(context)!;
-    return Column(
-      children: [
-        for (var i = 0; i < places.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Material(
-              color: colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(12),
-              clipBehavior: Clip.antiAlias,
-              child: InkWell(
-                onTap: () => onRename(i),
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 12),
-                  child: Row(
-                    children: [
-                      Icon(Icons.place_rounded,
-                          size: 20, color: colorScheme.primary),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              places[i].name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            if (places[i].description.isNotEmpty)
-                              Text(
-                                places[i].description,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                        color: colorScheme.onSurfaceVariant),
-                              ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        tooltip: l10n.locationRemove,
-                        icon: const Icon(Icons.close_rounded, size: 20),
-                        onPressed: () => onRemove(i),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 8,
+        children: [
+          for (var i = 0; i < places.length; i++)
+            PlacePill(
+              place: places[i],
+              onTap: () => onTap(i),
+              semanticsLabel: places[i].name,
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }

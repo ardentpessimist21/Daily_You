@@ -13,8 +13,20 @@ class TagChip extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onRemove;
 
+  /// Shown after the name, e.g. Add Tags' "✓ Added" or ↵ (3.7.0.44).
+  final Widget? trailing;
+
+  /// A stronger tint, for tags already on the entry.
+  final bool filled;
+
   const TagChip(
-      {super.key, required this.tag, this.value, this.onTap, this.onRemove});
+      {super.key,
+      required this.tag,
+      this.value,
+      this.onTap,
+      this.onRemove,
+      this.trailing,
+      this.filled = false});
 
   Widget _buildTrackerValueBox(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -56,7 +68,7 @@ class TagChip extends StatelessWidget {
               decoration: BoxDecoration(
                 border: Border.all(color: color, width: 1.5),
                 borderRadius: BorderRadius.circular(16),
-                color: color.withValues(alpha: 0.12),
+                color: color.withValues(alpha: filled ? 0.32 : 0.12),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -86,6 +98,10 @@ class TagChip extends StatelessWidget {
                     Text(value!,
                         style: const TextStyle(
                             fontSize: 13, fontWeight: FontWeight.w500)),
+                  ],
+                  if (trailing != null) ...[
+                    const SizedBox(width: 5),
+                    trailing!,
                   ],
                   if (onRemove != null) ...[
                     const SizedBox(width: 4),

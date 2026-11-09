@@ -3,6 +3,7 @@
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
 import 'package:daily_you/fork/locations.dart';
+import 'package:daily_you/fork/search_text.dart';
 import 'package:daily_you/fork/hyphenation.dart';
 import 'package:daily_you/fork/search_highlight.dart';
 import 'package:daily_you/models/attachment.dart';
@@ -110,15 +111,11 @@ class FullEntryCardWidget extends StatelessWidget {
     this.title,
     required this.entry,
     required this.attachments,
-    this.locationsEnabled = true,
   });
 
   final Entry entry;
   final List<EntryAttachment> attachments;
   final String? title;
-
-  /// False while selecting, so tapping the 📍 button selects the card.
-  final bool locationsEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -178,8 +175,7 @@ class FullEntryCardWidget extends StatelessWidget {
             Padding(
               padding:
                   EdgeInsets.fromLTRB(8.0, body.isEmpty ? 8.0 : 0, 8.0, 10.0),
-              child: TimelineLocationButton(
-                  places: places, enabled: locationsEnabled),
+              child: TimelineLocationButton(places: places),
             ),
         ],
       ),
@@ -196,7 +192,6 @@ class LargeEntryCardWidget extends StatelessWidget {
     this.hideImage = false,
     this.searchQuery,
     this.showLocations = false,
-    this.locationsEnabled = true,
   });
 
   final Entry entry;
@@ -207,9 +202,6 @@ class LargeEntryCardWidget extends StatelessWidget {
   /// Shows the 📍 button under the text (the Timeline does).
   final bool showLocations;
 
-  /// False while selecting, so tapping the 📍 button selects the card.
-  final bool locationsEnabled;
-
   /// Gallery search text: matches are highlighted and counted.
   final String? searchQuery;
 
@@ -219,6 +211,22 @@ class LargeEntryCardWidget extends StatelessWidget {
     final time = TimeManager.formatDate(entry.timeCreate, context);
     final (body, places) = EntryLocations.split(entry.text);
     final matches = SearchHighlight.count(body, searchQuery ?? '');
+    // Gallery search (3.7.0.44): a place that matched shows in the 📍 chip,
+    // its matching words highlighted
+    final placeMatch = SearchText.placeMatch(entry.text, searchQuery ?? '');
+    final Widget? placeChip = placeMatch != null
+        ? Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: LocationChip(
+              place: placeMatch.place,
+              count: placeMatch.more,
+              nameMatch: placeMatch.name,
+              descriptionMatch: placeMatch.description,
+            ),
+          )
+        : showLocations && places.isNotEmpty && EntryLocations.showButtons
+            ? TimelineLocationButton(places: places)
+            : null;
     final card = LargeCard(
       media: attachments.isNotEmpty && !hideImage
           ? AttachmentGrid(attachments: attachments)
@@ -235,18 +243,13 @@ class LargeEntryCardWidget extends StatelessWidget {
       body: body.isNotEmpty
           ? LargeCard.markdownBody(body, searchQuery: searchQuery)
           // A day with only photos or places needs no "Write something…"
-          : (attachments.isNotEmpty && !hideImage) ||
-                  (showLocations &&
-                      places.isNotEmpty &&
-                      EntryLocations.showButtons)
+          : (attachments.isNotEmpty && !hideImage) || placeChip != null
               ? null
               : Text(
                   AppLocalizations.of(context)!.writeSomethingHint,
                   style: TextStyle(color: theme.disabledColor, fontSize: 16),
                 ),
-      footer: showLocations && places.isNotEmpty && EntryLocations.showButtons
-          ? TimelineLocationButton(places: places, enabled: locationsEnabled)
-          : null,
+      footer: placeChip,
     );
     if (matches == 0) return card;
     return Stack(children: [

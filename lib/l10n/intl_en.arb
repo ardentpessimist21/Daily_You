@@ -1105,5 +1105,9 @@
   "addTagsSortManual": "My Order",
   "@addTagsSortManual": {},
   "addTagsTrackersOnly": "Trackers only",
-  "@addTagsTrackersOnly": {}
+  "@addTagsTrackersOnly": {},
+  "addTagsAdded": "Added",
+  "@addTagsAdded": {},
+  "addTagsAddedCount": "{count} added",
+  "@addTagsAddedCount": {"placeholders": {"count": {"type": "int"}}}
 }

@@ -228,7 +228,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('Lunch break'), findsOneWidget);
       expect(find.textContaining('📍'), findsNothing);
-      expect(find.byType(LocationButton), findsNWidgets(2));
+      expect(find.byType(PlacePill), findsNWidgets(2));
       expect(find.text('Work'), findsOneWidget);
       expect(find.text('Jollibee Taipei'), findsOneWidget);
     });
@@ -242,7 +242,7 @@ void main() {
       await tester.pumpWidget(_app(EntriesListPage(
           index: 0, getEntries: () => EntriesProvider.instance.entries)));
       await tester.pumpAndSettle();
-      expect(find.byType(LocationButton), findsNothing);
+      expect(find.byType(PlacePill), findsNothing);
       expect(find.textContaining('📍'), findsNothing);
       await tester.runAsync(() =>
           ConfigProvider.instance.set(Settings.showLocationButtons, true));
@@ -275,7 +275,8 @@ void main() {
         ),
       )));
       await tester.pumpAndSettle();
-      expect(find.byType(LocationButton), findsNothing);
+      expect(find.byType(LocationChip), findsNothing);
+      expect(find.byType(PlacePill), findsNothing);
       expect(find.textContaining('📍'), findsNothing);
     });
 
@@ -291,7 +292,11 @@ void main() {
       expect(find.text('Work'), findsOneWidget);
       expect(find.text('Uni'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('Remove location').first);
+      // No ✕ on the pill (3.7.0.44): Remove is in the place dialog
+      expect(find.byTooltip('Remove location'), findsNothing);
+      await tester.tap(find.text('Work'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove'));
       await tester.pumpAndSettle();
       expect(find.text('Work'), findsNothing);
       expect(find.text('Uni'), findsOneWidget);

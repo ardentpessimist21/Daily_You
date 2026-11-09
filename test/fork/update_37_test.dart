@@ -259,7 +259,7 @@ void main() {
           tester,
           TagPickerDialog(
               mode: TagPickerMode.attach, source: TagAttachmentSource()));
-      await tester.tap(find.byIcon(Icons.sort_rounded));
+      await tester.tap(find.byIcon(Icons.bar_chart_rounded));
       await tester.pumpAndSettle();
       // Recent was removed in 3.7.0.40
       expect(find.text('Recent'), findsNothing);
@@ -273,7 +273,7 @@ void main() {
 
     testWidgets('Gallery filter has no sort menu or # button', (tester) async {
       await _open(tester, const TagPickerDialog(mode: TagPickerMode.filter));
-      expect(find.byIcon(Icons.sort_rounded), findsNothing);
+      expect(find.byIcon(Icons.bar_chart_rounded), findsNothing);
       expect(find.byTooltip('Trackers only'), findsNothing);
     });
   });

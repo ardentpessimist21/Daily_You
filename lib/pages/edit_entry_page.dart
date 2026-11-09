@@ -446,10 +446,7 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
           if (_places.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
-              child: LocationRows(
-                  places: _places,
-                  onRemove: _removePlace,
-                  onRename: _renamePlace),
+              child: LocationRows(places: _places, onTap: _renamePlace),
             ),
           Padding(
             padding: const EdgeInsets.only(top: 4.0, bottom: 4.0),

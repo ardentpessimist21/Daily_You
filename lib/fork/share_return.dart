@@ -93,6 +93,9 @@ class ShareReturn {
       firstClosed ??= closed;
     }
     if (timelineBelow) return;
+    // Nothing was made or kept (e.g. a future day opened and left empty):
+    // the calendar stays where it was, with no jump or flash (3.7.0.44)
+    if (kept == null) return;
     // Back on the calendar: centre the entry's month and flash it
     void land() {
       if (share != null && share != _share) return;

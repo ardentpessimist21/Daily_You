@@ -65,6 +65,7 @@ class _EditorActionBarState extends State<EditorActionBar> {
   EditorKeyboardSession? _session;
   bool _isEditing = false;
   bool _showMainActionsWhileFocused = false;
+  double _lastKeyboardHeight = 0;
 
   @override
   void initState() {
@@ -83,6 +84,11 @@ class _EditorActionBarState extends State<EditorActionBar> {
     super.didChangeDependencies();
     // Notify whenever the session changes
     _session = EditorKeyboardSessionScope.maybeOf(context);
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    if (keyboard < _lastKeyboardHeight && keyboard == 0) {
+      _overflowPopup.dismiss();
+    }
+    _lastKeyboardHeight = keyboard;
     _syncEditing();
   }
 
@@ -103,6 +109,9 @@ class _EditorActionBarState extends State<EditorActionBar> {
     // A dialog an action opened holds focus while it is up
     if (_focusRestorer.isRunningAction) return;
     final isEditing = _editingTarget;
+    // Keyboard down (its own button, Back or a swipe): the ⋯ tools close
+    // with it rather than staying afloat (3.7.0.44)
+    if (!isEditing && _isEditing) _overflowPopup.dismiss();
     if (isEditing == _isEditing) return;
     setState(() {
       _isEditing = isEditing;

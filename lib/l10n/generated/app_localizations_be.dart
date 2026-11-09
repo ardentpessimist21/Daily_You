@@ -1947,4 +1947,12 @@ class AppLocalizationsBe extends AppLocalizations {
 
   @override
   String get addTagsTrackersOnly => 'Trackers only';
+
+  @override
+  String get addTagsAdded => 'Added';
+
+  @override
+  String addTagsAddedCount(int count) {
+    return '$count added';
+  }
 }

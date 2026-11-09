@@ -252,7 +252,7 @@ void main() {
       expect(find.text('Photography'), findsNothing);
       expect(find.text('Uncategorized'), findsOneWidget);
       // 3.7.0.37: Add Tags has a sort menu
-      expect(find.byIcon(Icons.sort_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.bar_chart_rounded), findsOneWidget);
       // ⭐ stays out of Add Tags
       expect(find.text(Favourites.tagName), findsNothing);
     });

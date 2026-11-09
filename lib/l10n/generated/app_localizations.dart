@@ -3401,6 +3401,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Trackers only'**
   String get addTagsTrackersOnly;
+
+  /// No description provided for @addTagsAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Added'**
+  String get addTagsAdded;
+
+  /// No description provided for @addTagsAddedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} added'**
+  String addTagsAddedCount(int count);
 }
 
 class _AppLocalizationsDelegate

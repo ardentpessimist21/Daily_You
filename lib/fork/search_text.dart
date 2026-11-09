@@ -3,6 +3,7 @@
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
 import 'package:daily_you/fork/locations.dart';
+import 'package:daily_you/fork/places.dart';
 
 /// What Gallery search looks through: the words you see in an entry, not
 /// its Markdown. Link text counts (also inside italics or bold), link
@@ -63,11 +64,50 @@ class SearchText {
     return _cache[raw] = visible(raw);
   }
 
-  /// Whether [raw] entry text contains [query] as visible words.
+  static final Map<String, String> _placeCache = {};
+
+  /// The entry's place names and descriptions, folded, one per line.
+  static String _placeTextCached(String raw) {
+    final cached = _placeCache[raw];
+    if (cached != null) return cached;
+    if (_placeCache.length > 20000) _placeCache.clear();
+    final places = EntryLocations.placesOf(raw);
+    return _placeCache[raw] = places.isEmpty
+        ? ''
+        : fold([
+            for (final place in places) ...[place.name, place.description],
+          ].join('\n'));
+  }
+
+  /// Whether [raw] entry text contains [query] as visible words, or one of
+  /// its places has it in its name or description (3.7.0.44).
   static bool matches(String raw, String query) {
     final needle = fold(query);
     if (needle.isEmpty) return true;
-    return _visibleCached(raw).contains(needle);
+    return _visibleCached(raw).contains(needle) ||
+        _placeTextCached(raw).contains(needle);
+  }
+
+  /// The first of [raw]'s places whose name (or else description) holds
+  /// [query], with where it matched, for the Gallery card's 📍 chip.
+  static PlaceMatch? placeMatch(String raw, String query) {
+    final needle = fold(query);
+    if (needle.isEmpty || !_placeTextCached(raw).contains(needle)) {
+      return null;
+    }
+    final places = EntryLocations.placesOf(raw);
+    for (final place in places) {
+      final name = FoldedText(place.name).matches(needle).firstOrNull;
+      if (name != null) return PlaceMatch(place, places.length - 1, name, null);
+    }
+    for (final place in places) {
+      final description =
+          FoldedText(place.description).matches(needle).firstOrNull;
+      if (description != null) {
+        return PlaceMatch(place, places.length - 1, null, description);
+      }
+    }
+    return null;
   }
 
   /// How many times [query] appears in [raw]'s visible words.
@@ -126,4 +166,16 @@ class FoldedText {
       start = index + needle.length;
     }
   }
+}
+
+/// A Gallery search match on one of an entry's places (3.7.0.44): the
+/// place, how many others the entry has, and the matched range in its name
+/// or its description.
+class PlaceMatch {
+  const PlaceMatch(this.place, this.more, this.name, this.description);
+
+  final Place place;
+  final int more;
+  final (int, int)? name;
+  final (int, int)? description;
 }

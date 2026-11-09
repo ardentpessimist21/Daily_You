@@ -16,9 +16,34 @@ class ToolbarOverflowPopup {
 
   OverlayEntry? _overlayEntry;
 
+  /// Lets Back (button or swipe) close the popup instead of the page
+  /// (3.7.0.44).
+  LocalHistoryEntry? _backEntry;
+
+  bool get isShowing => _overlayEntry != null;
+
   void dismiss() {
     _overlayEntry?.remove();
     _overlayEntry = null;
+    final back = _backEntry;
+    _backEntry = null;
+    // Closed some other way: drop the Back step it added
+    if (back != null) back.remove();
+  }
+
+  void _watchBack(BuildContext buttonContext) {
+    final route = ModalRoute.of(buttonContext);
+    if (route == null) return;
+    late final LocalHistoryEntry entry;
+    entry = LocalHistoryEntry(onRemove: () {
+      // Back popped it: close the popup, without removing it twice
+      if (!identical(_backEntry, entry)) return;
+      _backEntry = null;
+      _overlayEntry?.remove();
+      _overlayEntry = null;
+    });
+    _backEntry = entry;
+    route.addLocalHistoryEntry(entry);
   }
 
   void show(BuildContext buttonContext, List<ToolbarEntry> entries) {
@@ -58,6 +83,7 @@ class ToolbarOverflowPopup {
     );
 
     overlayState.insert(_overlayEntry!);
+    _watchBack(buttonContext);
   }
 
   Rect _anchorBounds(OverlayState overlayState, BuildContext buttonContext) {
@@ -127,5 +153,6 @@ class ToolbarOverflowPopup {
     );
 
     overlayState.insert(_overlayEntry!);
+    _watchBack(buttonContext);
   }
 }

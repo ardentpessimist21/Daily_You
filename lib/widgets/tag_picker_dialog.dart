@@ -85,6 +85,11 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
   final TagNameEditingController _searchController = TagNameEditingController();
   String _searchText = '';
 
+  /// Add Tags: while the search box has the keyboard, the added tags fold
+  /// into one line so the matches sit right under it (3.7.0.44).
+  final FocusNode _searchFocus = FocusNode();
+  bool _typing = false;
+
   // Usage is measured once when the popup opens, so tags don't jump around
   // while you're picking
   late final Map<int, TagUsage> _usage;
@@ -137,10 +142,16 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
     _searchController.addListener(() {
       setState(() => _searchText = _searchController.text.toLowerCase());
     });
+    _searchFocus.addListener(() {
+      if (_searchFocus.hasFocus != _typing) {
+        setState(() => _typing = _searchFocus.hasFocus);
+      }
+    });
   }
 
   @override
   void dispose() {
+    _searchFocus.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -176,6 +187,57 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
       if (source.contains(newTag.id!)) return;
       if (mounted) await source.attach(context, newTag);
     }
+  }
+
+  /// Add Tags: the tag the keyboard's ✓ adds (3.7.0.44). The closest name
+  /// wins (exact, then starts with, then a word starts with, then contains),
+  /// then the most used. Tags already added are skipped.
+  Tag? _bestMatch(TagPickerContent content, Set<int> added) {
+    final query = _searchText.trim();
+    if (widget.mode != TagPickerMode.attach || query.isEmpty) return null;
+    int rank(Tag tag) {
+      final name = tag.name.toLowerCase();
+      if (name == query) return 0;
+      if (name.startsWith(query)) return 1;
+      if (name.split(RegExp(r'[\s\-_/&]+')).any((w) => w.startsWith(query))) {
+        return 2;
+      }
+      return 3;
+    }
+
+    Tag? best;
+    var bestRank = 99;
+    var bestCount = -1;
+    for (final group in content.groups) {
+      for (final tag in group.tags) {
+        if (added.contains(tag.id)) continue;
+        final r = rank(tag);
+        final count = _usage[tag.id]?.recentCount ?? 0;
+        if (r < bestRank || (r == bestRank && count > bestCount)) {
+          best = tag;
+          bestRank = r;
+          bestCount = count;
+        }
+      }
+    }
+    return best;
+  }
+
+  Tag? _currentBest;
+
+  /// ✓ on the keyboard: adds the best match, clears the box and keeps the
+  /// keyboard up for the next tag. With nothing new to add, it just closes
+  /// the keyboard. It never creates a tag.
+  Future<void> _submitSearch(String _) async {
+    final best = _currentBest;
+    if (widget.mode != TagPickerMode.attach || best == null) {
+      _searchFocus.unfocus();
+      return;
+    }
+    _searchController.clear();
+    _searchFocus.requestFocus();
+    await widget.source!.attach(context, best);
+    if (mounted && !_searchFocus.hasFocus) _searchFocus.requestFocus();
   }
 
   // filter mode helpers
@@ -413,6 +475,9 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: SearchBar(
         controller: _searchController,
+        focusNode: _searchFocus,
+        textInputAction: TextInputAction.done,
+        onSubmitted: _submitSearch,
         hintText: l10n.addTagsSearchHint,
         elevation: const WidgetStatePropertyAll(0),
         padding: const WidgetStatePropertyAll(
@@ -505,7 +570,10 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
         // Available pool excludes tags already selected/attached
         final List<int> excludedIds;
         if (widget.mode == TagPickerMode.attach) {
-          excludedIds = widget.source!.attachedTagIds;
+          // While searching, added tags stay in the matches, marked Added,
+          // instead of the search saying No Results (3.7.0.44)
+          excludedIds =
+              _searchText.isNotEmpty ? [] : widget.source!.attachedTagIds;
         } else if (widget.mode == TagPickerMode.filter) {
           excludedIds = _selectedTagIds;
         } else {
@@ -586,9 +654,23 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
       }
     }
 
+    final attach = widget.mode == TagPickerMode.attach;
+    final addedIds = attach && _searchText.isNotEmpty
+        ? widget.source!.attachedTagIds.toSet()
+        : const <int>{};
+    final best = _bestMatch(content, addedIds);
+    _currentBest = best;
+
     final list = _TagPickerList(
       content: content,
       searching: _searchText.isNotEmpty || _trackersOnly,
+      addedIds: addedIds,
+      bestId: best?.id,
+      onRemoveAdded: attach
+          ? (tag) async {
+              await widget.source!.detach(tag.id!);
+            }
+          : null,
       collapsibleFrequent: widget.mode != TagPickerMode.selectSingle,
       frequentOpen: _frequentOpen,
       onToggleFrequent: () => setState(() => _frequentOpen = !_frequentOpen),
@@ -627,22 +709,10 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (widget.mode == TagPickerMode.attach) _buildAttachedChips(provider),
         if (widget.mode == TagPickerMode.filter)
           _buildFilterSelectedChips(provider),
         _buildSearchField(l10n, provider),
         const SizedBox(height: 8),
-        if (widget.mode == TagPickerMode.attach &&
-            _searchText.isEmpty &&
-            !_trackersOnly &&
-            TagPinList.addTags.ids.isNotEmpty)
-          PinnedTagsSection(
-            tags: TagPinList.addTags.tags,
-            onIds: widget.source!.attachedTagIds.toSet(),
-            compact: _pinsCompact,
-            onToggleTag: _togglePinnedTag,
-            onToggleCompact: _togglePinsCompact,
-          ),
       ],
     );
 
@@ -677,6 +747,8 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
           )
         : list;
 
+    if (attach) return _buildAttachContent(context, l10n, provider, rest);
+
     return SingleChildScrollView(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -699,23 +771,174 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
     );
   }
 
-  /// Add Tags: Sort by Usage · My Order, remembered.
+  /// Add Tags (3.7.0.44): the search bar stays under the title. Below it
+  /// scroll the added tags (grouped by category), a divider, Pinned,
+  /// Frequent and the categories. While the search box has the keyboard,
+  /// the added tags fold into one line under the search bar instead, so
+  /// matches start right below it.
+  Widget _buildAttachContent(BuildContext context, AppLocalizations l10n,
+      TagsProvider provider, Widget rest) {
+    final source = widget.source!;
+    final hasAdded = source.attachedTagIds.isNotEmpty;
+    final folded = _typing && hasAdded;
+    final scrolling = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (!folded && hasAdded) ...[
+          _buildAttachedChips(provider),
+          const SizedBox(height: 6),
+          Divider(
+              height: 1, color: Theme.of(context).colorScheme.outlineVariant),
+          const SizedBox(height: 10),
+        ],
+        if (_searchText.isEmpty &&
+            !_trackersOnly &&
+            TagPinList.addTags.ids.isNotEmpty)
+          PinnedTagsSection(
+            tags: TagPinList.addTags.tags,
+            onIds: source.attachedTagIds.toSet(),
+            compact: _pinsCompact,
+            onToggleTag: _togglePinnedTag,
+            onToggleCompact: _togglePinsCompact,
+          ),
+        rest,
+      ],
+    );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (widget.note != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(widget.note!,
+                style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
+          ),
+        _buildSearchField(l10n, provider),
+        if (folded) _buildFoldedAttached(context, l10n, provider),
+        const SizedBox(height: 8),
+        Flexible(child: SingleChildScrollView(child: scrolling)),
+      ],
+    );
+  }
+
+  /// The added tags as one sideways line, newest first, with a count.
+  /// Tapping the count closes the keyboard, which shows them grouped again.
+  Widget _buildFoldedAttached(
+      BuildContext context, AppLocalizations l10n, TagsProvider provider) {
+    final source = widget.source!;
+    final ids = source.attachedTagIds.reversed.toList();
+    final byId = {for (final tag in provider.tags) tag.id: tag};
+    final tags = [
+      for (final id in ids)
+        if (byId[id] != null) byId[id]!,
+    ];
+    final colorScheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => _searchFocus.unfocus(),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(4, 2, 4, 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(l10n.addTagsAddedCount(tags.length),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600)),
+                Icon(Icons.expand_more_rounded,
+                    size: 18, color: colorScheme.onSurfaceVariant),
+              ],
+            ),
+          ),
+        ),
+        ShaderMask(
+          shaderCallback: (rect) => const LinearGradient(
+            colors: [Colors.white, Colors.white, Colors.transparent],
+            stops: [0, 0.88, 1],
+          ).createShader(rect),
+          blendMode: BlendMode.dstIn,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final tag in tags)
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(end: 6),
+                    child: TagChip(
+                      tag: tag,
+                      value: source.valueFor(tag.id!),
+                      onTap: (source.supportsValues &&
+                              tag.tagType == TagType.tracker)
+                          ? () => source.editValue(context, tag)
+                          : null,
+                      onRemove: () => source.detach(tag.id!),
+                    ),
+                  ),
+                const SizedBox(width: 24),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Add Tags: Sort by Usage · My Order, remembered. The button shows the
+  /// sort that's on (3.7.0.44): a bar chart for usage, the reorder lines for
+  /// your own order.
   Widget _buildSortButton(AppLocalizations l10n) {
     String label(TagSortMode mode) => switch (mode) {
           TagSortMode.usage => l10n.addTagsSortUsage,
           TagSortMode.manual => l10n.addTagsSortManual,
         };
+    IconData icon(TagSortMode mode) => switch (mode) {
+          TagSortMode.usage => Icons.bar_chart_rounded,
+          TagSortMode.manual => Icons.reorder_rounded,
+        };
+    final colorScheme = Theme.of(context).colorScheme;
     return PopupMenuButton<TagSortMode>(
-      icon: const Icon(Icons.sort_rounded),
-      tooltip: l10n.addTagsSortTitle,
+      tooltip: '${l10n.addTagsSortTitle}: ${label(_sortMode)}',
       initialValue: _sortMode,
       onSelected: _setSortMode,
+      icon: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: colorScheme.primary.withValues(alpha: 0.16),
+        ),
+        child: Icon(icon(_sortMode), size: 20, color: colorScheme.primary),
+      ),
       itemBuilder: (context) => [
         for (final mode in TagSortMode.values)
-          CheckedPopupMenuItem(
+          PopupMenuItem(
             value: mode,
-            checked: mode == _sortMode,
-            child: Text(label(mode)),
+            child: Row(
+              children: [
+                Icon(icon(mode),
+                    size: 20,
+                    color: mode == _sortMode
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(label(mode),
+                      style: mode == _sortMode
+                          ? TextStyle(color: colorScheme.primary)
+                          : null),
+                ),
+                if (mode == _sortMode)
+                  Icon(Icons.check_rounded,
+                      size: 18, color: colorScheme.primary),
+              ],
+            ),
           ),
       ],
     );
@@ -765,9 +988,18 @@ class _TagPickerList extends StatelessWidget {
   final bool frequentOpen;
   final VoidCallback? onToggleFrequent;
 
+  /// Add Tags while searching (3.7.0.44): tags already on the entry, shown
+  /// as Added (tap removes), and the ✓ best match, ringed.
+  final Set<int> addedIds;
+  final int? bestId;
+  final Future<void> Function(Tag)? onRemoveAdded;
+
   const _TagPickerList({
     required this.content,
     required this.searching,
+    this.addedIds = const {},
+    this.bestId,
+    this.onRemoveAdded,
     this.collapsibleFrequent = false,
     this.frequentOpen = true,
     this.onToggleFrequent,
@@ -776,13 +1008,57 @@ class _TagPickerList extends StatelessWidget {
     required this.onPick,
   });
 
-  Widget _chips(List<Tag> tags) => Wrap(
-        spacing: 6,
-        runSpacing: 6,
-        children: [
-          for (final tag in tags) TagChip(tag: tag, onTap: () => onPick(tag)),
-        ],
-      );
+  Widget _chips(BuildContext context, List<Tag> tags) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    Widget chip(Tag tag) {
+      if (addedIds.contains(tag.id)) {
+        return Semantics(
+          label: '${tag.name}, ${l10n.addTagsAdded}',
+          child: TagChip(
+            tag: tag,
+            filled: true,
+            onTap: () => onRemoveAdded?.call(tag),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.check_rounded, size: 14, color: colorScheme.primary),
+                const SizedBox(width: 2),
+                Text(l10n.addTagsAdded,
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.primary)),
+              ],
+            ),
+          ),
+        );
+      }
+      if (tag.id == bestId) {
+        return Container(
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(19),
+            border: Border.all(color: colorScheme.primary, width: 2),
+          ),
+          child: TagChip(
+            tag: tag,
+            onTap: () => onPick(tag),
+            trailing: Icon(Icons.keyboard_return_rounded,
+                size: 14, color: colorScheme.primary),
+          ),
+        );
+      }
+      return TagChip(tag: tag, onTap: () => onPick(tag));
+    }
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [for (final tag in tags) chip(tag)],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -802,7 +1078,7 @@ class _TagPickerList extends StatelessWidget {
         if (favourite != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
-            child: _chips([favourite]),
+            child: _chips(context, [favourite]),
           ),
         if (!searching &&
             content.frequent.isNotEmpty &&
@@ -832,7 +1108,7 @@ class _TagPickerList extends StatelessWidget {
           ),
           if (frequentOpen) ...[
             const SizedBox(height: 6),
-            _chips(content.frequent),
+            _chips(context, content.frequent),
           ],
           const SizedBox(height: 10),
           Divider(height: 1, color: theme.colorScheme.outlineVariant),
@@ -851,7 +1127,7 @@ class _TagPickerList extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          _chips(content.frequent),
+          _chips(context, content.frequent),
           const SizedBox(height: 10),
           Divider(height: 1, color: theme.colorScheme.outlineVariant),
         ],
@@ -860,7 +1136,7 @@ class _TagPickerList extends StatelessWidget {
             group: group,
             open: searching || isOpen(group.category),
             onToggle: searching ? null : () => onToggle(group.category),
-            chips: _chips(group.tags),
+            chips: _chips(context, group.tags),
           ),
       ],
     );
