@@ -25,13 +25,10 @@ class SettingsCategory extends StatelessWidget {
         title,
       ),
       subtitle: hint != null ? Text(hint!) : null,
-      leading: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 0),
-        child: Icon(
-          icon,
-        ),
-      ),
-      minVerticalPadding: 18,
+      leading: Icon(icon),
+      trailing: Icon(Icons.chevron_right_rounded,
+          color: Theme.of(context).colorScheme.onSurfaceVariant),
+      minVerticalPadding: 14,
       onTap: () async {
         await Navigator.of(context).push(MaterialPageRoute(
           allowSnapshotting: false,

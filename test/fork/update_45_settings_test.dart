@@ -87,7 +87,7 @@ void main() {
     expect(titles, contains('Change Mood Icons'));
     expect(titles, isNot(contains('Writing Prompts')));
     expect(titles, isNot(contains('First Day Of Week')));
-    expect(find.byIcon(Icons.dark_mode_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.dark_mode_outlined), findsOneWidget);
   });
 
   testWidgets('the three new pages hold the moved rows', (tester) async {

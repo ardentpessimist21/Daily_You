@@ -11,6 +11,7 @@ import 'package:daily_you/widgets/app_dialog.dart';
 import 'package:daily_you/widgets/color_picker_dialog.dart';
 import 'package:daily_you/widgets/mood_icon.dart';
 import 'package:daily_you/widgets/settings_dropdown.dart';
+import 'package:daily_you/widgets/settings_group.dart';
 import 'package:daily_you/widgets/settings_icon_action.dart';
 import 'package:daily_you/widgets/settings_toggle.dart';
 import 'package:material_ui/material_ui.dart';
@@ -284,7 +285,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
       AppearanceSection.appearance => [
           SettingsDropdown<String>(
               title: l10n.settingsTheme,
-              leading: Icons.dark_mode_rounded,
+              leading: Icons.dark_mode_outlined,
               value: configProvider.get(Settings.theme),
               options: [
                 DropdownMenuItem<String>(
@@ -323,7 +324,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
               }),
           SettingsToggle(
               title: l10n.settingsUseSystemAccentColor,
-              leading: Icons.format_color_fill_rounded,
+              leading: Icons.water_drop_outlined,
               setting: Settings.followSystemColor,
               onChanged: (value) {
                 configProvider.set(Settings.followSystemColor, value);
@@ -332,7 +333,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
           if (!configProvider.get(Settings.followSystemColor))
             SettingsIconAction(
               title: l10n.settingsCustomAccentColor,
-              leading: Icons.brush_rounded,
+              leading: Icons.brush_outlined,
               icon: Icon(Icons.colorize_rounded),
               onPressed: () async {
                 _showAccentColorPopup(themeProvider);
@@ -344,7 +345,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
           SettingsToggle(
             title: l10n.settingsHomeGreeting,
             hint: l10n.settingsHomeGreetingHint,
-            leading: Icons.waving_hand_rounded,
+            leading: Icons.waving_hand_outlined,
             setting: Settings.homeGreetingEnabled,
             onChanged: (value) =>
                 configProvider.set(Settings.homeGreetingEnabled, value),
@@ -355,7 +356,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
               hint: configProvider.get(Settings.homeGreetingName).isEmpty
                   ? l10n.settingsYourNameHint
                   : configProvider.get(Settings.homeGreetingName),
-              leading: Icons.person_rounded,
+              leading: Icons.person_outline_rounded,
               icon: const Icon(Icons.edit_rounded),
               onPressed: () => _showNameDialog(configProvider),
             ),
@@ -363,7 +364,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
               padding: const EdgeInsets.only(bottom: 8.0),
               child: SettingsDropdown<String>(
                   title: l10n.settingsGreetingStyle,
-                  leading: Icons.auto_awesome_rounded,
+                  leading: Icons.auto_awesome_outlined,
                   value: configProvider.get(Settings.homeGreetingStyle),
                   options: [
                     DropdownMenuItem<String>(
@@ -385,7 +386,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
             padding: const EdgeInsets.only(bottom: 8.0),
             child: SettingsDropdown<String>(
                 title: l10n.settingsFirstDayOfWeek,
-                leading: Icons.view_week_rounded,
+                leading: Icons.view_week_outlined,
                 value: configProvider.get(Settings.startingDayOfWeek),
                 options: _buildFirstDayOfWeekDropdownItems(context),
                 onChanged: (String? newValue) async {
@@ -398,7 +399,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
             padding: const EdgeInsets.only(bottom: 8.0),
             child: SettingsDropdown<String>(
                 title: l10n.settingsCalendarSystem,
-                leading: Icons.public_rounded,
+                leading: Icons.public_outlined,
                 value: configProvider.get(Settings.calendarSystem),
                 options: [
                   DropdownMenuItem<String>(
@@ -423,7 +424,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
           SettingsIconAction(
             title: l10n.settingsEditorButtons,
             hint: l10n.settingsEditorButtonsHint,
-            leading: Icons.smart_button_rounded,
+            leading: Icons.smart_button_outlined,
             icon: const Icon(Icons.chevron_right_rounded),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(
                 builder: (_) => const EditorButtonsSettingsPage())),
@@ -431,7 +432,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
           SettingsToggle(
             title: l10n.settingsWritingPrompts,
             hint: l10n.settingsWritingPromptsHint,
-            leading: Icons.lightbulb_rounded,
+            leading: Icons.lightbulb_outline_rounded,
             setting: Settings.writingPrompts,
             onChanged: (value) =>
                 configProvider.set(Settings.writingPrompts, value),
@@ -439,7 +440,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
           SettingsToggle(
             title: l10n.settingsFutureEntries,
             hint: l10n.settingsFutureEntriesHint,
-            leading: Icons.edit_calendar_rounded,
+            leading: Icons.edit_calendar_outlined,
             setting: Settings.allowFutureEntries,
             onChanged: (value) =>
                 configProvider.set(Settings.allowFutureEntries, value),
@@ -457,14 +458,14 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
           SettingsToggle(
             title: l10n.settingsTimelineShowFullEntries,
             hint: l10n.settingsTimelineShowFullEntriesHint,
-            leading: Icons.view_agenda_rounded,
+            leading: Icons.view_agenda_outlined,
             setting: Settings.timelineShowFullEntries,
             onChanged: (value) =>
                 configProvider.set(Settings.timelineShowFullEntries, value),
           ),
           SettingsIconAction(
             title: l10n.settingsHideImages,
-            leading: Icons.hide_image_rounded,
+            leading: Icons.hide_image_outlined,
             icon: const Icon(Icons.chevron_right_rounded),
             onPressed: () => _showHideImagesDialog(context, configProvider),
           ),
@@ -472,7 +473,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
             padding: const EdgeInsets.symmetric(vertical: 8.0),
             child: SettingsDropdown<String>(
                 title: l10n.settingsGalleryViewLayout,
-                leading: Icons.grid_view_rounded,
+                leading: Icons.grid_view_outlined,
                 value: configProvider.get(Settings.galleryPageViewMode),
                 options: [
                   DropdownMenuItem<String>(
@@ -493,7 +494,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
           SettingsIconAction(
             title: l10n.settingsSelectionActions,
             hint: l10n.settingsSelectionActionsHint,
-            leading: Icons.check_box_rounded,
+            leading: Icons.check_box_outlined,
             icon: const Icon(Icons.chevron_right_rounded),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(
                 builder: (_) => const SelectionActionsSettingsPage())),
@@ -506,7 +507,10 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
         title: Text(title),
         centerTitle: true,
       ),
-      body: ListView(children: rows),
+      body: ListView(
+        padding: const EdgeInsets.only(top: 8, bottom: 8),
+        children: [SettingsGroup(children: rows)],
+      ),
     );
   }
 
@@ -519,7 +523,7 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
           padding: const EdgeInsets.only(top: 16.0, left: 16.0, right: 16.0),
           child: Row(
             children: [
-              Icon(Icons.mood_rounded,
+              Icon(Icons.mood_outlined,
                   color: Theme.of(context).colorScheme.onSurfaceVariant),
               const SizedBox(width: 16),
               Text(

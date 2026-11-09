@@ -16,6 +16,7 @@ import 'package:daily_you/pages/settings/tags_settings.dart';
 import 'package:daily_you/pages/settings/templates_page.dart';
 import 'package:daily_you/providers/entries_provider.dart';
 import 'package:daily_you/widgets/settings_category.dart';
+import 'package:daily_you/widgets/settings_group.dart';
 import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
@@ -89,99 +90,79 @@ class _SettingsPageState extends State<SettingsPage> {
         )
       ],
       body: ListView(
-        padding: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.only(top: 4, bottom: 8),
         children: [
-          _GroupLabel(l10n.settingsGroupLookAndFeel),
-          SettingsCategory(
-              title: l10n.settingsAppearanceTitle,
-              icon: Icons.palette_rounded,
-              page: const AppearanceSettings()),
-          SettingsCategory(
-              title: l10n.settingsHomeAndCalendarTitle,
-              icon: Icons.calendar_month_rounded,
-              page: const AppearanceSettings(
-                  section: AppearanceSection.homeAndCalendar)),
-          SettingsCategory(
-              title: l10n.settingsLanguageTitle,
-              icon: Icons.language_rounded,
-              page: LanguageSettings()),
-          _GroupLabel(l10n.settingsGroupJournal),
-          SettingsCategory(
-              title: l10n.settingsWritingTitle,
-              icon: Icons.edit_rounded,
-              page:
-                  const AppearanceSettings(section: AppearanceSection.writing)),
-          SettingsCategory(
-              title: l10n.settingsReadingTitle,
-              icon: Icons.menu_book_rounded,
-              page:
-                  const AppearanceSettings(section: AppearanceSection.reading)),
-          SettingsCategory(
-              title: l10n.settingsTagsTitle,
-              icon: Icons.local_offer_rounded,
-              page: TagsSettings()),
-          SettingsCategory(
-              title: l10n.settingsTemplatesTitle,
-              icon: Icons.description_rounded,
-              page: TemplateSettings()),
-          SettingsCategory(
-              title: l10n.settingsLocations,
-              icon: Icons.place_rounded,
-              page: const SavedPlacesPage()),
-          _GroupLabel(l10n.settingsGroupReminders),
-          if (Platform.isAndroid)
+          SettingsGroup(title: l10n.settingsGroupLookAndFeel, children: [
             SettingsCategory(
-                title: l10n.settingsNotificationsTitle,
-                icon: Icons.notifications_rounded,
-                page: NotificationSettings()),
-          SettingsCategory(
-              title: l10n.flashbacksTitle,
-              icon: Icons.history_rounded,
-              page: FlashbackSettings()),
-          _GroupLabel(l10n.settingsGroupYourData),
-          SettingsCategory(
-              title: l10n.settingsBackupRestoreTitle,
-              icon: Icons.settings_backup_restore_rounded,
-              page: BackupRestoreSettings()),
-          SettingsCategory(
-              title: l10n.settingsStorageTitle,
-              icon: Icons.storage_rounded,
-              page: StorageSettings()),
-          SettingsCategory(
-              title: l10n.settingsSecurityTitle,
-              icon: Icons.security_rounded,
-              page: SecuritySettings()),
-          const Divider(indent: 16, endIndent: 16, height: 24),
-          SettingsCategory(
-              title: l10n.settingsAboutTitle,
-              icon: Icons.info_rounded,
-              page: AboutSettings()),
+                title: l10n.settingsAppearanceTitle,
+                icon: Icons.palette_outlined,
+                page: const AppearanceSettings()),
+            SettingsCategory(
+                title: l10n.settingsHomeAndCalendarTitle,
+                icon: Icons.calendar_today_outlined,
+                page: const AppearanceSettings(
+                    section: AppearanceSection.homeAndCalendar)),
+            SettingsCategory(
+                title: l10n.settingsLanguageTitle,
+                icon: Icons.language_outlined,
+                page: LanguageSettings()),
+          ]),
+          SettingsGroup(title: l10n.settingsGroupJournal, children: [
+            SettingsCategory(
+                title: l10n.settingsWritingTitle,
+                icon: Icons.edit_outlined,
+                page: const AppearanceSettings(
+                    section: AppearanceSection.writing)),
+            SettingsCategory(
+                title: l10n.settingsReadingTitle,
+                icon: Icons.menu_book_outlined,
+                page: const AppearanceSettings(
+                    section: AppearanceSection.reading)),
+            SettingsCategory(
+                title: l10n.settingsTagsTitle,
+                icon: Icons.local_offer_outlined,
+                page: TagsSettings()),
+            SettingsCategory(
+                title: l10n.settingsTemplatesTitle,
+                icon: Icons.description_outlined,
+                page: TemplateSettings()),
+            SettingsCategory(
+                title: l10n.settingsLocations,
+                icon: Icons.place_outlined,
+                page: const SavedPlacesPage()),
+          ]),
+          SettingsGroup(title: l10n.settingsGroupReminders, children: [
+            if (Platform.isAndroid)
+              SettingsCategory(
+                  title: l10n.settingsNotificationsTitle,
+                  icon: Icons.notifications_outlined,
+                  page: NotificationSettings()),
+            SettingsCategory(
+                title: l10n.flashbacksTitle,
+                icon: Icons.history_rounded,
+                page: FlashbackSettings()),
+          ]),
+          SettingsGroup(title: l10n.settingsGroupYourData, children: [
+            SettingsCategory(
+                title: l10n.settingsBackupRestoreTitle,
+                icon: Icons.sync_rounded,
+                page: BackupRestoreSettings()),
+            SettingsCategory(
+                title: l10n.settingsStorageTitle,
+                icon: Icons.storage_outlined,
+                page: StorageSettings()),
+            SettingsCategory(
+                title: l10n.settingsSecurityTitle,
+                icon: Icons.lock_outline_rounded,
+                page: SecuritySettings()),
+          ]),
+          SettingsGroup(children: [
+            SettingsCategory(
+                title: l10n.settingsAboutTitle,
+                icon: Icons.info_outline_rounded,
+                page: AboutSettings()),
+          ]),
         ],
-      ),
-    );
-  }
-}
-
-/// A group heading on the main Settings page (Settings regroup).
-class _GroupLabel extends StatelessWidget {
-  const _GroupLabel(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 4),
-      child: Semantics(
-        header: true,
-        child: Text(
-          text,
-          style: theme.textTheme.titleSmall?.copyWith(
-            color: theme.colorScheme.primary,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
       ),
     );
   }
