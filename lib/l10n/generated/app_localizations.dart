@@ -3461,6 +3461,240 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'total'**
   String get settingsStorageTotal;
+
+  /// No description provided for @statsPickYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a year'**
+  String get statsPickYear;
+
+  /// No description provided for @statsAllYears.
+  ///
+  /// In en, this message translates to:
+  /// **'All years'**
+  String get statsAllYears;
+
+  /// No description provided for @tagCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{{count} tag} other{{count} tags}}'**
+  String tagCount(int count);
+
+  /// No description provided for @placeCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{{count} place} other{{count} places}}'**
+  String placeCount(int count);
+
+  /// No description provided for @photoCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{{count} photo} other{{count} photos}}'**
+  String photoCount(int count);
+
+  /// No description provided for @statsTapHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a count to explore'**
+  String get statsTapHint;
+
+  /// No description provided for @statsEntriesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'entries'**
+  String get statsEntriesLabel;
+
+  /// No description provided for @statsMostUsedWords.
+  ///
+  /// In en, this message translates to:
+  /// **'Most used words'**
+  String get statsMostUsedWords;
+
+  /// No description provided for @statsWordsList.
+  ///
+  /// In en, this message translates to:
+  /// **'List'**
+  String get statsWordsList;
+
+  /// No description provided for @statsWordsCloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud'**
+  String get statsWordsCloud;
+
+  /// No description provided for @statsTopTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Top tags'**
+  String get statsTopTags;
+
+  /// No description provided for @statsAllCategories.
+  ///
+  /// In en, this message translates to:
+  /// **'All categories'**
+  String get statsAllCategories;
+
+  /// No description provided for @statsUncategorised.
+  ///
+  /// In en, this message translates to:
+  /// **'Uncategorised'**
+  String get statsUncategorised;
+
+  /// No description provided for @statsLeastUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Least used first'**
+  String get statsLeastUsed;
+
+  /// No description provided for @statsMostUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'Most used first'**
+  String get statsMostUsed;
+
+  /// No description provided for @statsTopPlaces.
+  ///
+  /// In en, this message translates to:
+  /// **'Top places'**
+  String get statsTopPlaces;
+
+  /// No description provided for @statsPhotosTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos'**
+  String get statsPhotosTitle;
+
+  /// No description provided for @statsPhotosLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'photos'**
+  String get statsPhotosLabel;
+
+  /// No description provided for @statsVideosLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'videos'**
+  String get statsVideosLabel;
+
+  /// No description provided for @statsAudioLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'audio'**
+  String get statsAudioLabel;
+
+  /// No description provided for @statsBusiestDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Busiest day'**
+  String get statsBusiestDay;
+
+  /// No description provided for @statsYourDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Your days'**
+  String get statsYourDays;
+
+  /// No description provided for @statsWritten.
+  ///
+  /// In en, this message translates to:
+  /// **'Written'**
+  String get statsWritten;
+
+  /// No description provided for @statsBestMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Best month'**
+  String get statsBestMonth;
+
+  /// No description provided for @statsDaysWritten.
+  ///
+  /// In en, this message translates to:
+  /// **'Days written'**
+  String get statsDaysWritten;
+
+  /// No description provided for @statsMissingDays.
+  ///
+  /// In en, this message translates to:
+  /// **'Missing days'**
+  String get statsMissingDays;
+
+  /// No description provided for @statsNewest.
+  ///
+  /// In en, this message translates to:
+  /// **'Newest'**
+  String get statsNewest;
+
+  /// No description provided for @statsLongest.
+  ///
+  /// In en, this message translates to:
+  /// **'Longest'**
+  String get statsLongest;
+
+  /// No description provided for @statsNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Now'**
+  String get statsNow;
+
+  /// No description provided for @statsSinceLastEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'Since your last entry'**
+  String get statsSinceLastEntry;
+
+  /// No description provided for @statsNoEntries.
+  ///
+  /// In en, this message translates to:
+  /// **'no entries'**
+  String get statsNoEntries;
+
+  /// No description provided for @statsNone.
+  ///
+  /// In en, this message translates to:
+  /// **'none'**
+  String get statsNone;
+
+  /// No description provided for @statsNoMood.
+  ///
+  /// In en, this message translates to:
+  /// **'no mood'**
+  String get statsNoMood;
+
+  /// No description provided for @statsNoEntry.
+  ///
+  /// In en, this message translates to:
+  /// **'no entry'**
+  String get statsNoEntry;
+
+  /// No description provided for @statsOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get statsOpen;
+
+  /// No description provided for @statsDaysOf.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} of {total} days'**
+  String statsDaysOf(int count, int total);
+
+  /// No description provided for @statsOfDaysIn.
+  ///
+  /// In en, this message translates to:
+  /// **'of {total} in {year}'**
+  String statsOfDaysIn(int total, String year);
+
+  /// No description provided for @statsDaysUnit.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{day} other{days}}'**
+  String statsDaysUnit(int count);
+
+  /// No description provided for @statsSince.
+  ///
+  /// In en, this message translates to:
+  /// **'since {date}'**
+  String statsSince(String date);
 }
 
 class _AppLocalizationsDelegate

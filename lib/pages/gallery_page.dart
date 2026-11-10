@@ -29,8 +29,21 @@ import 'package:daily_you/pages/entries_list_page.dart';
 import 'package:easy_debounce/easy_debounce.dart';
 import 'package:provider/provider.dart';
 
+/// What a Gallery opened from Statistics starts with (3.7.0.48): a tag, a
+/// place or a word to search. It keeps its own search, so the Gallery tab
+/// isn't changed.
+class GalleryPreset {
+  const GalleryPreset({this.tagId, this.place, this.search});
+
+  final int? tagId;
+  final String? place;
+  final String? search;
+}
+
 class GalleryPage extends StatefulWidget {
-  const GalleryPage({super.key});
+  const GalleryPage({super.key, this.preset});
+
+  final GalleryPreset? preset;
 
   @override
   State<GalleryPage> createState() => _GalleryPageState();
@@ -54,6 +67,17 @@ class _GalleryPageState extends State<GalleryPage>
 
   /// 📍 Places: the picked place's name (3.7.0.40).
   String? _place;
+
+  /// Opened from Statistics: this page's own search, apart from the tab's.
+  String? _localSearch;
+  String get _searchText => _localSearch ?? EntriesProvider.instance.searchText;
+  void _setSearchText(String text) {
+    if (_localSearch != null) {
+      setState(() => _localSearch = text);
+    } else {
+      EntriesProvider.instance.searchText = text;
+    }
+  }
 
   bool get _hasTagFilter =>
       _filterTagIds.isNotEmpty ||
@@ -126,7 +150,13 @@ class _GalleryPageState extends State<GalleryPage>
   @override
   void initState() {
     super.initState();
-    _searchController.text = EntriesProvider.instance.searchText;
+    final preset = widget.preset;
+    if (preset != null) {
+      _localSearch = preset.search ?? '';
+      if (preset.tagId != null) _filterTagIds = [preset.tagId!];
+      _place = preset.place;
+    }
+    _searchController.text = _searchText;
     _scrollController.addListener(() {
       _onScrollForPill();
       final elevation = _scrollController.position.pixels > 0 ? 1.0 : 0.0;
@@ -221,8 +251,11 @@ class _GalleryPageState extends State<GalleryPage>
 
   List<Entry> _getVisibleEntries(
       EntriesProvider entriesProvider, TagsProvider tagsProvider) {
-    final filtered =
-        _applyTagFilter(entriesProvider.getFilteredEntries(), tagsProvider);
+    final filtered = _applyTagFilter(
+        _localSearch != null
+            ? entriesProvider.filteredFor(_localSearch!)
+            : entriesProvider.getFilteredEntries(),
+        tagsProvider);
     final sorted = _applyTrackerSort(filtered, entriesProvider, tagsProvider);
     // Quick filters and Places also combine with No Tags (3.7.0.40)
     final quick = QuickFilters.apply(sorted,
@@ -535,7 +568,7 @@ class _GalleryPageState extends State<GalleryPage>
                                 icon: Icon(Icons.clear),
                                 onPressed: () {
                                   _searchController.clear();
-                                  entriesProvider.searchText = "";
+                                  _setSearchText("");
                                   setState(() {
                                     _filterTagIds = [];
                                     _filterTagMode = TagFilterMode.any;
@@ -548,8 +581,7 @@ class _GalleryPageState extends State<GalleryPage>
                               )
                             : SizedBox.shrink(key: ValueKey('empty')),
                       ),
-                      if (entriesProvider.searchText.isNotEmpty ||
-                          _hasTagFilter)
+                      if (_searchText.isNotEmpty || _hasTagFilter)
                         Padding(
                           padding: const EdgeInsets.only(right: 8.0),
                           child: Text(AppLocalizations.of(context)!
@@ -593,7 +625,7 @@ class _GalleryPageState extends State<GalleryPage>
                     onChanged: (queryText) => EasyDebounce.debounce(
                         'search-debounce', const Duration(milliseconds: 300),
                         () {
-                      entriesProvider.searchText = queryText;
+                      if (mounted) _setSearchText(queryText);
                     }),
                   ),
                 ),
@@ -651,7 +683,7 @@ class _GalleryPageState extends State<GalleryPage>
     final entryAttachmentsProvider =
         Provider.of<EntryAttachmentsProvider>(context);
     final configProvider = Provider.of<ConfigProvider>(context);
-    final searchQuery = EntriesProvider.instance.searchText;
+    final searchQuery = _searchText;
     if (entries.isEmpty && upcoming.isEmpty) {
       _gridEntries = const [];
       final place = _place;
@@ -740,8 +772,7 @@ class _GalleryPageState extends State<GalleryPage>
                           allowSnapshotting: false,
                           builder: (context) => EntriesListPage(
                                 index: index,
-                                searchQuery:
-                                    EntriesProvider.instance.searchText,
+                                searchQuery: _searchText,
                                 newestFirst:
                                     EntriesProvider.instance.sortOrder !=
                                         SortOrder.ascending,

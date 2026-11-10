@@ -92,10 +92,16 @@ class EntriesProvider with ChangeNotifier {
   }
 
   void _calculateFilteredEntries() {
+    _filteredEntries = filteredFor(_searchText);
+  }
+
+  /// Entries matching [search], in the Gallery's order. Used by Gallery
+  /// pages opened from Statistics, which keep their own search (3.7.0.48).
+  List<Entry> filteredFor(String search) {
     List<Entry> filteredEntries;
-    if (_searchText.isNotEmpty) {
+    if (search.isNotEmpty) {
       filteredEntries = entries
-          .where((entry) => SearchText.matches(entry.text, _searchText))
+          .where((entry) => SearchText.matches(entry.text, search))
           .toList();
     } else {
       filteredEntries = entries.toList();
@@ -113,6 +119,6 @@ class EntriesProvider with ChangeNotifier {
       filteredEntries = filteredEntries.reversed.toList();
     }
 
-    _filteredEntries = filteredEntries;
+    return filteredEntries;
   }
 }

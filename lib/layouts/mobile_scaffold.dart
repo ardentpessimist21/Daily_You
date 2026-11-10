@@ -32,6 +32,10 @@ class MobileScaffold extends StatefulWidget {
   /// the shared entry ends on the calendar.
   static void showHome() => _shown?._showHomeNow();
 
+  /// The tab on screen (0 Home, 1 Gallery, 2 Statistics), for pages that
+  /// react to being shown, like the Statistics tap hint (3.7.0.48).
+  static final ValueNotifier<int> tab = ValueNotifier(0);
+
   @override
   State<MobileScaffold> createState() => _MobileScaffoldState();
 }
@@ -523,6 +527,8 @@ class _MobileScaffoldState extends State<MobileScaffold> {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => MobileScaffold.tab.value = currentIndex);
     final configProvider = Provider.of<ConfigProvider>(context);
     final l10n = AppLocalizations.of(context)!;
     final List<String> pageTitles = [

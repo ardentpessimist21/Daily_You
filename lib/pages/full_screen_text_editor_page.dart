@@ -57,7 +57,6 @@ class _FullScreenTextEditorPageState extends State<FullScreenTextEditorPage> {
 
   @override
   Widget build(BuildContext context) {
-
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {

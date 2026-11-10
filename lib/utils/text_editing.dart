@@ -74,8 +74,7 @@ class BulletListContinuation {
   static final RegExp _emptyBulletLine = RegExp(r'^(\s*)-\s*$');
   static final RegExp _bulletLine = RegExp(r'^(\s*)-\s');
   // Checklist items ("- [ ] task") continue as a fresh unticked item
-  static final RegExp _emptyChecklistLine =
-      RegExp(r'^(\s*)-\s\[[ xX]\]\s*$');
+  static final RegExp _emptyChecklistLine = RegExp(r'^(\s*)-\s\[[ xX]\]\s*$');
   static final RegExp _checklistLine = RegExp(r'^(\s*)-\s\[[ xX]\]\s');
 
   final TextEditingController _controller;

@@ -4,6 +4,12 @@
 
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/fork/future_entries.dart';
+import 'package:daily_you/providers/entry_attachments_provider.dart';
+import 'package:daily_you/layouts/mobile_scaffold.dart';
+import 'package:daily_you/fork/locations.dart';
+import 'package:daily_you/fork/stats/stats_counts.dart';
+import 'package:daily_you/fork/stats/explore_pages.dart';
+import 'package:daily_you/fork/stats/stats_year.dart';
 import 'package:daily_you/time_manager.dart';
 import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/models/stats_subject.dart';
@@ -45,6 +51,12 @@ class _StatsPageState extends State<StatsPage>
   late StatsRange statsRange;
   late String _subjectConfig;
 
+  /// A calendar year picked under All Time (3.7.0.48). Not remembered.
+  int? _year;
+  DateTime? get _yearStart => _year == null ? null : DateTime(_year!);
+  DateTime? get _yearEnd =>
+      _year == null ? null : DateTime(_year!, 12, 31, 23, 59, 59);
+
   // Header height calculated based on an offstage copy
   double _headerHeight = 98.0;
   final GlobalKey _headerMeasureKey = GlobalKey();
@@ -72,6 +84,40 @@ class _StatsPageState extends State<StatsPage>
     final saved = ConfigProvider.instance.get(Settings.statsRange);
     statsRange = _stringToRange[saved] ?? StatsRange.allTime;
     _subjectConfig = ConfigProvider.instance.get(Settings.statsSubject);
+    MobileScaffold.tab.addListener(_onTabShown);
+  }
+
+  @override
+  void dispose() {
+    MobileScaffold.tab.removeListener(_onTabShown);
+    super.dispose();
+  }
+
+  // "Tap a count to explore" (3.7.0.48): the first 3 times Statistics is
+  // opened, until a count is tapped or the hint is closed
+  bool _hintCounted = false;
+  bool _showHint = false;
+
+  void _onTabShown() {
+    if (MobileScaffold.tab.value != 2 || _hintCounted || !mounted) return;
+    _hintCounted = true;
+    final shown = ConfigProvider.instance.get(Settings.statsTapHintShown);
+    if (shown >= 3) return;
+    ConfigProvider.instance.set(Settings.statsTapHintShown, shown + 1);
+    setState(() => _showHint = true);
+  }
+
+  void _hideHintForGood() {
+    if (ConfigProvider.instance.get(Settings.statsTapHintShown) < 3) {
+      ConfigProvider.instance.set(Settings.statsTapHintShown, 3);
+    }
+    if (_showHint) setState(() => _showHint = false);
+  }
+
+  void _explore(Widget page) {
+    _hideHintForGood();
+    Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => page, allowSnapshotting: false));
   }
 
   @override
@@ -114,7 +160,8 @@ class _StatsPageState extends State<StatsPage>
         StatsSubject.fromConfigString(_subjectConfig, tagsProvider.tags);
     // Upcoming entries count once their day arrives
     final pastEntries = FutureEntries.past(entriesProvider.entries);
-    final rangedEntries = entriesInRange(pastEntries, statsRange);
+    final rangedEntries = entriesForStats(pastEntries, statsRange, _year);
+    final yearCounts = entryCountsByYear(pastEntries);
     final streaks = calculateStreaks(pastEntries);
     final daysSinceBadDay = streaks.daysSinceBadDay;
 
@@ -152,21 +199,44 @@ class _StatsPageState extends State<StatsPage>
         ),
     ];
 
+    final counts = StatsCounts.of(pastEntries, tagsProvider.entryTags,
+        EntryAttachmentsProvider.instance.attachments);
     final writingItems = <StatItem>[
       if (logCount > 0)
         StatItem(
           icon: Icons.description_outlined,
           title: l10n.logCount(logCount),
+          onTap: () => _explore(const StatsGalleryPage()),
         ),
-      if (entryDayCount > 0 && entryDayCount != logCount)
+      if (entryDayCount > 0)
         StatItem(
           icon: Icons.today_rounded,
           title: l10n.dayCount(entryDayCount),
+          onTap: () => _explore(const YourDaysPage()),
         ),
-      if (wordCount > 100)
+      if (wordCount > 0)
         StatItem(
           icon: Icons.sort_rounded,
           title: l10n.wordCount(wordCount),
+          onTap: () => _explore(const MostUsedWordsPage()),
+        ),
+      if (counts.tags > 0)
+        StatItem(
+          icon: Icons.local_offer_outlined,
+          title: l10n.tagCount(counts.tags),
+          onTap: () => _explore(const TopTagsPage()),
+        ),
+      if (counts.places > 0 && EntryLocations.showButtons)
+        StatItem(
+          icon: Icons.place_outlined,
+          title: l10n.placeCount(counts.places),
+          onTap: () => _explore(const TopPlacesPage()),
+        ),
+      if (counts.media > 0)
+        StatItem(
+          icon: Icons.photo_outlined,
+          title: l10n.photoCount(counts.media),
+          onTap: () => _explore(const PhotosPage()),
         ),
     ];
 
@@ -185,14 +255,22 @@ class _StatsPageState extends State<StatsPage>
                   ),
                 ),
               ),
+            if (_showHint && writingItems.isNotEmpty)
+              SliverToBoxAdapter(child: _TapHint(onClose: _hideHintForGood)),
             SliverPersistentHeader(
               pinned: true,
               delegate: _HeaderDelegate(
                 statsRange: statsRange,
                 subject: subject,
                 height: _headerHeight,
+                year: _year,
+                yearCounts: yearCounts,
+                onYearChanged: (year) => setState(() => _year = year),
                 onRangeChanged: (newRange) {
-                  setState(() => statsRange = newRange);
+                  setState(() {
+                    statsRange = newRange;
+                    _year = null;
+                  });
                   ConfigProvider.instance
                       .set(Settings.statsRange, _rangeToString[newRange]!);
                 },
@@ -228,6 +306,9 @@ class _StatsPageState extends State<StatsPage>
               key: _headerMeasureKey,
               statsRange: statsRange,
               subject: subject,
+              year: _year,
+              yearCounts: yearCounts,
+              onYearChanged: (_) {},
               onRangeChanged: (_) {},
               onSubjectTypeSelected: (_) {},
             ),
@@ -285,6 +366,8 @@ class _StatsPageState extends State<StatsPage>
 
     return [
       ValueOverTimeChart(
+        fixedStart: _yearStart,
+        fixedEnd: _yearEnd,
         dataPoints: moodPoints,
         hasData: hasData,
         yRange: _moodRange,
@@ -339,6 +422,8 @@ class _StatsPageState extends State<StatsPage>
 
     return [
       ValueOverTimeChart(
+        fixedStart: _yearStart,
+        fixedEnd: _yearEnd,
         dataPoints: dataPoints,
         hasData: hasData,
         yRange: trackerRange,
@@ -391,6 +476,8 @@ class _StatsPageState extends State<StatsPage>
 
     return [
       ValueOverTimeChart(
+        fixedStart: _yearStart,
+        fixedEnd: _yearEnd,
         dataPoints: coveragePoints,
         hasData: entries.isNotEmpty,
         yRange: const DynamicYRange(),
@@ -418,6 +505,9 @@ class _HeaderDelegate extends SliverPersistentHeaderDelegate {
   final StatsRange statsRange;
   final StatsSubject subject;
   final double height;
+  final int? year;
+  final Map<int, int> yearCounts;
+  final ValueChanged<int?> onYearChanged;
   final ValueChanged<StatsRange> onRangeChanged;
   final ValueChanged<String> onSubjectTypeSelected;
 
@@ -425,6 +515,9 @@ class _HeaderDelegate extends SliverPersistentHeaderDelegate {
     required this.statsRange,
     required this.subject,
     required this.height,
+    required this.year,
+    required this.yearCounts,
+    required this.onYearChanged,
     required this.onRangeChanged,
     required this.onSubjectTypeSelected,
   });
@@ -463,11 +556,23 @@ class _HeaderDelegate extends SliverPersistentHeaderDelegate {
                 ),
               ),
             ),
-            _HeaderContent(
-              statsRange: statsRange,
-              subject: subject,
-              onRangeChanged: onRangeChanged,
-              onSubjectTypeSelected: onSubjectTypeSelected,
+            // Clipped while the new height is measured, e.g. right after
+            // the year button appears (3.7.0.48)
+            ClipRect(
+              child: OverflowBox(
+                alignment: Alignment.topCenter,
+                minHeight: 0,
+                maxHeight: double.infinity,
+                child: _HeaderContent(
+                  statsRange: statsRange,
+                  subject: subject,
+                  year: year,
+                  yearCounts: yearCounts,
+                  onYearChanged: onYearChanged,
+                  onRangeChanged: onRangeChanged,
+                  onSubjectTypeSelected: onSubjectTypeSelected,
+                ),
+              ),
             ),
           ],
         ),
@@ -484,6 +589,8 @@ class _HeaderDelegate extends SliverPersistentHeaderDelegate {
   @override
   bool shouldRebuild(covariant _HeaderDelegate oldDelegate) =>
       oldDelegate.statsRange != statsRange ||
+      oldDelegate.year != year ||
+      oldDelegate.yearCounts.length != yearCounts.length ||
       oldDelegate.subject.toConfigString() != subject.toConfigString() ||
       oldDelegate.height != height;
 }
@@ -491,6 +598,9 @@ class _HeaderDelegate extends SliverPersistentHeaderDelegate {
 class _HeaderContent extends StatelessWidget {
   final StatsRange statsRange;
   final StatsSubject subject;
+  final int? year;
+  final Map<int, int> yearCounts;
+  final ValueChanged<int?> onYearChanged;
   final ValueChanged<StatsRange> onRangeChanged;
   final ValueChanged<String> onSubjectTypeSelected;
 
@@ -498,6 +608,9 @@ class _HeaderContent extends StatelessWidget {
     super.key,
     required this.statsRange,
     required this.subject,
+    required this.year,
+    required this.yearCounts,
+    required this.onYearChanged,
     required this.onRangeChanged,
     required this.onSubjectTypeSelected,
   });
@@ -614,9 +727,16 @@ class _HeaderContent extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           StatsRangeSelector(
+            key: ValueKey(statsRange),
             statsRange: statsRange,
             onSelectionChanged: onRangeChanged,
           ),
+          // All Time: pick one calendar year (3.7.0.48)
+          if (statsRange == StatsRange.allTime && yearCounts.length > 1) ...[
+            const SizedBox(height: 8),
+            StatsYearButton(
+                year: year, counts: yearCounts, onChanged: onYearChanged),
+          ],
           const SizedBox(height: 8),
         ],
       ),
@@ -643,6 +763,40 @@ class _HeaderContent extends StatelessWidget {
         const SizedBox(width: 8),
         Text(label),
       ]),
+    );
+  }
+}
+
+/// "Tap a count to explore", small and muted under the counts card.
+class _TapHint extends StatelessWidget {
+  const _TapHint({required this.onClose});
+
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.onSurfaceVariant;
+    final l10n = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.only(top: 2, bottom: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.touch_app_outlined, size: 15, color: color),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(l10n.statsTapHint,
+                style: TextStyle(fontSize: 12.5, color: color)),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            iconSize: 14,
+            tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+            icon: Icon(Icons.close_rounded, color: color),
+            onPressed: onClose,
+          ),
+        ],
+      ),
     );
   }
 }

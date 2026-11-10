@@ -9,7 +9,10 @@ class StatItem {
   final IconData icon;
   final String title;
 
-  const StatItem({required this.icon, required this.title});
+  /// Statistics counts open their own page (3.7.0.48).
+  final VoidCallback? onTap;
+
+  const StatItem({required this.icon, required this.title, this.onTap});
 }
 
 ({String number, String label}) _splitStat(String title) {
@@ -89,14 +92,18 @@ class StatsOverviewCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 10.0),
                 child: Divider(height: 1, thickness: 1, color: dividerColor),
               ),
-              Wrap(
-                alignment: WrapAlignment.start,
-                spacing: 16,
-                runSpacing: 8,
-                children: [
-                  for (final item in writingItems) _LineItem(item: item),
-                ],
-              ),
+              // Two centred lines of three (3.7.0.48): logs · days · words,
+              // then tags · places · photos
+              for (var row = 0; row * 3 < writingItems.length; row++)
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 4,
+                  runSpacing: 2,
+                  children: [
+                    for (final item in writingItems.skip(row * 3).take(3))
+                      _TappableItem(item: item),
+                  ],
+                ),
             ],
           ],
         ),
@@ -186,6 +193,31 @@ class _LineItem extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A count that opens its page: no arrows or outlines, just a soft rounded
+/// highlight while pressed.
+class _TappableItem extends StatelessWidget {
+  const _TappableItem({required this.item});
+
+  final StatItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final child = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+      child: _LineItem(item: item),
+    );
+    if (item.onTap == null) return child;
+    return Semantics(
+      button: true,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: item.onTap,
+        child: child,
+      ),
     );
   }
 }

@@ -1992,4 +1992,159 @@ class AppLocalizationsCa extends AppLocalizations {
 
   @override
   String get settingsStorageTotal => 'total';
+
+  @override
+  String get statsPickYear => 'Pick a year';
+
+  @override
+  String get statsAllYears => 'All years';
+
+  @override
+  String tagCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count tags',
+      one: '$count tag',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String placeCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count places',
+      one: '$count place',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String photoCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count photos',
+      one: '$count photo',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get statsTapHint => 'Tap a count to explore';
+
+  @override
+  String get statsEntriesLabel => 'entries';
+
+  @override
+  String get statsMostUsedWords => 'Most used words';
+
+  @override
+  String get statsWordsList => 'List';
+
+  @override
+  String get statsWordsCloud => 'Cloud';
+
+  @override
+  String get statsTopTags => 'Top tags';
+
+  @override
+  String get statsAllCategories => 'All categories';
+
+  @override
+  String get statsUncategorised => 'Uncategorised';
+
+  @override
+  String get statsLeastUsed => 'Least used first';
+
+  @override
+  String get statsMostUsed => 'Most used first';
+
+  @override
+  String get statsTopPlaces => 'Top places';
+
+  @override
+  String get statsPhotosTitle => 'Photos';
+
+  @override
+  String get statsPhotosLabel => 'photos';
+
+  @override
+  String get statsVideosLabel => 'videos';
+
+  @override
+  String get statsAudioLabel => 'audio';
+
+  @override
+  String get statsBusiestDay => 'Busiest day';
+
+  @override
+  String get statsYourDays => 'Your days';
+
+  @override
+  String get statsWritten => 'Written';
+
+  @override
+  String get statsBestMonth => 'Best month';
+
+  @override
+  String get statsDaysWritten => 'Days written';
+
+  @override
+  String get statsMissingDays => 'Missing days';
+
+  @override
+  String get statsNewest => 'Newest';
+
+  @override
+  String get statsLongest => 'Longest';
+
+  @override
+  String get statsNow => 'Now';
+
+  @override
+  String get statsSinceLastEntry => 'Since your last entry';
+
+  @override
+  String get statsNoEntries => 'no entries';
+
+  @override
+  String get statsNone => 'none';
+
+  @override
+  String get statsNoMood => 'no mood';
+
+  @override
+  String get statsNoEntry => 'no entry';
+
+  @override
+  String get statsOpen => 'Open';
+
+  @override
+  String statsDaysOf(int count, int total) {
+    return '$count of $total days';
+  }
+
+  @override
+  String statsOfDaysIn(int total, String year) {
+    return 'of $total in $year';
+  }
+
+  @override
+  String statsDaysUnit(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'days',
+      one: 'day',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String statsSince(String date) {
+    return 'since $date';
+  }
 }

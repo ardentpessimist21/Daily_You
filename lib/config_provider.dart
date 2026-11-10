@@ -146,6 +146,10 @@ class Settings {
       Setting<bool>("moodOverTimeSmoothing", true);
   static const statsRange = Setting<String>("statsRange", "allTime");
   static const statsSubject = Setting<String>("statsSubject", "mood");
+  // Statistics counts (3.7.0.48): how many times the "Tap a count" hint
+  // has shown (3 = never again), and Most used words' List or Cloud
+  static const statsTapHintShown = Setting<int>("statsTapHintShown", 0);
+  static const statsWordsView = Setting<String>("statsWordsView", "list");
   static const tagPickerSortMode =
       Setting<String>("tagPickerSortMode", "manual");
   static const requirePassword =
@@ -258,6 +262,8 @@ class Settings {
     moodOverTimeSmoothing,
     statsRange,
     statsSubject,
+    statsTapHintShown,
+    statsWordsView,
     tagPickerSortMode,
     requirePassword,
     biometricUnlock,

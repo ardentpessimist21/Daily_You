@@ -192,8 +192,8 @@ void showToolbarHint(BuildContext buttonContext, String text) {
         top: topCenter.dy - 40,
         child: IgnorePointer(
           child: Align(
-            alignment: Alignment(
-                (topCenter.dx / overlayBox.size.width) * 2 - 1, 0),
+            alignment:
+                Alignment((topCenter.dx / overlayBox.size.width) * 2 - 1, 0),
             child: Material(
               color: colorScheme.inverseSurface,
               borderRadius: BorderRadius.circular(999),
