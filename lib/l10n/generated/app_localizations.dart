@@ -2592,6 +2592,60 @@ abstract class AppLocalizations {
   /// **'{count, plural, =0{No entries} one{1 entry} other{{count} entries}}'**
   String galleryMonthEntries(int count);
 
+  /// No description provided for @jumpToYearTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Jump to year'**
+  String get jumpToYearTitle;
+
+  /// No description provided for @jumpToDateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Jump to date'**
+  String get jumpToDateTitle;
+
+  /// No description provided for @jumpTypeDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a date'**
+  String get jumpTypeDate;
+
+  /// No description provided for @jumpBackToMonths.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to months'**
+  String get jumpBackToMonths;
+
+  /// No description provided for @jumpEnterDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter date'**
+  String get jumpEnterDate;
+
+  /// No description provided for @jumpDateInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a date like {format}'**
+  String jumpDateInvalid(String format);
+
+  /// No description provided for @jumpDateOutOfRange.
+  ///
+  /// In en, this message translates to:
+  /// **'That date is outside your journal'**
+  String get jumpDateOutOfRange;
+
+  /// No description provided for @jumpNoEntriesInMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'No entries in {month}. Pick another date.'**
+  String jumpNoEntriesInMonth(String month);
+
+  /// No description provided for @jumpNoEntriesOnDay.
+  ///
+  /// In en, this message translates to:
+  /// **'No entries on {date}'**
+  String jumpNoEntriesOnDay(String date);
+
   /// No description provided for @galleryUpcoming.
   ///
   /// In en, this message translates to:

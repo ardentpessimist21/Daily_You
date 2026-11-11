@@ -1455,6 +1455,39 @@ class AppLocalizationsAr extends AppLocalizations {
   }
 
   @override
+  String get jumpToYearTitle => 'Jump to year';
+
+  @override
+  String get jumpToDateTitle => 'Jump to date';
+
+  @override
+  String get jumpTypeDate => 'Type a date';
+
+  @override
+  String get jumpBackToMonths => 'Back to months';
+
+  @override
+  String get jumpEnterDate => 'Enter date';
+
+  @override
+  String jumpDateInvalid(String format) {
+    return 'Enter a date like $format';
+  }
+
+  @override
+  String get jumpDateOutOfRange => 'That date is outside your journal';
+
+  @override
+  String jumpNoEntriesInMonth(String month) {
+    return 'No entries in $month. Pick another date.';
+  }
+
+  @override
+  String jumpNoEntriesOnDay(String date) {
+    return 'No entries on $date';
+  }
+
+  @override
   String galleryUpcoming(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

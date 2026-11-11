@@ -6,9 +6,9 @@ import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:daily_you/fork/future_entries.dart';
+import 'package:daily_you/fork/jump_picker.dart';
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
-import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/models/tag.dart';
 import 'package:daily_you/pages/entries_list_page.dart';
 import 'package:daily_you/pages/entry_timeline_page.dart';
@@ -800,58 +800,16 @@ class _VerticalCalendarState extends State<VerticalCalendar>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Sharing into the app only offers Jump to month, so the
-                // icon opens the picker straight away instead of a
-                // one-item menu
-                if (widget.onDaySelected != null)
-                  IconButton(
-                    tooltip: l10n.jumpToMonthTitle,
-                    onPressed: () => _onMonthLabelTap(context),
-                    icon: const Icon(Icons.calendar_month_rounded),
-                    color: theme.colorScheme.primary,
-                    padding: const EdgeInsets.all(8),
-                  )
-                else
-                  PopupMenuButton<String>(
-                    icon: Icon(Icons.calendar_month_rounded,
-                        color: theme.colorScheme.primary),
-                    padding: const EdgeInsets.all(8),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                    itemBuilder: (context) => [
-                      PopupMenuItem<String>(
-                        value: 'month',
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.calendar_month_rounded,
-                                color: theme.colorScheme.primary),
-                            const SizedBox(width: 8),
-                            Text(l10n.jumpToMonthTitle),
-                          ],
-                        ),
-                      ),
-                      PopupMenuItem<String>(
-                        value: 'log',
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.event_rounded,
-                                color: theme.colorScheme.primary),
-                            const SizedBox(width: 8),
-                            Text(l10n.jumpToLogTitle),
-                          ],
-                        ),
-                      ),
-                    ],
-                    onSelected: (value) {
-                      if (value == 'month') {
-                        _onMonthLabelTap(context);
-                      } else {
-                        _onCalendarIconTap(context);
-                      }
-                    },
-                  ),
+                // One tap opens Jump to month, on Home and when sharing
+                // into the app. Jump to log is gone (3.7.0.49): typing a
+                // date in the picker opens that day's entry instead.
+                IconButton(
+                  tooltip: l10n.jumpToMonthTitle,
+                  onPressed: () => _onMonthLabelTap(context),
+                  icon: const Icon(Icons.calendar_month_rounded),
+                  color: theme.colorScheme.primary,
+                  padding: const EdgeInsets.all(8),
+                ),
                 IconButton(
                   onPressed: () => showAppDialog(
                     context: context,
@@ -913,55 +871,88 @@ class _VerticalCalendarState extends State<VerticalCalendar>
     );
   }
 
-  Future<void> _onCalendarIconTap(BuildContext context) async {
-    final entriesProvider = context.read<EntriesProvider>();
-    final DateTime? picked = await TimeManager.pickDate(
-      context,
-      selectableDayPredicate: (date) {
-        if (entriesProvider.entries.isEmpty) return true;
-        return entriesProvider.getEntryForDate(date) != null;
-      },
-      initialDate: entriesProvider.entries.isNotEmpty
-          ? entriesProvider.entries.first.timeCreate
-          : DateTime.now(),
-      firstDate: _firstDate,
-      lastDate: FutureEntries.lastPickableDate(),
-    );
-
-    if (picked == null || !mounted) return;
-    _jumpToMonth(picked);
-
-    final List<Entry> entries = entriesProvider.getEntriesForDate(picked);
-    if (!context.mounted) return;
-
-    if (entries.isNotEmpty) {
-      if (entries.length == 1) {
-        await Navigator.of(context).push(MaterialPageRoute(
-          allowSnapshotting: false,
-          builder: (context) => EntriesListPage(
-            index: entriesProvider.getIndexOfEntry(entries.first.id!),
-            getEntries: () => entriesProvider.entries,
-          ),
-        ));
-      } else {
-        EntryTimelinePage.pushForDay(context, picked);
+  /// The square showing [day], when it is on screen.
+  BuildContext? _cellContextFor(DateTime day) {
+    BuildContext? found;
+    void visit(Element element) {
+      if (found != null) return;
+      final cell = element.widget;
+      if (cell is EntryDayCell && TimeManager.isSameDay(cell.date, day)) {
+        found = element;
+        return;
       }
+      element.visitChildren(visit);
     }
+
+    context.visitChildElements(visit);
+    return found;
   }
 
   Future<void> _onMonthLabelTap(BuildContext context) async {
-    final entries = context.read<EntriesProvider>().entries;
-    final DateTime? selected = await showYearMonthPicker(context,
-        // Never one of the greyed months shown after the current one
-        initialDate:
-            _visibleMonth.isAfter(_lastDate) ? _lastDate : _visibleMonth,
-        isJalali: _isJalali,
-        firstYear: YearMonthRange.firstYearFor(
-            entries.map((entry) => entry.timeCreate)),
-        // Runs ahead of today when future entries are on
-        lastDate: _lastDate);
-    if (selected == null) return;
-    _jumpToMonth(selected);
+    final entriesProvider = context.read<EntriesProvider>();
+    final entries = entriesProvider.entries;
+    // Never one of the greyed months shown after the current one
+    final current =
+        _visibleMonth.isAfter(_lastDate) ? _lastDate : _visibleMonth;
+
+    // The Jalali calendar keeps the two-dropdown picker
+    if (_isJalali) {
+      final DateTime? selected = await showYearMonthPicker(context,
+          initialDate: current,
+          isJalali: true,
+          firstYear: YearMonthRange.firstYearFor(
+              entries.map((entry) => entry.timeCreate)),
+          // Runs ahead of today when future entries are on
+          lastDate: _lastDate);
+      if (selected == null) return;
+      _jumpToMonth(selected);
+      return;
+    }
+
+    // Sharing into the app can go to any day, so empty months stay open
+    final sharing = widget.onDaySelected != null;
+    final picked = await JumpPicker.show(
+      context,
+      entryDates: entries.map((entry) => entry.timeCreate),
+      selected: current,
+      lastYear: _lastDate.year,
+      allowEmpty: sharing,
+      firstDate: sharing ? _firstDate : null,
+      lastDate: sharing ? FutureEntries.lastPickableDate() : null,
+    );
+    if (picked == null || !mounted) return;
+    _jumpToMonth(picked.month);
+    final day = picked.day;
+    if (day == null || !context.mounted) return;
+
+    // A typed date
+    if (sharing) {
+      // Picks that day as the one being shared into, once the calendar
+      // has settled on its month so the day's menu opens beside its square
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      if (!mounted || !context.mounted) return;
+      widget.onDaySelected!(_cellContextFor(day) ?? context, day);
+      return;
+    }
+    final dayEntries = entriesProvider.getEntriesForDate(day);
+    if (dayEntries.isEmpty) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(AppLocalizations.of(context)!
+              .jumpNoEntriesOnDay(TimeManager.formatDate(day, context))),
+        ));
+    } else if (dayEntries.length == 1) {
+      await Navigator.of(context).push(MaterialPageRoute(
+        allowSnapshotting: false,
+        builder: (context) => EntriesListPage(
+          index: entriesProvider.getIndexOfEntry(dayEntries.first.id!),
+          getEntries: () => entriesProvider.entries,
+        ),
+      ));
+    } else {
+      await EntryTimelinePage.pushForDay(context, day);
+    }
   }
 
   Widget _buildItem(

@@ -10,6 +10,7 @@ import 'package:daily_you/fork/selection_actions.dart';
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/fork/future_entries.dart';
 import 'package:daily_you/fork/gallery_month_pill.dart';
+import 'package:daily_you/fork/jump_picker.dart';
 import 'package:daily_you/pages/entry_timeline_page.dart';
 import 'package:daily_you/time_manager.dart';
 import 'package:daily_you/models/attachment.dart';
@@ -208,20 +209,61 @@ class _GalleryPageState extends State<GalleryPage>
     if (current == null) return;
     _pillTimer?.cancel();
     final entries = _gridEntries;
-    final month = await GalleryMonthPill.pickMonth(context, entries, current);
-    if (month == null || !mounted || !_scrollController.hasClients) {
+    final picked = await JumpPicker.show(context,
+        entryDates: entries.map((entry) => entry.timeCreate),
+        selected: current);
+    if (picked == null || !mounted || !_scrollController.hasClients) {
       if (mounted) _showPill(current);
       return;
     }
-    final index = entries.indexWhere((entry) =>
-        entry.timeCreate.year == month.year &&
-        entry.timeCreate.month == month.month);
+    final month = picked.month;
+    final day = picked.day;
+    // A typed date lands on that day's first entry; otherwise (or when the
+    // day is empty) on the month's first one
+    final dayIndex = day == null
+        ? -1
+        : entries.indexWhere(
+            (entry) => TimeManager.isSameDay(entry.timeCreate, day));
+    final index = dayIndex >= 0
+        ? dayIndex
+        : entries.indexWhere((entry) =>
+            entry.timeCreate.year == month.year &&
+            entry.timeCreate.month == month.month);
     if (index < 0) return;
     final row = index ~/ _gridColumns;
     final target = _gridTop + row * _gridRowExtent - _listTopPadding;
     final position = _scrollController.position;
     _scrollController.jumpTo(target.clamp(0.0, position.maxScrollExtent));
     _showPill(month);
+    if (day == null) return;
+    if (dayIndex >= 0) {
+      // Opens the entry; Back returns here, scrolled to that date
+      await _openEntryAt(dayIndex);
+    } else {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(AppLocalizations.of(context)!
+              .jumpNoEntriesOnDay(TimeManager.formatDate(day, context))),
+        ));
+    }
+  }
+
+  /// Opens the entry at [index] of the Gallery's list, as tapping it does.
+  Future<void> _openEntryAt(int index) async {
+    _dropSearchFocus();
+    await Navigator.of(context).push(MaterialPageRoute(
+        allowSnapshotting: false,
+        builder: (context) => EntriesListPage(
+              index: index,
+              searchQuery: _searchText,
+              newestFirst:
+                  EntriesProvider.instance.sortOrder != SortOrder.ascending,
+              getEntries: () => FutureEntries.past(_getVisibleEntries(
+                EntriesProvider.instance,
+                TagsProvider.instance,
+              )),
+            )));
   }
 
   Future<void> _openUpcoming() async {
@@ -767,21 +809,7 @@ class _GalleryPageState extends State<GalleryPage>
                         _toggleSelected(entry);
                         return;
                       }
-                      _dropSearchFocus();
-                      await Navigator.of(context).push(MaterialPageRoute(
-                          allowSnapshotting: false,
-                          builder: (context) => EntriesListPage(
-                                index: index,
-                                searchQuery: _searchText,
-                                newestFirst:
-                                    EntriesProvider.instance.sortOrder !=
-                                        SortOrder.ascending,
-                                getEntries: () =>
-                                    FutureEntries.past(_getVisibleEntries(
-                                  EntriesProvider.instance,
-                                  TagsProvider.instance,
-                                )),
-                              )));
+                      await _openEntryAt(index);
                     },
                     child: SelectionOutline(
                       selected: isSelected,

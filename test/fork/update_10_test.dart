@@ -379,23 +379,21 @@ void main() {
 
     testWidgets('sharing: the calendar icon opens the month picker directly',
         (tester) async {
-      // Update 10.1: no one-item menu first
-      expect(await menuFor(tester, (_, __) {}), <String>[]);
+      // Update 10.1: no one-item menu first. Since 3.7.0.49 it is the
+      // Gallery-style Jump to month picker, not the two dropdowns.
+      expect(await menuFor(tester, (_, __) {}), ['month']);
       expect(find.byType(PopupMenuItem<String>), findsNothing);
-      final dropdowns = tester
-          .widgetList<DropdownButton<int>>(find.byType(DropdownButton<int>))
-          .toList();
-      expect(dropdowns.length, 2);
-      // Neither year nor month is blank
-      for (final dropdown in dropdowns) {
-        expect(dropdown.items!.where((item) => item.value == dropdown.value),
-            hasLength(1));
-      }
+      expect(find.byType(DropdownButton<int>), findsNothing);
+      expect(find.byKey(const ValueKey('jump-months')), findsOneWidget);
       expect(find.byIcon(Icons.visibility_rounded), findsOneWidget);
     });
 
-    testWidgets('Calendar page keeps both', (tester) async {
-      expect(await menuFor(tester, null), ['month', 'log']);
+    testWidgets('Calendar page opens it directly too, Jump to log is gone',
+        (tester) async {
+      // 3.7.0.49
+      expect(await menuFor(tester, null), ['month']);
+      expect(find.byType(PopupMenuItem<String>), findsNothing);
+      expect(find.byKey(const ValueKey('jump-months')), findsOneWidget);
     });
   });
 }
