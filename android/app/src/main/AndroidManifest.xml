@@ -90,6 +90,8 @@
         <activity
             android:name=".QuickEntryActivity"
             android:exported="true"
+            android:showWhenLocked="true"
+            tools:targetApi="27"
             android:label="Add to Daily You"
             android:theme="@style/QuickEntryTheme"
             android:taskAffinity=""
