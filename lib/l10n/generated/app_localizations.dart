@@ -3012,6 +3012,18 @@ abstract class AppLocalizations {
   /// **'Remove'**
   String get placeRemove;
 
+  /// No description provided for @placeInTemplate.
+  ///
+  /// In en, this message translates to:
+  /// **'Place for this template'**
+  String get placeInTemplate;
+
+  /// No description provided for @placeInTemplateHint.
+  ///
+  /// In en, this message translates to:
+  /// **'New entries from this template get this place, unless they already have one.'**
+  String get placeInTemplateHint;
+
   /// No description provided for @locationRemove.
   ///
   /// In en, this message translates to:

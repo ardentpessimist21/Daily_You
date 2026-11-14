@@ -5,6 +5,7 @@
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/custom_locale_delegates.dart';
 import 'package:daily_you/database/entry_store.dart';
+import 'package:daily_you/fork/date_template_box.dart';
 import 'package:daily_you/fork/jump_picker.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
@@ -247,7 +248,7 @@ void main() {
     Future<void> type(WidgetTester tester, String text) async {
       await tester.tap(find.byIcon(Icons.edit_outlined));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byKey(const ValueKey('jump-date')), text);
+      await enterJumpDate(tester, text);
       await tester.tap(find.text('OK'));
       await tester.pumpAndSettle();
     }
@@ -352,7 +353,7 @@ void main() {
           .replaceAll('dd', two(day.day))
           .replaceAll('mm', two(day.month))
           .replaceAll('yyyy', '${day.year}');
-      await tester.enterText(find.byKey(const ValueKey('jump-date')), text);
+      await enterJumpDate(tester, text);
       await tester.tap(find.text('OK'));
       await tester.pumpAndSettle();
     }
@@ -412,4 +413,19 @@ void main() {
       expect(find.byType(DropdownButton<int>), findsNWidgets(2));
     });
   });
+}
+
+/// Types [text] (three numbers in the box's order) into the date template
+/// box (3.7.0.50), one part at a time.
+Future<void> enterJumpDate(WidgetTester tester, String text) async {
+  final box =
+      tester.widget<DateTemplateBox>(find.byKey(const ValueKey('jump-date')));
+  final numbers =
+      RegExp(r'\d+').allMatches(text).map((m) => m.group(0)!).toList();
+  for (var i = 0; i < box.order.length; i++) {
+    await tester.enterText(
+        find.byKey(ValueKey('jump-date-${box.order[i]}')),
+        i < numbers.length ? numbers[i] : '');
+  }
+  await tester.pump();
 }

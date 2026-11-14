@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/fork/locations.dart';
+import 'package:daily_you/fork/places.dart';
 import 'package:daily_you/fork/undo_redo_buttons.dart';
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/models/template.dart';
@@ -35,6 +37,11 @@ class EditTemplate extends StatefulWidget {
 class _EditTemplateState extends State<EditTemplate> {
   late TextEditingController _nameController;
   late String templateText;
+
+  /// The template's place (3.7.0.50), kept on the template text's hidden
+  /// last line like an entry's places. Entries made from the template get
+  /// it unless they already have a place.
+  List<Place> _places = [];
   late final TagAttachmentSource _tagSource;
   final FocusNode _focusNode = FocusNode();
   final MarkdownPreviewController _textEditingController =
@@ -45,11 +52,10 @@ class _EditTemplateState extends State<EditTemplate> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.template?.name ?? '');
-    if (widget.template != null) {
-      templateText = widget.template!.text ?? "";
-    } else {
-      templateText = "";
-    }
+    final (body, places) =
+        EntryLocations.split(widget.template?.text ?? "");
+    templateText = body;
+    _places = [...places];
     final initialTagIds = widget.template?.id == null
         ? <int>[]
         : TagsProvider.instance
@@ -71,19 +77,52 @@ class _EditTemplateState extends State<EditTemplate> {
     super.dispose();
   }
 
+  /// The text with the template's place on its hidden last line.
+  String get _fullText => EntryLocations.join(templateText, _places);
+
+  /// 📍: pick the template's place. A template has one place, so a new
+  /// pick replaces the old one.
+  Future<void> _pickPlace() => Places.showPlaceSheet(context, null,
+      onPicked: (place) {
+        if (!mounted) return;
+        setState(() => _places = [place]);
+      });
+
+  /// Tapping the place: Name, Map link and Description for this template,
+  /// with Remove.
+  Future<void> _editPlace(int index) async {
+    if (index < 0 || index >= _places.length) return;
+    final place = _places[index];
+    final l10n = AppLocalizations.of(context)!;
+    final result = await showPlaceDialog(
+      context,
+      title: l10n.placeInTemplate,
+      initial: place,
+      footnote: l10n.placeInTemplateHint,
+      removeLabel: l10n.placeRemove,
+    );
+    if (result == null || !mounted || index >= _places.length) return;
+    if (!identical(_places[index], place)) return;
+    setState(() {
+      _places = result.removed
+          ? ([..._places]..removeAt(index))
+          : ([..._places]..[index] = result.place!);
+    });
+  }
+
   Future<void> _saveTemplate() async {
     final int templateId;
     if (widget.template == null) {
       final created = await TemplatesProvider.instance.add(Template(
           name: _nameController.text,
-          text: templateText,
+          text: _fullText,
           timeCreate: DateTime.now(),
           timeModified: DateTime.now()));
       templateId = created.id!;
     } else {
       final updated = widget.template!.copy(
           name: _nameController.text,
-          text: templateText,
+          text: _fullText,
           timeModified: DateTime.now());
       await TemplatesProvider.instance.update(updated);
       templateId = updated.id!;
@@ -134,6 +173,11 @@ class _EditTemplateState extends State<EditTemplate> {
       ToolbarAction(
         icon: const Icon(Icons.local_offer_rounded),
         onPressed: _openTagPicker,
+      ),
+      ToolbarAction(
+        icon: const Icon(Icons.place_rounded),
+        onPressed: _pickPlace,
+        mayLeaveApp: true,
       ),
     ];
   }
@@ -236,7 +280,18 @@ class _EditTemplateState extends State<EditTemplate> {
                     width: double.infinity,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: _buildTagChips(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (_places.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+                              child: LocationRows(
+                                  places: _places, onTap: _editPlace),
+                            ),
+                          _buildTagChips(),
+                        ],
+                      ),
                     ),
                   ),
                 ),

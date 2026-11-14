@@ -4,6 +4,7 @@
 
 import 'dart:ui' show PlatformDispatcher;
 
+import 'package:daily_you/fork/date_template_box.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/time_manager.dart';
 import 'package:daily_you/widgets/app_dialog.dart';
@@ -41,7 +42,8 @@ class JumpTarget {
 class JumpDateFormat {
   JumpDateFormat(String pattern)
       : _order = _orderOf(pattern),
-        hint = _hintOf(pattern);
+        hint = _hintOf(pattern),
+        separator = _separatorOf(pattern);
 
   /// The phone's regional format when it is in the app's language (so an
   /// Australian phone reads dd/mm/yyyy), else the app language's own.
@@ -65,6 +67,22 @@ class JumpDateFormat {
 
   /// 'd', 'M' and 'y' in the order they are typed.
   final List<String> _order;
+
+  /// The same order, for the date template box (3.7.0.50).
+  List<String> get order => List.unmodifiable(_order);
+
+  /// What goes between the parts: '/', '-', '.'...
+  final String separator;
+
+  static String _separatorOf(String pattern) {
+    final match = RegExp(r'[^dMy\s]').firstMatch(pattern);
+    return match?.group(0) ?? '/';
+  }
+
+  /// The parts typed into the template box, in [order], as text [parse]
+  /// reads.
+  String join(Map<String, String> parts) =>
+      _order.map((part) => parts[part] ?? '').join(separator);
 
   /// Shown in the box and in the "Enter a date like…" message.
   final String hint;
@@ -209,7 +227,8 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
   late PageController _pages =
       PageController(initialPage: _year - widget.firstYear);
   final ScrollController _yearScroll = ScrollController();
-  final TextEditingController _dateText = TextEditingController();
+  /// The typed date, as text [JumpDateFormat.parse] reads.
+  String _dateText = '';
 
   _JumpView _view = _JumpView.months;
   String? _dateError;
@@ -218,7 +237,6 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
   void dispose() {
     _pages.dispose();
     _yearScroll.dispose();
-    _dateText.dispose();
     super.dispose();
   }
 
@@ -266,6 +284,7 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
     } else {
       setState(() {
         _dateError = null;
+        _dateText = '';
         _view = _JumpView.date;
       });
     }
@@ -274,7 +293,7 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
   void _submitDate() {
     final l10n = AppLocalizations.of(context)!;
     final format = widget.dateFormat ?? JumpDateFormat.of(context);
-    final date = format.parse(_dateText.text);
+    final date = format.parse(_dateText);
     String? error;
     if (date == null) {
       error = l10n.jumpDateInvalid(format.hint);
@@ -520,23 +539,18 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
     final format = widget.dateFormat ?? JumpDateFormat.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: TextField(
+      // A fixed template whose parts fill in place (3.7.0.50)
+      child: DateTemplateBox(
         key: const ValueKey('jump-date'),
-        controller: _dateText,
-        autofocus: true,
-        keyboardType: TextInputType.datetime,
-        textInputAction: TextInputAction.done,
-        onChanged: (_) {
+        order: format.order,
+        separator: format.separator,
+        label: l10n.jumpEnterDate,
+        errorText: _dateError,
+        onChanged: (parts) {
+          _dateText = format.join(parts);
           if (_dateError != null) setState(() => _dateError = null);
         },
-        onSubmitted: (_) => _submitDate(),
-        decoration: InputDecoration(
-          border: const OutlineInputBorder(),
-          labelText: l10n.jumpEnterDate,
-          hintText: format.hint,
-          errorText: _dateError,
-          errorMaxLines: 3,
-        ),
+        onSubmitted: _submitDate,
       ),
     );
   }

@@ -331,16 +331,23 @@ class Places {
 
   // The 📍 toolbar sheet
 
+  /// [onPicked] (3.7.0.50) takes the picked place instead of the editor or
+  /// [controller], e.g. a template's place.
   static Future<void> showPlaceSheet(
-      BuildContext context, TextEditingController controller) async {
+      BuildContext context, TextEditingController? controller,
+      {void Function(Place place)? onPicked}) async {
     final copied =
         (await Clipboard.getData(Clipboard.kTextPlain))?.text?.trim() ?? '';
     if (!context.mounted) return;
     void add(Place place) {
+      if (onPicked != null) {
+        onPicked(place);
+        return;
+      }
       final sink = addToEditor;
       if (sink != null) {
         sink(place);
-      } else {
+      } else if (controller != null) {
         insertAtCursor(controller, markdownFor(place));
       }
     }

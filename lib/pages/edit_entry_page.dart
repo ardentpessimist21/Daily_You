@@ -75,6 +75,19 @@ class AddEditEntryPage extends StatefulWidget {
     this.onLeave,
   });
 
+  /// A new entry's text from the default template and anything shared in.
+  /// The template's place (3.7.0.50) goes in only when the entry has no
+  /// place of its own, e.g. one shared from Google Maps.
+  static String newEntryText(String templateText, String? sharedText,
+      {String locale = 'en'}) {
+    final (templateBody, templatePlaces) = EntryLocations.split(templateText);
+    final merged =
+        mergeSharedText(templateBody, sharedText, locale: locale);
+    final (body, places) = EntryLocations.split(merged);
+    if (places.isNotEmpty || templatePlaces.isEmpty) return merged;
+    return EntryLocations.join(body, templatePlaces);
+  }
+
   static String mergeSharedText(String baseText, String? sharedText,
       {String locale = 'en'}) {
     if (sharedText == null) return baseText;
@@ -163,7 +176,7 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
       _tagSource = TagAttachmentSource(
           supportsValues: true, initialTagIds: defaultTagIds);
       _entry = Entry(
-        text: AddEditEntryPage.mergeSharedText(templateText, _sharedTextToMerge,
+        text: AddEditEntryPage.newEntryText(templateText, _sharedTextToMerge,
             locale: Intl.getCurrentLocale()),
         mood: null,
         timeCreate: createTime,
@@ -880,6 +893,13 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
   }
 
   void _applyInsertedTemplateTags(Template template) {
+    // The template's place (3.7.0.50), unless the entry already has one
+    final templatePlaces = EntryLocations.placesOf(template.text ?? "");
+    if (_places.isEmpty && templatePlaces.isNotEmpty) {
+      setState(() => _places = [...templatePlaces]);
+      _syncText();
+      _scheduleSave();
+    }
     if (template.id == null) return;
     final templateTagIds = TagsProvider.instance
         .getTemplateTagsForTemplate(template.id!)

@@ -1702,6 +1702,13 @@ class AppLocalizationsPt extends AppLocalizations {
   String get placeRemove => 'Remove';
 
   @override
+  String get placeInTemplate => 'Place for this template';
+
+  @override
+  String get placeInTemplateHint =>
+      'New entries from this template get this place, unless they already have one.';
+
+  @override
   String get locationRemove => 'Remove location';
 
   @override
