@@ -278,27 +278,37 @@ class AppDatabase {
   Future<void> updateExternalDatabase() async {
     if (!usingExternalLocation()) return;
 
-    EasyDebounce.debounce("update-remote-database", Duration(seconds: 1),
-        () async {
-      final externalLocation = externalStore;
-      if (externalLocation == null) return;
+    EasyDebounce.debounce(
+        "update-remote-database", Duration(seconds: 1), _writeExternalDatabase);
+  }
 
-      final exportName =
-          "$databaseFileName.export_${DateTime.now().millisecondsSinceEpoch}";
-      final exportPath = join(dirname(_internalPath!), exportName);
+  /// [updateExternalDatabase] without the wait, for a quick entry saved from
+  /// the lock screen or a notification, whose engine closes right after.
+  Future<void> writeExternalDatabaseNow() async {
+    if (!usingExternalLocation()) return;
+    EasyDebounce.cancel("update-remote-database");
+    await _writeExternalDatabase();
+  }
 
-      await externalSyncHealth.record("external database write", () async {
-        try {
-          if (!await exportSnapshotTo(exportPath)) return false;
+  Future<void> _writeExternalDatabase() async {
+    final externalLocation = externalStore;
+    if (externalLocation == null) return;
 
-          final bytes = await internalStore.read(exportName);
-          if (bytes == null) return false;
+    final exportName =
+        "$databaseFileName.export_${DateTime.now().millisecondsSinceEpoch}";
+    final exportPath = join(dirname(_internalPath!), exportName);
 
-          return await externalLocation.write(databaseFileName, bytes);
-        } finally {
-          await internalStore.delete(exportName);
-        }
-      });
+    await externalSyncHealth.record("external database write", () async {
+      try {
+        if (!await exportSnapshotTo(exportPath)) return false;
+
+        final bytes = await internalStore.read(exportName);
+        if (bytes == null) return false;
+
+        return await externalLocation.write(databaseFileName, bytes);
+      } finally {
+        await internalStore.delete(exportName);
+      }
     });
   }
 

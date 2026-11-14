@@ -154,5 +154,7 @@ flutter {
 dependencies {
     implementation 'androidx.window:window:1.0.0'
     implementation 'androidx.window:window-java:1.0.0'
+    // Quick entry (Update Q): notification reply, shortcut
+    implementation 'androidx.core:core:1.16.0'
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'
 }

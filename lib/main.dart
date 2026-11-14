@@ -12,6 +12,8 @@ import 'package:daily_you/custom_locale_delegates.dart';
 import 'package:daily_you/database/app_database.dart';
 import 'package:daily_you/device_info_service.dart';
 import 'package:daily_you/flashback_manager.dart';
+import 'package:daily_you/fork/quick_entry/quick_entry_service.dart';
+import 'package:daily_you/fork/quick_entry/quick_entry_sheet.dart';
 import 'package:daily_you/notification_manager.dart';
 import 'package:daily_you/pages/launch_page.dart';
 import 'package:daily_you/providers/entries_provider.dart';
@@ -29,6 +31,7 @@ import 'package:daily_you/layouts/mobile_scaffold.dart';
 import 'package:daily_you/layouts/responsive_layout.dart';
 import 'package:daily_you/theme_mode_provider.dart';
 import 'package:flutter_displaymode/flutter_displaymode.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:just_audio_media_kit/just_audio_media_kit.dart';
 import 'package:logging/logging.dart';
@@ -213,6 +216,129 @@ void callbackDispatcher() async {
   }
 
   setAlarm(firstSet: false);
+}
+
+// Quick entry (Update Q) runs in its own engine: the sheet over other apps
+// and the lock screen, and a short headless run for notification replies.
+
+/// Opens the journal for a quick-entry engine. False when there's no journal
+/// yet (Daily You was never opened), so nothing is created behind its back.
+Future<bool> _openDatabaseForQuickEntry() async {
+  try {
+    return await AppDatabase.instance
+        .init(forceWithoutSync: true, allowMigration: false);
+  } catch (error, stackTrace) {
+    Logger('QuickEntry')
+        .warning('Could not open the database', error, stackTrace);
+    return false;
+  }
+}
+
+@pragma('vm:entry-point')
+Future<void> quickEntryMain() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  databaseFactory = databaseFactoryFfi;
+  configureLogging();
+  await ConfigProvider.instance.init();
+  final themeProvider = ThemeModeProvider();
+  await themeProvider.initializeThemeFromConfig();
+  final ready = await _openDatabaseForQuickEntry();
+
+  runApp(MultiProvider(
+    providers: [
+      ChangeNotifierProvider<ThemeModeProvider>(create: (_) => themeProvider),
+      ChangeNotifierProvider<EntriesProvider>(
+          create: (_) => EntriesProvider.instance),
+      ChangeNotifierProvider<EntryAttachmentsProvider>(
+          create: (_) => EntryAttachmentsProvider.instance),
+      ChangeNotifierProvider<TemplatesProvider>(
+          create: (_) => TemplatesProvider.instance),
+      ChangeNotifierProvider<TagsProvider>(
+          create: (_) => TagsProvider.instance),
+      ChangeNotifierProvider<ConfigProvider>(
+          create: (_) => ConfigProvider.instance),
+    ],
+    builder: (context, child) => QuickEntryApp(ready: ready),
+  ));
+}
+
+@pragma('vm:entry-point')
+Future<void> quickReplyMain() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  databaseFactory = databaseFactoryFfi;
+  configureLogging();
+  const channel = MethodChannel('daily_you/quick_reply');
+  Map<String, Object?> status = {'message': null};
+  try {
+    await ConfigProvider.instance.init();
+    if (await _openDatabaseForQuickEntry()) {
+      final result = await QuickEntryService.saveWaitingReplies();
+      if (result != null) {
+        await QuickEntryService.flushExternalCopy();
+        final last = QuickEntryService.lastEntryToday();
+        status = {
+          'message': QuickEntryService.messageFor(result),
+          'lastLabel': last == null
+              ? null
+              : QuickEntryService.timeLabel(last.timeCreate),
+        };
+      }
+    } else {
+      status = {'message': 'Open Daily You to finish saving', 'failed': true};
+    }
+  } catch (error, stackTrace) {
+    Logger('QuickEntry').severe('Saving a reply failed', error, stackTrace);
+    status = {'message': 'Open Daily You to finish saving', 'failed': true};
+  }
+  await channel.invokeMethod('done', status);
+}
+
+class QuickEntryApp extends StatelessWidget {
+  const QuickEntryApp({super.key, required this.ready});
+
+  final bool ready;
+
+  @override
+  Widget build(BuildContext context) {
+    final themeModeProvider = Provider.of<ThemeModeProvider>(context);
+    final configProvider = Provider.of<ConfigProvider>(context);
+    return DynamicColorBuilder(
+        builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+      final (lightTheme, darkTheme) =
+          buildAppThemes(themeModeProvider, lightDynamic, darkDynamic);
+      return MaterialApp(
+        title: 'Quick entry',
+        debugShowCheckedModeBanner: false,
+        themeMode: themeModeProvider.themeMode,
+        theme: lightTheme,
+        darkTheme: darkTheme,
+        localizationsDelegates: <LocalizationsDelegate<dynamic>>[
+          AppLocalizations.delegate,
+          ...appLocalizationsDelegates,
+        ],
+        locale: configProvider.getOverrideLanguage(),
+        supportedLocales: [
+          const Locale("en"),
+          ...AppLocalizations.supportedLocales
+              .where((locale) => locale.languageCode != "en")
+        ],
+        localeResolutionCallback: (locale, supportedLocales) {
+          final override = configProvider.getOverrideLanguage();
+          if (override != null) return override;
+          if (locale != null) {
+            for (final supported in supportedLocales) {
+              if (supported.languageCode == locale.languageCode) {
+                return supported;
+              }
+            }
+          }
+          return const Locale('en');
+        },
+        color: Colors.transparent,
+        home: QuickEntryPage(ready: ready),
+      );
+    });
+  }
 }
 
 void main() async {
@@ -417,6 +543,76 @@ ThemeData _buildTheme(ColorScheme colorScheme,
   );
 }
 
+/// The app's light and dark themes (also used by the quick-entry sheet).
+(ThemeData, ThemeData) buildAppThemes(ThemeModeProvider themeModeProvider,
+    ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+  ThemeData lightTheme;
+  ThemeData darkTheme;
+
+  if (themeModeProvider.usingSystemColor && lightDynamic != null) {
+    // FIX: Surface colors are not correct with the dynamic theme, see https://github.com/material-foundation/flutter-packages/issues/574
+    // Use dynamic theme for seed color but do not inject chroma
+    bool noChroma = (lightDynamic.primary.r == lightDynamic.primary.b) &&
+        (lightDynamic.primary.b == lightDynamic.primary.g);
+    lightTheme = _buildTheme(ColorScheme.fromSeed(
+        seedColor: lightDynamic.primary,
+        primaryContainer: lightDynamic.primaryContainer,
+        dynamicSchemeVariant: noChroma
+            ? DynamicSchemeVariant.fidelity
+            : DynamicSchemeVariant.tonalSpot,
+        brightness: Brightness.light));
+  } else {
+    lightTheme = _buildTheme(ColorScheme.fromSeed(
+        seedColor: themeModeProvider.accentColor,
+        brightness: Brightness.light));
+  }
+
+  if (themeModeProvider.usingSystemColor && darkDynamic != null) {
+    // FIX: Surface colors are not correct with the dynamic theme, see https://github.com/material-foundation/flutter-packages/issues/574
+    // Use dynamic theme for seed color but do not inject chroma
+    bool noChroma = (darkDynamic.primary.r == darkDynamic.primary.b) &&
+        (darkDynamic.primary.b == darkDynamic.primary.g);
+    darkTheme = _buildTheme(ColorScheme.fromSeed(
+        seedColor: darkDynamic.primary,
+        primaryContainer: darkDynamic.primaryContainer,
+        dynamicSchemeVariant: noChroma
+            ? DynamicSchemeVariant.fidelity
+            : DynamicSchemeVariant.tonalSpot,
+        brightness: Brightness.dark));
+  } else {
+    darkTheme = _buildTheme(ColorScheme.fromSeed(
+        seedColor: themeModeProvider.accentColor, brightness: Brightness.dark));
+  }
+
+  // amoled override
+  if (ConfigProvider.instance.get(Settings.theme) == 'amoled') {
+    darkTheme = _buildTheme(
+        ColorScheme.fromSeed(
+          seedColor: themeModeProvider.accentColor,
+          brightness: Brightness.dark,
+          surfaceContainerLowest: Colors.black,
+          surfaceContainerLow: Colors.black,
+          surfaceContainerHighest: Colors.black,
+          surfaceContainerHigh: Colors.black,
+          surfaceBright: Colors.black,
+          surfaceDim: Colors.black,
+          surface: Colors.black,
+          surfaceContainer: Colors.black,
+          onSurface: Colors.white,
+          surfaceTint: Colors.black,
+          primaryContainer: Colors.black,
+          secondaryContainer: Colors.black,
+          tertiaryContainer: Colors.black,
+          inverseSurface: Colors.black,
+          inversePrimary: Colors.black,
+          scrim: Colors.black,
+        ),
+        scaffoldBackgroundColor: Colors.black);
+  }
+
+  return (lightTheme, darkTheme);
+}
+
 class _MainAppState extends State<MainApp> {
   @override
   Widget build(BuildContext context) {
@@ -424,70 +620,8 @@ class _MainAppState extends State<MainApp> {
     final configProvider = Provider.of<ConfigProvider>(context);
     return DynamicColorBuilder(
         builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
-      ThemeData lightTheme;
-      ThemeData darkTheme;
-
-      if (themeModeProvider.usingSystemColor && lightDynamic != null) {
-        // FIX: Surface colors are not correct with the dynamic theme, see https://github.com/material-foundation/flutter-packages/issues/574
-        // Use dynamic theme for seed color but do not inject chroma
-        bool noChroma = (lightDynamic.primary.r == lightDynamic.primary.b) &&
-            (lightDynamic.primary.b == lightDynamic.primary.g);
-        lightTheme = _buildTheme(ColorScheme.fromSeed(
-            seedColor: lightDynamic.primary,
-            primaryContainer: lightDynamic.primaryContainer,
-            dynamicSchemeVariant: noChroma
-                ? DynamicSchemeVariant.fidelity
-                : DynamicSchemeVariant.tonalSpot,
-            brightness: Brightness.light));
-      } else {
-        lightTheme = _buildTheme(ColorScheme.fromSeed(
-            seedColor: themeModeProvider.accentColor,
-            brightness: Brightness.light));
-      }
-
-      if (themeModeProvider.usingSystemColor && darkDynamic != null) {
-        // FIX: Surface colors are not correct with the dynamic theme, see https://github.com/material-foundation/flutter-packages/issues/574
-        // Use dynamic theme for seed color but do not inject chroma
-        bool noChroma = (darkDynamic.primary.r == darkDynamic.primary.b) &&
-            (darkDynamic.primary.b == darkDynamic.primary.g);
-        darkTheme = _buildTheme(ColorScheme.fromSeed(
-            seedColor: darkDynamic.primary,
-            primaryContainer: darkDynamic.primaryContainer,
-            dynamicSchemeVariant: noChroma
-                ? DynamicSchemeVariant.fidelity
-                : DynamicSchemeVariant.tonalSpot,
-            brightness: Brightness.dark));
-      } else {
-        darkTheme = _buildTheme(ColorScheme.fromSeed(
-            seedColor: themeModeProvider.accentColor,
-            brightness: Brightness.dark));
-      }
-
-      // amoled override
-      if (ConfigProvider.instance.get(Settings.theme) == 'amoled') {
-        darkTheme = _buildTheme(
-            ColorScheme.fromSeed(
-              seedColor: themeModeProvider.accentColor,
-              brightness: Brightness.dark,
-              surfaceContainerLowest: Colors.black,
-              surfaceContainerLow: Colors.black,
-              surfaceContainerHighest: Colors.black,
-              surfaceContainerHigh: Colors.black,
-              surfaceBright: Colors.black,
-              surfaceDim: Colors.black,
-              surface: Colors.black,
-              surfaceContainer: Colors.black,
-              onSurface: Colors.white,
-              surfaceTint: Colors.black,
-              primaryContainer: Colors.black,
-              secondaryContainer: Colors.black,
-              tertiaryContainer: Colors.black,
-              inverseSurface: Colors.black,
-              inversePrimary: Colors.black,
-              scrim: Colors.black,
-            ),
-            scaffoldBackgroundColor: Colors.black);
-      }
+      final (lightTheme, darkTheme) =
+          buildAppThemes(themeModeProvider, lightDynamic, darkDynamic);
 
       return StatsFl(
         isEnabled: false,

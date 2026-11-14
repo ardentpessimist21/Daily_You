@@ -10,6 +10,7 @@ import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/database/app_database.dart';
 import 'package:daily_you/database/attachment_storage.dart';
 import 'package:daily_you/device_info_service.dart';
+import 'package:daily_you/fork/quick_entry/quick_entry_host.dart';
 import 'package:daily_you/launch_intent.dart';
 import 'package:daily_you/main.dart';
 import 'package:daily_you/utils/auto_backup_schedule.dart';
@@ -86,6 +87,8 @@ class _LaunchPageState extends State<LaunchPage> {
         icon: '@drawable/ic_shortcut_camera_alt',
       )
     ]);
+    // "Quick note" opens the quick-entry sheet (Update Q)
+    await QuickEntryHost.addShortcut();
   }
 
   Future _storeLocalizedNotificationStrings() async {

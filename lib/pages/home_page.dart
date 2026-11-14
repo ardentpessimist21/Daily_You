@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:daily_you/fork/share_return.dart';
+import 'package:daily_you/fork/quick_entry/quick_entry_host.dart';
 import 'package:daily_you/layouts/mobile_scaffold.dart';
 import 'package:daily_you/fork/places.dart';
 import 'package:daily_you/fork/future_entries.dart';
@@ -55,6 +56,23 @@ class _HomePageState extends State<HomePage>
     _checkForLaunchIntent();
     _checkForNotificationLaunch();
     _listenForShares();
+    QuickEntryHost.instance.start(onOpen: _openFromQuickEntry);
+  }
+
+  /// The quick-entry sheet's "Open full editor": entry [id], or a new entry
+  /// for today when -1 (Update Q).
+  Future<void> _openFromQuickEntry(int id) async {
+    if (!mounted) return;
+    MobileScaffold.showHome();
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    final index = id < 0 ? -1 : EntriesProvider.instance.getIndexOfEntry(id);
+    if (index < 0) {
+      await _addNewEntryForToday();
+      return;
+    }
+    final entry = EntriesProvider.instance.entries[index];
+    await _editEntry(
+        entry, EntryAttachmentsProvider.instance.getForEntry(entry));
   }
 
   @override

@@ -138,6 +138,11 @@ class Settings {
   static const lastDismissedSupportBannerDate =
       Setting<String?>("lastDismissedSupportBannerDate", null);
   static const calendarShowMood = Setting<bool>("calendarShowMood", true);
+  // Quick entry (Update Q): the pinned notification, and whether the sheet
+  // stays open (and clears) after Save/Add
+  static const quickEntryNotification =
+      Setting<bool>("quickEntryNotification", false);
+  static const quickEntryKeepOpen = Setting<bool>("quickEntryKeepOpen", false);
   static const calendarTagOverlay = Setting<int?>("calendarTagOverlay", null);
   static const calendarSystem = Setting<String>("calendarSystem", "system");
   static const moodOverTimeGrouping =
@@ -256,6 +261,8 @@ class Settings {
     justifyText,
     lastDismissedSupportBannerDate,
     calendarShowMood,
+    quickEntryNotification,
+    quickEntryKeepOpen,
     calendarTagOverlay,
     calendarSystem,
     moodOverTimeGrouping,
