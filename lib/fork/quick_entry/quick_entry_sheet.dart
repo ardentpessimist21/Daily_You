@@ -740,7 +740,9 @@ class _QuickEntryPageState extends State<QuickEntryPage> {
           ),
         ),
         const SizedBox(width: 6),
-        Flexible(
+        // Fills the space up to Save, so "New entry" fits even with large
+        // text (3.7.0.52 cut it to "N…" next to an empty gap)
+        Expanded(
           child: OutlinedButton(
             onPressed: () {
               if (!hasLast) {
@@ -756,26 +758,43 @@ class _QuickEntryPageState extends State<QuickEntryPage> {
               padding: const EdgeInsets.only(left: 12, right: 6),
               side: BorderSide(color: cs.outlineVariant),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: Text(
-                    _toLast ? 'Last entry' : 'New entry',
-                    overflow: TextOverflow.ellipsis,
+            // "New entry", or just "New" when large text leaves no room
+            child: LayoutBuilder(builder: (context, box) {
+              final full = _toLast ? 'Last entry' : 'New entry';
+              final short = _toLast ? 'Last' : 'New';
+              final style = DefaultTextStyle.of(context).style;
+              final painter = TextPainter(
+                text: TextSpan(text: full, style: style),
+                textScaler: MediaQuery.textScalerOf(context),
+                textDirection: Directionality.of(context),
+                maxLines: 1,
+              )..layout();
+              final fits = painter.width + 24 <= box.maxWidth;
+              painter.dispose();
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      fits ? full : short,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-                const Icon(Icons.arrow_drop_down_rounded),
-              ],
-            ),
+                  const Icon(Icons.arrow_drop_down_rounded),
+                ],
+              );
+            }),
           ),
         ),
-        const Spacer(),
-        FilledButton.icon(
+        const SizedBox(width: 6),
+        // A round ✓ above the keyboard; the full sheet keeps "Save" / "Add
+        // to entry" in words
+        IconButton.filled(
+          tooltip: _toLast ? 'Add' : 'Save',
           onPressed: _canSave ? _onSavePressed : null,
-          style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
-          icon: const Icon(Icons.check_rounded, size: 18),
-          label: Text(_toLast ? 'Add' : 'Save'),
+          style: IconButton.styleFrom(fixedSize: const Size(44, 44)),
+          icon: const Icon(Icons.check_rounded),
         ),
       ],
     );
