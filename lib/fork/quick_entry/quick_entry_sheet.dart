@@ -528,18 +528,28 @@ class _QuickEntryPageState extends State<QuickEntryPage> {
     final theme = Theme.of(context);
     final locale = TimeManager.currentLocale(context);
     final now = DateTime.now();
+    // Title over the date, so large text never wraps "Quick entry" or
+    // squeezes the date beside it
     return Row(
       children: [
-        Text('Quick entry',
-            style: theme.textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.w700)),
-        const SizedBox(width: 8),
         Expanded(
-          child: Text(
-            '${DateFormat.MMMd(locale).format(now)} · ${_timeText(now)}',
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Quick entry',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w700)),
+              Text(
+                '${DateFormat.MMMd(locale).format(now)} · ${_timeText(now)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ],
           ),
         ),
         IconButton(
