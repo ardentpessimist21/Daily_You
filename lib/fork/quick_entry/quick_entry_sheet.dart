@@ -39,6 +39,11 @@ class _QuickEntryPageState extends State<QuickEntryPage> {
   final TextEditingController _text = TextEditingController();
   final FocusNode _focus = FocusNode();
 
+  /// Keeps the text box the same box when the layout changes for the
+  /// keyboard. Without it the box is rebuilt, loses the keyboard, and the
+  /// layout flips back (3.7.0.51: the keyboard wouldn't stay up).
+  final GlobalKey _textFieldKey = GlobalKey();
+
   QuickEntryTarget _target = QuickEntryTarget.newEntry;
   Entry? _lastEntry;
   int? _mood;
@@ -411,7 +416,7 @@ class _QuickEntryPageState extends State<QuickEntryPage> {
                         if (_toLast) ...[
                           const SizedBox(height: 6),
                           Text(
-                            'Added at the end of the ${_timeText(_lastEntry!.timeCreate)} entry, under a "— ${_timeText(DateTime.now())}" line',
+                            'Added at the end of the ${_timeText(_lastEntry!.timeCreate)} entry, under a "${_timeText(DateTime.now())}" line',
                             style: theme.textTheme.bodySmall
                                 ?.copyWith(color: cs.onSurfaceVariant),
                           ),
@@ -550,6 +555,7 @@ class _QuickEntryPageState extends State<QuickEntryPage> {
   Widget _textField(BuildContext context, {bool expand = false}) {
     final cs = Theme.of(context).colorScheme;
     return TextField(
+      key: _textFieldKey,
       controller: _text,
       focusNode: _focus,
       autofocus: true,
@@ -590,17 +596,21 @@ class _QuickEntryPageState extends State<QuickEntryPage> {
           label: Text(_tagsLabel()),
           onPressed: _pickTags,
         ),
-        ActionChip(
-          avatar: const Icon(Icons.place_outlined, size: 18),
-          label: Text(_placeLabel()),
-          onPressed: _pickPlace,
-        ),
-        if (_places.isNotEmpty)
-          IconButton(
-            tooltip: 'Remove place',
-            visualDensity: VisualDensity.compact,
-            onPressed: () => setState(() => _places = []),
-            icon: const Icon(Icons.close_rounded, size: 18),
+        // With a place, the ✕ to remove it sits inside the pill
+        if (_places.isEmpty)
+          ActionChip(
+            avatar: const Icon(Icons.place_outlined, size: 18),
+            label: Text(_placeLabel()),
+            onPressed: _pickPlace,
+          )
+        else
+          InputChip(
+            avatar: const Icon(Icons.place_outlined, size: 18),
+            label: Text(_placeLabel()),
+            onPressed: _pickPlace,
+            onDeleted: () => setState(() => _places = []),
+            deleteIcon: const Icon(Icons.close_rounded, size: 18),
+            deleteButtonTooltipMessage: 'Remove place',
           ),
       ],
     );

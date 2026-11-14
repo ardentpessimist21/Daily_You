@@ -76,7 +76,7 @@ class QuickEntryService {
       DateFormat.jm(locale).format(time);
 
   /// Saves [text] as a new entry for today, or adds it to the end of today's
-  /// most recent entry under a "— 7:24 PM" line. Without an entry today,
+  /// most recent entry under a "7:24 PM" line. Without an entry today,
   /// "Last entry" saves a new entry.
   ///
   /// [mood] is the mood to save. With [keepMood] (a notification reply,
@@ -109,7 +109,7 @@ class QuickEntryService {
       );
     } else {
       final (body, oldPlaces) = EntryLocations.split(last.text);
-      final stamp = '— ${timeText ?? timeLabel(now)}';
+      final stamp = timeText ?? timeLabel(now);
       final above = body.trimRight();
       final added = '$stamp\n$writing';
       final newBody = above.isEmpty ? added : '$above\n\n$added';
