@@ -116,7 +116,8 @@ class QuickEntryHost with WidgetsBindingObserver {
     final last = QuickEntryService.lastEntryToday();
     try {
       await _channel.invokeMethod('updateNotification', {
-        'enabled': ConfigProvider.instance.get(Settings.quickEntryNotification),
+        'enabled':
+            ConfigProvider.instance.get<bool>(Settings.quickEntryNotification),
         'lastLabel':
             last == null ? null : QuickEntryService.timeLabel(last.timeCreate),
       });

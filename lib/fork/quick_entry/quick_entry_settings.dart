@@ -73,7 +73,7 @@ class QuickEntrySettings extends StatelessWidget {
               title: 'Lock screen notification',
               hint: 'A quiet, pinned notification to add a note from anywhere',
               leading: Icons.notifications_active_outlined,
-              value: config.get(Settings.quickEntryNotification),
+              value: config.get<bool>(Settings.quickEntryNotification),
               onChanged: (on) => _setNotification(context, on),
             ),
             SettingsToggle(

@@ -54,7 +54,7 @@ class _QuickEntryPageState extends State<QuickEntryPage> {
   bool _loaded = false;
 
   bool get _keepOpen =>
-      ConfigProvider.instance.get(Settings.quickEntryKeepOpen);
+      ConfigProvider.instance.get<bool>(Settings.quickEntryKeepOpen);
 
   bool get _toLast =>
       _target == QuickEntryTarget.lastEntry && _lastEntry != null;
