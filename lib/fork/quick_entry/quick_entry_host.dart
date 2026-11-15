@@ -146,15 +146,4 @@ class QuickEntryHost with WidgetsBindingObserver {
       await _channel.invokeMethod('addShortcut');
     } catch (_) {}
   }
-
-  /// Android 13+: asks to add the Quick Settings tile. False when the phone
-  /// can't ask, so Settings shows how to add it by hand.
-  static Future<bool> requestTile() async {
-    if (!Platform.isAndroid) return false;
-    try {
-      return await _channel.invokeMethod<bool>('requestTile') ?? false;
-    } catch (_) {
-      return false;
-    }
-  }
 }

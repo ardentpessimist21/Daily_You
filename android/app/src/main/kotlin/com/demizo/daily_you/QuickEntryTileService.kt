@@ -5,11 +5,7 @@
 package com.demizo.daily_you
 
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.app.PendingIntent
-import android.app.StatusBarManager
-import android.content.ComponentName
-import android.graphics.drawable.Icon
 import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
@@ -41,25 +37,6 @@ class QuickEntryTileService : TileService() {
         } else {
             @Suppress("DEPRECATION")
             startActivityAndCollapse(intent)
-        }
-    }
-
-    companion object {
-        /** Android 13+: asks to add the tile. False when the phone can't ask. */
-        fun requestAdd(activity: Activity): Boolean {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
-            val statusBar = activity.getSystemService(StatusBarManager::class.java) ?: return false
-            return try {
-                statusBar.requestAddTileService(
-                    ComponentName(activity, QuickEntryTileService::class.java),
-                    "Quick entry",
-                    Icon.createWithResource(activity, R.drawable.ic_quick_entry),
-                    activity.mainExecutor
-                ) { }
-                true
-            } catch (_: Exception) {
-                false
-            }
         }
     }
 }

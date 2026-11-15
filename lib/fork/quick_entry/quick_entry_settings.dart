@@ -36,26 +36,6 @@ class QuickEntrySettings extends StatelessWidget {
     await QuickEntryHost.instance.refreshNotification();
   }
 
-  Future<void> _addTile(BuildContext context) async {
-    final asked = await QuickEntryHost.requestTile();
-    if (asked || !context.mounted) return;
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Add the Quick Settings tile'),
-        content: const Text(
-            'Swipe down twice from the top of the screen, tap the pencil '
-            '(Edit), then drag "Quick entry" into your tiles.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final config = Provider.of<ConfigProvider>(context);
@@ -84,29 +64,39 @@ class QuickEntrySettings extends StatelessWidget {
               onChanged: (on) => config.set(Settings.quickEntryKeepOpen, on),
             ),
           ]),
-          SettingsGroup(title: 'Other ways in', children: [
-            ListTile(
-              leading: const Icon(Icons.grid_view_rounded),
-              title: const Text('Quick Settings tile'),
-              subtitle: const Text('Works over any app and the lock screen'),
-              trailing: const Icon(Icons.add_rounded),
-              onTap: () => _addTile(context),
-            ),
-            const ListTile(
-              leading: Icon(Icons.text_fields_rounded),
-              title: Text('Selected text'),
-              subtitle:
-                  Text('Select text in any app, then ⋮ › Add to Daily You'),
-            ),
-            const ListTile(
-              leading: Icon(Icons.touch_app_outlined),
-              title: Text('App icon and widget'),
-              subtitle: Text(
-                  'Long-press the Daily You icon for Quick note, or add the Quick entry widget to your home screen'),
-            ),
-          ]),
+          // Plain tips, not buttons: none of these can be set up from here
           Padding(
-            padding: const EdgeInsets.fromLTRB(28, 4, 28, 0),
+            padding: const EdgeInsets.fromLTRB(28, 16, 28, 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Other ways in',
+                    style: theme.textTheme.labelLarge
+                        ?.copyWith(color: theme.colorScheme.primary)),
+                const SizedBox(height: 8),
+                Text(
+                  '• Quick Settings tile: pull down Quick Settings, tap Edit, '
+                  'then drag "Quick entry" into your tiles. Works over any app.',
+                  style: hintStyle,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '• Selected text: select text in any app, then '
+                  '⋮ › Add to Daily You.',
+                  style: hintStyle,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '• App icon and widget: long-press the Daily You icon for '
+                  'Quick note, or add the Quick entry widget to your home '
+                  'screen.',
+                  style: hintStyle,
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(28, 12, 28, 0),
             child: Text(
               'On the lock screen you can only add notes: your entries don\'t '
               'show, and tags, places and the full editor ask you to unlock.',

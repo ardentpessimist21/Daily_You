@@ -42,7 +42,6 @@ class MainActivity: FlutterFragmentActivity() {
             QuickEntry.addShortcut(this)
             result.success(null)
           }
-          "requestTile" -> result.success(QuickEntryTileService.requestAdd(this))
           else -> result.notImplemented()
         }
       } }
