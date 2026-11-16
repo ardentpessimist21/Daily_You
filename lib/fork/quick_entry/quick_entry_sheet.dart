@@ -803,8 +803,19 @@ class _QuickEntryPageState extends State<QuickEntryPage> {
         IconButton.filled(
           tooltip: _toLast ? 'Add' : 'Save',
           onPressed: _canSave ? _onSavePressed : null,
-          style: IconButton.styleFrom(fixedSize: const Size(44, 44)),
-          icon: const Icon(Icons.check_rounded),
+          // Colours set here: the app's icon theme otherwise tints the ✓
+          // almost the same as the button (3.7.0.53)
+          style: IconButton.styleFrom(
+            fixedSize: const Size(44, 44),
+            backgroundColor: cs.primary,
+            foregroundColor: cs.onPrimary,
+            disabledBackgroundColor: cs.onSurface.withValues(alpha: 0.12),
+            disabledForegroundColor: cs.onSurface.withValues(alpha: 0.38),
+          ),
+          icon: Icon(Icons.check_rounded,
+              color: _canSave
+                  ? cs.onPrimary
+                  : cs.onSurface.withValues(alpha: 0.38)),
         ),
       ],
     );
