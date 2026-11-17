@@ -113,6 +113,7 @@ class QuickEntryHost with WidgetsBindingObserver {
   /// Shows, updates or removes the pinned notification.
   Future<void> refreshNotification() async {
     if (!_supported) return;
+    await pushFloating();
     final last = QuickEntryService.lastEntryToday();
     try {
       await _channel.invokeMethod('updateNotification', {
@@ -145,5 +146,51 @@ class QuickEntryHost with WidgetsBindingObserver {
     try {
       await _channel.invokeMethod('addShortcut');
     } catch (_) {}
+  }
+
+  // Update F: the floating button. Its settings are kept on the Android side
+  // too, so it works while the app isn't running.
+
+  /// Sends the floating button's settings to Android (starts, updates or
+  /// stops the button).
+  static Future<void> pushFloating() async {
+    if (!Platform.isAndroid) return;
+    final config = ConfigProvider.instance;
+    try {
+      await _channel.invokeMethod('updateFloating', {
+        'enabled': config.get<bool>(Settings.floatingButton),
+        'opacity': config.get<int>(Settings.floatingOpacity),
+        'hideDnd': config.get<bool>(Settings.floatingHideDnd),
+        'bringBack': config.get<String>(Settings.floatingBringBack),
+        'badge': config.get<bool>(Settings.floatingBadge),
+        'badgeTimes': config.get<int>(Settings.floatingBadgeTimes),
+        'badgeMode': config.get<String>(Settings.floatingBadgeMode),
+        'badgeStart': config.get<int>(Settings.floatingBadgeStart),
+        'badgeEnd': config.get<int>(Settings.floatingBadgeEnd),
+        'nudge': config.get<bool>(Settings.floatingNudge),
+      });
+    } catch (error, stackTrace) {
+      _logger.warning('Updating the floating button failed', error, stackTrace);
+    }
+  }
+
+  /// Whether Daily You may "Display over other apps".
+  static Future<bool> canDrawOverlays() async {
+    if (!Platform.isAndroid) return false;
+    try {
+      return await _channel.invokeMethod<bool>('canDrawOverlays') ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Opens Android's "Display over other apps" page for Daily You.
+  static Future<bool> requestOverlay() async {
+    if (!Platform.isAndroid) return false;
+    try {
+      return await _channel.invokeMethod<bool>('requestOverlay') ?? false;
+    } catch (_) {
+      return false;
+    }
   }
 }

@@ -40,6 +40,9 @@ object QuickEntryNotifier {
 
     fun isEnabled(context: Context) = prefs(context).getBoolean(ENABLED, false)
 
+    /** Shown when switched on, and always while the floating button runs (it needs it). */
+    fun shouldShow(context: Context) = isEnabled(context) || FloatingButton.isEnabled(context)
+
     /** From the app: turn on or off, and today's last entry time (or null). */
     fun update(context: Context, enabled: Boolean, lastLabel: String?) {
         prefs(context).edit()
@@ -47,7 +50,7 @@ object QuickEntryNotifier {
             .putString(LAST_LABEL, lastLabel)
             .putString(LAST_DAY, today())
             .apply()
-        if (enabled) post(context) else cancel(context)
+        if (shouldShow(context)) post(context) else cancel(context)
     }
 
     /** After a save: there's an entry today now. */
@@ -58,12 +61,12 @@ object QuickEntryNotifier {
                 .putString(LAST_DAY, today())
                 .apply()
         }
-        if (isEnabled(context)) post(context, status)
+        if (shouldShow(context)) post(context, status)
     }
 
     /** After a restart or an app update. */
     fun repost(context: Context) {
-        if (isEnabled(context)) post(context)
+        if (shouldShow(context)) post(context)
     }
 
     fun cancel(context: Context) {
@@ -96,10 +99,19 @@ object QuickEntryNotifier {
     }
 
     fun post(context: Context, status: String? = null) {
-        ensureChannel(context)
+        if (!shouldShow(context)) return
         val manager = NotificationManagerCompat.from(context)
         if (!manager.areNotificationsEnabled()) return
+        try {
+            manager.notify(NOTIFICATION_ID, build(context, status))
+        } catch (_: SecurityException) {
+            // Notifications not allowed
+        }
+    }
 
+    /** The notification itself; the floating button's service shows it too. */
+    fun build(context: Context, status: String? = null): android.app.Notification {
+        ensureChannel(context)
         val open = PendingIntent.getActivity(
             context, 40, QuickEntry.sheetIntent(context),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
@@ -124,11 +136,21 @@ object QuickEntryNotifier {
                 replyAction(context, "last", "Add to last entry", "Add to the $last entry")
             )
         }
-        try {
-            manager.notify(NOTIFICATION_ID, builder.build())
-        } catch (_: SecurityException) {
-            // Notifications not allowed
+        // Update F: bring a hidden floating button back
+        if (FloatingButton.isEnabled(context) && FloatingButton.isUserHidden(context)) {
+            val show = PendingIntent.getBroadcast(
+                context, 45,
+                Intent(context, FloatingActionReceiver::class.java)
+                    .setAction(FloatingButton.ACTION_SHOW),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            builder.addAction(
+                NotificationCompat.Action.Builder(
+                    R.drawable.ic_quick_entry, "Show floating button", show
+                ).build()
+            )
         }
+        return builder.build()
     }
 
     private fun replyAction(

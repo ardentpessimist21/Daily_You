@@ -80,6 +80,17 @@ class QuickEntryActivity : FlutterFragmentActivity() {
             } }
     }
 
+    // The floating button hides while the sheet is open
+    override fun onResume() {
+        super.onResume()
+        FloatingButtonService.sheetOpen = true
+    }
+
+    override fun onPause() {
+        FloatingButtonService.sheetOpen = false
+        super.onPause()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         channel?.invokeMethod(

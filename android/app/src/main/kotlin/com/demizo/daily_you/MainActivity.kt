@@ -42,9 +42,34 @@ class MainActivity: FlutterFragmentActivity() {
             QuickEntry.addShortcut(this)
             result.success(null)
           }
+          // Update F: the floating button
+          "updateFloating" -> {
+            (call.arguments as? Map<*, *>)?.let { FloatingButton.apply(this, it) }
+            result.success(null)
+          }
+          "canDrawOverlays" -> result.success(FloatingButton.canDrawOverlays(this))
+          "requestOverlay" -> {
+            try {
+              startActivity(FloatingButton.overlaySettingsIntent(this))
+              result.success(true)
+            } catch (_: Exception) {
+              result.success(false)
+            }
+          }
           else -> result.notImplemented()
         }
       } }
+  }
+
+  // The floating button hides while Daily You itself is showing
+  override fun onResume() {
+    super.onResume()
+    FloatingButtonService.hostVisible = true
+  }
+
+  override fun onPause() {
+    FloatingButtonService.hostVisible = false
+    super.onPause()
   }
 
   override fun onNewIntent(intent: Intent) {

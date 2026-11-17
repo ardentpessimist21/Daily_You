@@ -143,6 +143,19 @@ class Settings {
   static const quickEntryNotification =
       Setting<bool>("quickEntryNotification", false);
   static const quickEntryKeepOpen = Setting<bool>("quickEntryKeepOpen", false);
+  // Floating button (Update F)
+  static const floatingButton = Setting<bool>("floatingButton", false);
+  static const floatingOpacity = Setting<int>("floatingOpacity", 80);
+  static const floatingHideDnd = Setting<bool>("floatingHideDnd", true);
+  static const floatingBringBack =
+      Setting<String>("floatingBringBack", "unlock");
+  static const floatingBadge = Setting<bool>("floatingBadge", true);
+  static const floatingBadgeTimes = Setting<int>("floatingBadgeTimes", 1);
+  static const floatingBadgeMode =
+      Setting<String>("floatingBadgeMode", "random");
+  static const floatingBadgeStart = Setting<int>("floatingBadgeStart", 540);
+  static const floatingBadgeEnd = Setting<int>("floatingBadgeEnd", 1260);
+  static const floatingNudge = Setting<bool>("floatingNudge", true);
   static const calendarTagOverlay = Setting<int?>("calendarTagOverlay", null);
   static const calendarSystem = Setting<String>("calendarSystem", "system");
   static const moodOverTimeGrouping =
@@ -263,6 +276,16 @@ class Settings {
     calendarShowMood,
     quickEntryNotification,
     quickEntryKeepOpen,
+    floatingButton,
+    floatingOpacity,
+    floatingHideDnd,
+    floatingBringBack,
+    floatingBadge,
+    floatingBadgeTimes,
+    floatingBadgeMode,
+    floatingBadgeStart,
+    floatingBadgeEnd,
+    floatingNudge,
     calendarTagOverlay,
     calendarSystem,
     moodOverTimeGrouping,
