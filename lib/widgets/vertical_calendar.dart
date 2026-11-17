@@ -108,7 +108,27 @@ class _VerticalCalendarState extends State<VerticalCalendar>
   double _cellWidth = 0;
   List<String> _dayLabels = [];
 
-  final DateTime _firstDate = DateTime(2000, 1, 1);
+  // Starts at January 2000, or earlier when an entry is older (Update P:
+  // entries before 2000).
+  DateTime _firstDate = DateTime(2000, 1, 1);
+
+  /// Moves the first month back for an entry before 2000. True if it moved.
+  bool _updateFirstDate(EntriesProvider entriesProvider) {
+    var first = DateTime(2000, 1, 1);
+    final entries = entriesProvider.entries;
+    if (entries.isNotEmpty) {
+      final oldest = entries
+          .map((entry) => entry.timeCreate)
+          .reduce((a, b) => a.isBefore(b) ? a : b);
+      if (oldest.isBefore(first)) {
+        first = DateTime(oldest.year, oldest.month, 1);
+      }
+    }
+    if (first == _firstDate) return false;
+    _firstDate = first;
+    return true;
+  }
+
   // Recomputed when the day changes (see _checkForNewDay), so a calendar
   // left open past midnight or into a new month stays current.
   DateTime _lastDate = DateTime(DateTime.now().year, DateTime.now().month, 1);
@@ -626,6 +646,9 @@ class _VerticalCalendarState extends State<VerticalCalendar>
     }
     final entriesProvider = context.watch<EntriesProvider>();
     final attachmentsProvider = context.watch<EntryAttachmentsProvider>();
+    if (_updateFirstDate(entriesProvider) && _lastFirstDayIndex != null) {
+      _buildCalendarItems(_lastFirstDayIndex!);
+    }
 
     final tagsProvider = context.watch<TagsProvider>();
     final overlayTagId = configProvider.get(Settings.calendarTagOverlay);

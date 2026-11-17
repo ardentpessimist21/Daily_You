@@ -427,7 +427,7 @@ class _EntryPickerPageState extends State<EntryPickerPage> {
     final picked = await TimeManager.pickDate(
       context,
       initialDate: _day ?? DateTime.now(),
-      firstDate: DateTime(2000),
+      firstDate: DateTime(1950), // Update P: entries before 2000
       lastDate: entries.isEmpty
           ? DateTime.now()
           : entries

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/config_provider.dart';
 import 'dart:io';
 
 import 'package:daily_you/database/attachment_storage.dart';
@@ -373,6 +374,8 @@ class AppDatabase {
     await TemplatesProvider.instance.createDefaultTemplates();
     await TagsProvider.instance.createDefaultTags();
     await createWelcomeEntry();
+    // A new journal: ask for a name and birthday on Home (Update P)
+    await ConfigProvider.instance.set(Settings.profileSetupPending, true);
   }
 
   Future<void> createSchema(Database db) async {

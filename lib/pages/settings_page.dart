@@ -3,7 +3,9 @@
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
 import 'dart:io';
+import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/fork/places.dart';
+import 'package:daily_you/fork/profile.dart';
 import 'package:daily_you/fork/quick_entry/quick_entry_settings.dart';
 import 'package:daily_you/pages/settings/about_settings.dart';
 import 'package:daily_you/pages/settings/appearance_settings.dart';
@@ -93,6 +95,19 @@ class _SettingsPageState extends State<SettingsPage> {
       body: ListView(
         padding: const EdgeInsets.only(top: 4, bottom: 8),
         children: [
+          // Update P: name and birthday, first in Settings
+          SettingsGroup(children: [
+            SettingsCategory(
+                title: 'Profile',
+                hint: ConfigProvider.instance
+                        .get<String>(Settings.homeGreetingName)
+                        .isEmpty
+                    ? 'Name and birthday'
+                    : ConfigProvider.instance
+                        .get<String>(Settings.homeGreetingName),
+                icon: Icons.account_circle_outlined,
+                page: const ProfileSettingsPage()),
+          ]),
           SettingsGroup(title: l10n.settingsGroupLookAndFeel, children: [
             SettingsCategory(
                 title: l10n.settingsAppearanceTitle,

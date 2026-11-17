@@ -12,6 +12,7 @@ import 'package:daily_you/custom_locale_delegates.dart';
 import 'package:daily_you/database/app_database.dart';
 import 'package:daily_you/device_info_service.dart';
 import 'package:daily_you/flashback_manager.dart';
+import 'package:daily_you/fork/profile.dart';
 import 'package:daily_you/fork/quick_entry/quick_entry_service.dart';
 import 'package:daily_you/fork/quick_entry/quick_entry_sheet.dart';
 import 'package:daily_you/notification_manager.dart';
@@ -190,6 +191,10 @@ void callbackDispatcher() async {
       var prefs = await SharedPreferences.getInstance();
       var title = prefs.getString('dailyReminderTitle');
       var description = prefs.getString('dailyReminderDescription');
+      // Update P: a birthday line on the birthday (English only)
+      final birthdayLine = Profile.birthdayReminder(
+          english: Platform.localeName.toLowerCase().startsWith('en'));
+      if (birthdayLine != null) description = birthdayLine;
 
       var androidPlatformChannelSpecifics = AndroidNotificationDetails(
         'daily_you_reminder',

@@ -81,8 +81,7 @@ class AddEditEntryPage extends StatefulWidget {
   static String newEntryText(String templateText, String? sharedText,
       {String locale = 'en'}) {
     final (templateBody, templatePlaces) = EntryLocations.split(templateText);
-    final merged =
-        mergeSharedText(templateBody, sharedText, locale: locale);
+    final merged = mergeSharedText(templateBody, sharedText, locale: locale);
     final (body, places) = EntryLocations.split(merged);
     if (places.isNotEmpty || templatePlaces.isEmpty) return merged;
     return EntryLocations.join(body, templatePlaces);
@@ -372,6 +371,7 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
                   ),
                   actions: [
                     UndoRedoButtons(controller: _undoController),
+                    _saveButton(),
                     _deleteButton(),
                     _closeButton(),
                   ]),
@@ -663,6 +663,24 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
     );
   }
 
+  // Update P: save now and stay in the editor
+  Widget _saveButton() => IconButton(
+        tooltip: 'Save',
+        icon: const Icon(Icons.save_outlined),
+        onPressed: () async {
+          EasyDebounce.cancel("save-entry");
+          await _saveEntry();
+          if (!mounted) return;
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(const SnackBar(
+              content: Text('Saved'),
+              behavior: SnackBarBehavior.floating,
+              duration: Duration(milliseconds: 1500),
+            ));
+        },
+      );
+
   Widget _deleteButton() => IconButton(
         icon: const Icon(Icons.delete),
         onPressed: () => _showDeleteEntryPopup(),
@@ -678,7 +696,7 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
     DateTime? pickedDate = await TimeManager.pickDate(
       context,
       initialDate: entryDate!,
-      firstDate: DateTime(2000),
+      firstDate: DateTime(1950), // Update P: entries before 2000
       lastDate: FutureEntries.lastPickableDate(),
     );
     if (pickedDate == null) return;

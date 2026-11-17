@@ -5,6 +5,7 @@
 import 'dart:math';
 
 import 'package:daily_you/config_provider.dart';
+import 'package:daily_you/fork/profile.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:flutter/widgets.dart';
 
@@ -83,6 +84,11 @@ class HomeGreeting {
     final part = _partOf(DateTime.now());
     final playful = config.get(Settings.homeGreetingStyle) == stylePlayful &&
         languageCode == 'en';
+
+    // Update P: a birthday greeting on the day
+    final birthday = Profile.birthdayGreeting(
+        playful: playful, english: languageCode == 'en');
+    if (birthday != null) return birthday;
 
     if (playful) {
       final (withName, withoutName) = _chosen[part] ??= _pick(part);

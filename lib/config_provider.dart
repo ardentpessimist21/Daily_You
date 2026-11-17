@@ -109,6 +109,11 @@ class Settings {
       Setting<String>("homeGreetingStyle", "classic");
   static const homeGreetingLastLine =
       Setting<String>("homeGreetingLastLine", "");
+  // Profile (Update P): birthday as yyyy-MM-dd, and the first-run screens
+  // still to show on a new journal
+  static const profileBirthday = Setting<String>("profileBirthday", "");
+  static const profileSetupPending =
+      Setting<bool>("profileSetupPending", false);
   static const flashbackStyle = Setting<String>("flashbackStyle", "cards");
   static const flashbackIconSeenDay =
       Setting<String>("flashbackIconSeenDay", "");
@@ -260,6 +265,8 @@ class Settings {
     homeGreetingName,
     homeGreetingStyle,
     homeGreetingLastLine,
+    profileBirthday,
+    profileSetupPending,
     flashbackStyle,
     flashbackIconSeenDay,
     editorToolbarOrder,

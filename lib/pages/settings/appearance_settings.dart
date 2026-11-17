@@ -40,40 +40,6 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
     super.initState();
   }
 
-  Future<void> _showNameDialog(ConfigProvider configProvider) async {
-    final controller = TextEditingController(
-        text: configProvider.get(Settings.homeGreetingName));
-    final name = await showAppDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.of(context)!.settingsYourName),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLength: HomeGreeting.maxNameLength,
-          textCapitalization: TextCapitalization.words,
-          decoration: InputDecoration(
-              hintText: AppLocalizations.of(context)!.settingsYourNameHint),
-          onSubmitted: (value) => Navigator.pop(context, value),
-        ),
-        actions: [
-          TextButton(
-            child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
-            onPressed: () => Navigator.pop(context),
-          ),
-          TextButton(
-            child: Text(MaterialLocalizations.of(context).okButtonLabel),
-            onPressed: () => Navigator.pop(context, controller.text),
-          ),
-        ],
-      ),
-    );
-    controller.dispose();
-    if (name != null) {
-      await configProvider.set(Settings.homeGreetingName, name.trim());
-    }
-  }
-
   Future<void> _showAccentColorPopup(ThemeModeProvider themeProvider) async {
     final initialColor =
         Color(ConfigProvider.instance.get(Settings.accentColor));
@@ -351,15 +317,6 @@ class _AppearanceSettingsPageState extends State<AppearanceSettings> {
                 configProvider.set(Settings.homeGreetingEnabled, value),
           ),
           if (configProvider.get(Settings.homeGreetingEnabled)) ...[
-            SettingsIconAction(
-              title: l10n.settingsYourName,
-              hint: configProvider.get(Settings.homeGreetingName).isEmpty
-                  ? l10n.settingsYourNameHint
-                  : configProvider.get(Settings.homeGreetingName),
-              leading: Icons.person_outline_rounded,
-              icon: const Icon(Icons.edit_rounded),
-              onPressed: () => _showNameDialog(configProvider),
-            ),
             Padding(
               padding: const EdgeInsets.only(bottom: 8.0),
               child: SettingsDropdown<String>(

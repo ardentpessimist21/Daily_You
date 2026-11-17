@@ -6,6 +6,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:daily_you/fork/share_return.dart';
+import 'package:daily_you/fork/profile.dart';
 import 'package:daily_you/fork/quick_entry/quick_entry_host.dart';
 import 'package:daily_you/layouts/mobile_scaffold.dart';
 import 'package:daily_you/fork/places.dart';
@@ -57,6 +58,10 @@ class _HomePageState extends State<HomePage>
     _checkForNotificationLaunch();
     _listenForShares();
     QuickEntryHost.instance.start(onOpen: _openFromQuickEntry);
+    // Update P: name and birthday on a new journal
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ProfileSetupPage.showIfPending(context);
+    });
   }
 
   /// The quick-entry sheet's "Open full editor": entry [id], or a new entry
@@ -112,7 +117,7 @@ class _HomePageState extends State<HomePage>
     final picked = await TimeManager.pickDate(
       context,
       initialDate: DateTime.now(),
-      firstDate: DateTime(2000),
+      firstDate: DateTime(Profile.firstYear),
       lastDate: FutureEntries.lastPickableDate(),
     );
     if (picked == null || !mounted) return;
