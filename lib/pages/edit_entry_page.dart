@@ -357,22 +357,11 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
               // The action bar overlay handles the keyboard (Update L2)
               resizeToAvoidBottomInset: false,
               appBar: AppBar(
-                  leading: BackButton(
-                    onPressed: () {
-                      // Pop edit page
-                      Navigator.of(context).pop();
-                      if (!_creatingNewEntry &&
-                          widget.onLeave == null &&
-                          Navigator.of(context).canPop()) {
-                        // Pop view page
-                        Navigator.of(context).pop();
-                      }
-                    },
-                  ),
+                  // Like Daily You 3.9.0: delete where the back arrow was,
+                  // then undo, redo and ✓
+                  leading: _deleteButton(),
                   actions: [
                     UndoRedoButtons(controller: _undoController),
-                    _saveButton(),
-                    _deleteButton(),
                     _closeButton(),
                   ]),
               body: EditorActionBarOverlay(
@@ -663,32 +652,13 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
     );
   }
 
-  // Update P: save now and stay in the editor
-  Widget _saveButton() => IconButton(
-        tooltip: 'Save',
-        icon: const Icon(Icons.save_outlined),
-        onPressed: () async {
-          EasyDebounce.cancel("save-entry");
-          await _saveEntry();
-          if (!mounted) return;
-          ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(const SnackBar(
-              content: Text('Saved'),
-              behavior: SnackBarBehavior.floating,
-              duration: Duration(milliseconds: 1500),
-            ));
-        },
-      );
-
   Widget _deleteButton() => IconButton(
         icon: const Icon(Icons.delete),
         onPressed: () => _showDeleteEntryPopup(),
       );
 
   Widget _closeButton() => IconButton(
-        icon: Icon(
-            _creatingNewEntry ? Icons.check_rounded : Icons.edit_off_rounded),
+        icon: const Icon(Icons.check_rounded),
         onPressed: () => Navigator.of(context).pop(),
       );
 

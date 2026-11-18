@@ -48,7 +48,7 @@ void main() {
     AppDatabase.instance.database = null;
   });
 
-  testWidgets('edit-off on a shared entry reports the kept entry',
+  testWidgets('✓ on a shared entry reports the kept entry',
       (tester) async {
     final entry = Entry(
         id: 1,
@@ -74,7 +74,7 @@ void main() {
             ))));
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.edit_off_rounded));
+    await tester.tap(find.byIcon(Icons.check_rounded));
     await tester.pump();
     for (var i = 0; i < 10 && calls == 0; i++) {
       await tester.runAsync(
