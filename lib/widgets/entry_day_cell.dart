@@ -8,6 +8,7 @@ import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/models/attachment.dart';
 import 'package:daily_you/models/tag.dart';
+import 'package:daily_you/fork/moods.dart';
 import 'package:daily_you/fork/share_return.dart';
 import 'package:daily_you/pages/edit_entry_page.dart';
 import 'package:daily_you/pages/entry_timeline_page.dart';
@@ -277,6 +278,17 @@ class EntryDayCell extends StatelessWidget {
 
     if (entries.isNotEmpty) {
       final showImageBg = showImages && coverCandidates.isNotEmpty;
+      // Mood-coloured calendar (3.7.0.57): the day's square takes its mood
+      // colour. Photos cover it; the share screen's picker stays plain.
+      final dayMood = onSelectDay == null && Moods.calendarColours
+          ? Moods.dayMood(entries)
+          : null;
+      final dayFill = dayMood != null
+          ? Moods.dayFill(colorScheme.secondaryContainer, dayMood)
+          : colorScheme.secondaryContainer;
+      final dayTextColor = dayMood != null
+          ? Moods.onColor(dayFill)
+          : colorScheme.onSecondaryContainer;
       return MergeSemantics(
           child: GestureDetector(
         onTap: selectDay ??
@@ -304,7 +316,7 @@ class EntryDayCell extends StatelessWidget {
               Container(
                 margin: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
-                  color: colorScheme.secondaryContainer,
+                  color: dayFill,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 clipBehavior: showImageBg ? Clip.hardEdge : Clip.none,
@@ -338,8 +350,7 @@ class EntryDayCell extends StatelessWidget {
                                 : Text(
                                     '${isJalali ? TimeManager.jalaliDayNumber(date) : date.day}',
                                     style: TextStyle(
-                                        color: colorScheme.onSecondaryContainer,
-                                        fontSize: 16)),
+                                        color: dayTextColor, fontSize: 16)),
                       ),
               ),
               if (showImageBg)

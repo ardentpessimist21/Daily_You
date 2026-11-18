@@ -143,6 +143,25 @@ class Settings {
   static const lastDismissedSupportBannerDate =
       Setting<String?>("lastDismissedSupportBannerDate", null);
   static const calendarShowMood = Setting<bool>("calendarShowMood", true);
+  // Mood-coloured calendar (3.7.0.57): fill calendar days with their mood
+  // colour, and each mood's colour (ARGB) and name ("" = default name)
+  static const calendarMoodColors = Setting<bool>("calendarMoodColors", true);
+  static const moodColorVeryPleasant =
+      Setting<int>("moodColorVeryPleasant", 0xFF43A047);
+  static const moodColorPleasant =
+      Setting<int>("moodColorPleasant", 0xFF7CB342);
+  static const moodColorNeutral = Setting<int>("moodColorNeutral", 0xFFFBC02D);
+  static const moodColorUnpleasant =
+      Setting<int>("moodColorUnpleasant", 0xFFF4511E);
+  static const moodColorVeryUnpleasant =
+      Setting<int>("moodColorVeryUnpleasant", 0xFFE53935);
+  static const moodNameVeryPleasant =
+      Setting<String>("moodNameVeryPleasant", "");
+  static const moodNamePleasant = Setting<String>("moodNamePleasant", "");
+  static const moodNameNeutral = Setting<String>("moodNameNeutral", "");
+  static const moodNameUnpleasant = Setting<String>("moodNameUnpleasant", "");
+  static const moodNameVeryUnpleasant =
+      Setting<String>("moodNameVeryUnpleasant", "");
   // Quick entry (Update Q): the pinned notification, and whether the sheet
   // stays open (and clears) after Save/Add
   static const quickEntryNotification =
@@ -281,6 +300,17 @@ class Settings {
     justifyText,
     lastDismissedSupportBannerDate,
     calendarShowMood,
+    calendarMoodColors,
+    moodColorVeryPleasant,
+    moodColorPleasant,
+    moodColorNeutral,
+    moodColorUnpleasant,
+    moodColorVeryUnpleasant,
+    moodNameVeryPleasant,
+    moodNamePleasant,
+    moodNameNeutral,
+    moodNameUnpleasant,
+    moodNameVeryUnpleasant,
     quickEntryNotification,
     quickEntryKeepOpen,
     floatingButton,

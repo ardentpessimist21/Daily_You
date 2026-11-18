@@ -84,7 +84,7 @@ void main() {
   testWidgets('Appearance keeps only the look', (tester) async {
     final titles = await _rowTitles(tester, const AppearanceSettings());
     expect(titles, contains('Theme'));
-    expect(titles, contains('Change Mood Icons'));
+    expect(titles, contains('Moods'));
     expect(titles, isNot(contains('Writing Prompts')));
     expect(titles, isNot(contains('First Day Of Week')));
     expect(find.byIcon(Icons.dark_mode_outlined), findsOneWidget);

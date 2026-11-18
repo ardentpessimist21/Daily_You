@@ -48,6 +48,15 @@ class CalendarViewOptionsDialog extends StatelessWidget {
                 onChanged: (value) =>
                     config.set(Settings.calendarShowMood, value),
               ),
+              // Same switch as Settings › Look and feel › Moods
+              SwitchListTile(
+                key: const Key('calendarMoodColoursSwitch'),
+                secondary: const Icon(Icons.invert_colors_rounded),
+                title: const Text('Mood colours'),
+                value: config.get(Settings.calendarMoodColors),
+                onChanged: (value) =>
+                    config.set(Settings.calendarMoodColors, value),
+              ),
               _buildTagDisplayRow(context, l10n, config, overlayTag),
             ],
           ),
