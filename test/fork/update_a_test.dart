@@ -3,6 +3,7 @@
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
 import 'package:daily_you/config_provider.dart';
+import 'package:daily_you/database/entry_store.dart';
 import 'package:daily_you/custom_locale_delegates.dart';
 import 'package:daily_you/fork/entry_share.dart';
 import 'package:daily_you/fork/favourites.dart';
@@ -70,7 +71,8 @@ void main() {
     });
 
     test('invisible marks pasted from Messenger are ignored', () {
-      const pasted = '_Nagtawag ang [\u2068ba\u200Btang\u2069](https://m.me/x)_';
+      const pasted =
+          '_Nagtawag ang [\u2068ba\u200Btang\u2069](https://m.me/x)_';
       expect(SearchText.matches(pasted, 'batang'), isTrue);
       expect(SearchText.matches(batang, 'bat\u200Eang'), isTrue);
     });
@@ -97,11 +99,19 @@ void main() {
           EntriesListPage(index: 0, getEntries: () => [], newestFirst: false);
       expect(pager.newestFirst, isFalse);
       // The page view is laid out front to back when oldest first
-      await tester.pumpWidget(_app(
-          EntriesListPage(index: 0, getEntries: () => [], newestFirst: false)));
+      // Two entries: with none, the viewer shows no pager at all (since
+      // Update B), so there'd be nothing to check
+      final entries = [
+        _entry(1, 'older', DateTime(2025, 1, 1)),
+        _entry(2, 'newer', DateTime(2025, 1, 2)),
+      ];
+      EntryStore.instance.entries = entries;
+      addTearDown(() => EntryStore.instance.entries = []);
+      await tester.pumpWidget(_app(EntriesListPage(
+          index: 0, getEntries: () => entries, newestFirst: false)));
       expect(tester.widget<PageView>(find.byType(PageView)).reverse, isFalse);
-      await tester
-          .pumpWidget(_app(EntriesListPage(index: 0, getEntries: () => [])));
+      await tester.pumpWidget(_app(EntriesListPage(
+          index: 0, getEntries: () => entries.reversed.toList())));
       expect(tester.widget<PageView>(find.byType(PageView)).reverse, isTrue);
     });
   });
