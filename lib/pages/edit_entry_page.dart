@@ -659,8 +659,24 @@ class _AddEditEntryPageState extends State<AddEditEntryPage>
 
   Widget _closeButton() => IconButton(
         icon: const Icon(Icons.check_rounded),
-        onPressed: () => Navigator.of(context).pop(),
+        tooltip: MaterialLocalizations.of(context).okButtonLabel,
+        onPressed: _saveAndClose,
       );
+
+  // From Daily You 3.10.0: save first, then close, so the save doesn't run
+  // during the closing animation
+  bool _closing = false;
+
+  Future<void> _saveAndClose() async {
+    if (_closing) return;
+    _closing = true;
+    try {
+      EasyDebounce.cancel("save-entry");
+      await _saveEntry();
+    } finally {
+      if (mounted) Navigator.of(context).pop();
+    }
+  }
 
   Future<void> _chooseDate() async {
     DateTime? pickedDate = await TimeManager.pickDate(

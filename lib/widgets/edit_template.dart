@@ -52,8 +52,7 @@ class _EditTemplateState extends State<EditTemplate> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.template?.name ?? '');
-    final (body, places) =
-        EntryLocations.split(widget.template?.text ?? "");
+    final (body, places) = EntryLocations.split(widget.template?.text ?? "");
     templateText = body;
     _places = [...places];
     final initialTagIds = widget.template?.id == null
@@ -82,8 +81,8 @@ class _EditTemplateState extends State<EditTemplate> {
 
   /// 📍: pick the template's place. A template has one place, so a new
   /// pick replaces the old one.
-  Future<void> _pickPlace() => Places.showPlaceSheet(context, null,
-      onPicked: (place) {
+  Future<void> _pickPlace() =>
+      Places.showPlaceSheet(context, null, onPicked: (place) {
         if (!mounted) return;
         setState(() => _places = [place]);
       });

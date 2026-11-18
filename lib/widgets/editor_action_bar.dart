@@ -146,7 +146,8 @@ class _EditorActionBarState extends State<EditorActionBar> {
         _iconEntry(metrics, action.icon, action.onPressed!,
             reconnectsKeyboard: action.mayLeaveApp,
             onLongPress: action.onLongPress,
-            longPressLabel: action.longPressLabel),
+            longPressLabel: action.longPressLabel,
+            isActive: action.isActive),
     ]);
   }
 
@@ -181,13 +182,17 @@ class _EditorActionBarState extends State<EditorActionBar> {
     bool reconnectsKeyboard = false,
     FutureOr<void> Function()? onLongPress,
     String? longPressLabel,
+    bool Function()? isActive,
   }) {
     return ToolbarEntry(
       width: metrics.buttonSize,
-      build: (context, dismissOverflow) => Builder(
-        builder: (buttonContext) => ToolbarIconButton(
+      build: (context, dismissOverflow) => ListenableBuilder(
+        // Re-check the highlight as the text and cursor move
+        listenable: widget.controller,
+        builder: (buttonContext, _) => ToolbarIconButton(
           size: metrics.buttonSize,
           icon: icon,
+          selected: isActive?.call() ?? false,
           hasAlternative: onLongPress != null,
           onPressed: () {
             dismissOverflow?.call();

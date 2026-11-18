@@ -24,6 +24,10 @@ class ToolbarAction {
   final FutureOr<void> Function()? onLongPress;
   final String? longPressLabel;
 
+  /// Lights the button up while the cursor is inside its formatting
+  /// (from Daily You 3.10.0)
+  final bool Function()? isActive;
+
   const ToolbarAction({
     required this.icon,
     this.onPressed,
@@ -31,6 +35,7 @@ class ToolbarAction {
     this.mayLeaveApp = false,
     this.onLongPress,
     this.longPressLabel,
+    this.isActive,
   }) : assert((onPressed == null) != (menu == null),
             'Provide exactly one of onPressed or menu');
 }

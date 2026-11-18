@@ -122,6 +122,9 @@ class ToolbarIconButton extends StatelessWidget {
   final VoidCallback? onLongPress;
   final bool hasAlternative;
 
+  /// Lit up: the cursor is inside this button's formatting
+  final bool selected;
+
   const ToolbarIconButton({
     super.key,
     required this.size,
@@ -129,14 +132,27 @@ class ToolbarIconButton extends StatelessWidget {
     required this.onPressed,
     this.onLongPress,
     this.hasAlternative = false,
+    this.selected = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final button = IconButton(
       padding: EdgeInsets.zero,
       visualDensity: VisualDensity.compact,
-      icon: icon,
+      style: selected
+          ? IconButton.styleFrom(
+              shape: const CircleBorder(),
+              backgroundColor: colorScheme.primary,
+              foregroundColor: colorScheme.onPrimary,
+            )
+          : null,
+      isSelected: selected,
+      icon: selected
+          ? IconTheme.merge(
+              data: IconThemeData(color: colorScheme.onPrimary), child: icon)
+          : icon,
       onPressed: onPressed,
     );
     return SizedBox(

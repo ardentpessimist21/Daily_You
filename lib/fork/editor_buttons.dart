@@ -11,6 +11,8 @@ import 'package:daily_you/fork/places.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/time_manager.dart';
 import 'package:daily_you/utils/generated/tag_icon_registry.dart';
+import 'package:daily_you/utils/markdown_formatting.dart';
+import 'package:daily_you/utils/markdown_preview_scanner.dart';
 import 'package:daily_you/utils/text_editing.dart';
 import 'package:daily_you/widgets/editor_action_bar/toolbar_actions.dart';
 import 'package:daily_you/widgets/icons/svg_icon.dart';
@@ -518,9 +520,67 @@ class EditorButtons {
           {DateTime? entryDate}) =>
       run(holdAction(button), context, controller, entryDate: entryDate);
 
+  /// The formatting an action adds, for lighting the button up while the
+  /// cursor is inside it (from Daily You 3.10.0). Null for actions that
+  /// insert something rather than format.
+  static MarkdownConstruct? formatOf(EditorAction action) => switch (action) {
+        EditorAction.bold => MarkdownConstruct.bold,
+        EditorAction.italic => MarkdownConstruct.italic,
+        EditorAction.highlight => MarkdownConstruct.highlight,
+        EditorAction.strikethrough => MarkdownConstruct.strikethrough,
+        EditorAction.quote => MarkdownConstruct.blockquote,
+        EditorAction.bulletList => MarkdownConstruct.bulletList,
+        EditorAction.numberedList => MarkdownConstruct.numberedList,
+        EditorAction.heading1 ||
+        EditorAction.heading2 ||
+        EditorAction.headingMenu =>
+          MarkdownConstruct.header,
+        EditorAction.addLink => MarkdownConstruct.link,
+        _ => null,
+      };
+
+  static final RegExp _checklistLine = RegExp(r'^\s*-\s\[[ xX]\]');
+
+  /// The line the cursor is on is a checklist item ("- [ ] …"), which the
+  /// bullet button shouldn't claim.
+  static bool _onChecklistLine(TextEditingController controller) {
+    final text = controller.text;
+    final selection = controller.selection;
+    final offset = selection.isValid ? selection.start : text.length;
+    final lineStart = offset == 0 ? 0 : text.lastIndexOf('\n', offset - 1) + 1;
+    final lineBreak = text.indexOf('\n', offset);
+    final line =
+        text.substring(lineStart, lineBreak < 0 ? text.length : lineBreak);
+    return _checklistLine.hasMatch(line);
+  }
+
+  /// Whether the cursor is inside [action]'s formatting.
+  static bool isActive(EditorAction action, TextEditingController controller) {
+    final format = formatOf(action);
+    if (format == null) return false;
+    if (format == MarkdownConstruct.bulletList &&
+        _onChecklistLine(controller)) {
+      return false;
+    }
+    try {
+      return isMarkdownActive(controller, format);
+    } catch (_) {
+      return false;
+    }
+  }
+
   static Future<void> run(EditorAction action, BuildContext context,
       TextEditingController controller,
       {DateTime? entryDate}) async {
+    // Tapping a lit-up format button takes the formatting off (links keep
+    // opening the link dialog)
+    final format = formatOf(action);
+    if (format != null &&
+        format != MarkdownConstruct.link &&
+        isActive(action, controller) &&
+        removeMarkdown(controller, format)) {
+      return;
+    }
     switch (action) {
       case EditorAction.time:
         insertTimestamp(context, controller, entryDate: entryDate);
@@ -666,6 +726,9 @@ class EditorButtons {
           switch (item) {
             ToolbarItem(builtIn: final button?) => ToolbarAction(
                 icon: buttonIcon(button),
+                isActive: button == EditorButton.place
+                    ? null
+                    : () => isActive(tapAction(button), controller),
                 onPressed: () => tap(button, context, controller,
                     entryDate: entryDate?.call()),
                 longPressLabel: holdLabel(l10n, button),
