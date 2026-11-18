@@ -234,6 +234,27 @@ class TimeManager {
       _formatDateWithWeekday(date, currentLocale(context),
           isJalali: isJalaliCalendar(context));
 
+  /// The Timeline's date pill (3.7.0.58): like [formatDateWithWeekday] but
+  /// with the full day name, e.g. "Friday, Nov 7, 2025".
+  static String formatDateWithFullWeekday(
+          DateTime date, BuildContext context) =>
+      formatDateWithFullWeekdayIn(date, currentLocale(context),
+          isJalali: isJalaliCalendar(context));
+
+  static String formatDateWithFullWeekdayIn(DateTime date, String locale,
+      {bool isJalali = false}) {
+    if (isJalali) {
+      final j = Jalali.fromDateTime(date);
+      final weekday = DateFormat.EEEE(locale).format(date);
+      return '$weekday ${j.formatter.d} ${jalaliMonthName(j.month, locale)} ${j.formatter.yyyy}';
+    }
+    final pattern = DateFormat.yMMMEd(locale).pattern ?? 'EEE, MMM d, y';
+    // Swap the short weekday (EEE) for the full one, keeping the locale's
+    // order and the short month
+    final full = pattern.replaceAll(RegExp(r'E+'), 'EEEE');
+    return DateFormat(full, locale).format(date);
+  }
+
   static String formatMonthDay(DateTime date, BuildContext context) =>
       _formatMonthDay(date, currentLocale(context),
           isJalali: isJalaliCalendar(context));

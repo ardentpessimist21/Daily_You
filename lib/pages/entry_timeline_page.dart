@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/fork/moods.dart';
 import 'package:daily_you/fork/selection_actions.dart';
+import 'package:daily_you/widgets/action_pill.dart';
+import 'package:daily_you/widgets/mood_icon.dart';
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
@@ -115,26 +118,34 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
   List<Entry> _selectedEntries(List<Entry> entries) =>
       entries.where((entry) => _selected.contains(entry.id)).toList();
 
-  PreferredSizeWidget _selectionAppBar(List<Entry> entries) {
+  /// After an action changed or deleted the selection.
+  void Function(String) _onSelectionDone() {
     // Captured now: deleting a day's last entries closes the timeline,
     // and the message should still show
     final messenger = ScaffoldMessenger.of(context);
+    return (message) {
+      if (mounted) setState(_selected.clear);
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(milliseconds: 1500),
+        ));
+    };
+  }
+
+  /// Select mode (3.7.0.58): the bar keeps ✕, the count and Select all;
+  /// the actions sit in the pill at the bottom.
+  PreferredSizeWidget _selectionAppBar(List<Entry> entries) {
     return SelectionAppBar(
       selected: _selectedEntries(entries),
       all: entries,
+      showActions: false,
       onClear: () => setState(_selected.clear),
       onSelectAll: () => setState(
           () => _selected.addAll(entries.map((entry) => entry.id).nonNulls)),
-      onDone: (message) {
-        if (mounted) setState(_selected.clear);
-        messenger
-          ..hideCurrentSnackBar()
-          ..showSnackBar(SnackBar(
-            content: Text(message),
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(milliseconds: 1500),
-          ));
-      },
+      onDone: _onSelectionDone(),
     );
   }
 
@@ -176,8 +187,10 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
     final oldestFirst = configProvider.get(Settings.timelineOldestFirst);
     final day = _day;
     final addEntryDate = day ?? widget.addEntryDate;
-    final header =
-        day != null ? TimeManager.formatDate(day, context) : widget.header;
+    // Day timelines show the date in the pill, with the full day name
+    final header = day != null
+        ? TimeManager.formatDateWithFullWeekday(day, context)
+        : widget.header;
 
     List<Entry> sorted(List<Entry> list) => List<Entry>.from(list)
       ..sort((a, b) => oldestFirst
@@ -220,7 +233,7 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
         appBar: _selecting
             ? _selectionAppBar(entries)
             : AppBar(
-                title: Text(header),
+                title: day != null ? null : Text(header),
                 actions: [
                   IconButton(
                     tooltip: oldestFirst
@@ -264,16 +277,32 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
                   const SizedBox(width: 4),
                 ],
               ),
+        floatingActionButtonLocation: ActionPill.location,
+        floatingActionButton: ActionPillSlot(
+          visible: _selecting,
+          pill: (context) => SelectionActionPill(
+            selected: _selectedEntries(entries),
+            onDone: _onSelectionDone(),
+          ),
+        ),
         body: day != null && dayIndex >= 0
-            ? PageView.builder(
-                controller: _pageController,
-                itemCount: days.length,
-                onPageChanged: (index) => _onDayChanged(days[index]),
-                itemBuilder: (context, index) => days[index] == day
-                    ? _entryList(
-                        entries, showFullEntries, entryAttachmentsProvider)
-                    : _entryList(sorted(_entriesOn(days[index])),
-                        showFullEntries, entryAttachmentsProvider),
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _DatePill(text: header),
+                  Expanded(
+                    child: PageView.builder(
+                      controller: _pageController,
+                      itemCount: days.length,
+                      onPageChanged: (index) => _onDayChanged(days[index]),
+                      itemBuilder: (context, index) => days[index] == day
+                          ? _entryList(entries, showFullEntries,
+                              entryAttachmentsProvider)
+                          : _entryList(sorted(_entriesOn(days[index])),
+                              showFullEntries, entryAttachmentsProvider),
+                    ),
+                  ),
+                ],
               )
             : _entryList(entries, showFullEntries, entryAttachmentsProvider),
       ),
@@ -283,7 +312,8 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
   Widget _entryList(List<Entry> entries, bool showFullEntries,
       EntryAttachmentsProvider entryAttachmentsProvider) {
     return ListView.builder(
-      padding: const EdgeInsets.only(top: 8, bottom: 16),
+      padding: EdgeInsets.only(
+          top: 8, bottom: _selecting ? ActionPill.clearance : 16),
       itemCount: entries.length,
       itemBuilder: (context, index) {
         final entry = entries[index];
@@ -314,6 +344,7 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
             isLast: index == entries.length - 1,
             selecting: _selecting,
             selected: isSelected,
+            mood: entry.mood,
             onTap: onTap,
             onLongPress: onLongPress,
             child: SelectionOutline(
@@ -322,6 +353,7 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
                 title: label,
                 entry: entry,
                 attachments: entryAttachments,
+                showMood: false,
               ),
             ),
           );
@@ -333,23 +365,42 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               SizedBox(
-                width: 36,
-                child: Column(
+                width: _RailDot.railWidth,
+                child: Stack(
                   children: [
-                    Container(
-                      width: 3,
-                      height: 12,
-                      color: index == 0
-                          ? Colors.transparent
-                          : Theme.of(context).colorScheme.outlineVariant,
+                    Positioned.fill(
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 3,
+                            height: _RailDot.center,
+                            color: index == 0
+                                ? Colors.transparent
+                                : Theme.of(context).colorScheme.outlineVariant,
+                          ),
+                          Expanded(
+                            child: Container(
+                              width: 3,
+                              color: index == entries.length - 1
+                                  ? Colors.transparent
+                                  : Theme.of(context)
+                                      .colorScheme
+                                      .outlineVariant,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    _RailDot(selecting: _selecting, selected: isSelected),
-                    Expanded(
-                      child: Container(
-                        width: 3,
-                        color: index == entries.length - 1
-                            ? Colors.transparent
-                            : Theme.of(context).colorScheme.outlineVariant,
+                    Positioned(
+                      top: _RailDot.center - _RailDot.slot / 2,
+                      left: 0,
+                      right: 0,
+                      height: _RailDot.slot,
+                      child: Center(
+                        child: _RailDot(
+                            selecting: _selecting,
+                            selected: isSelected,
+                            mood: entry.mood),
                       ),
                     ),
                   ],
@@ -368,6 +419,7 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
                         entry: entry,
                         attachments: entryAttachments,
                         showLocations: true,
+                        showMood: false,
                       ),
                     ),
                   ),
@@ -381,8 +433,39 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
   }
 }
 
+/// The date pill at the top of a day's Timeline (3.7.0.58): stays put
+/// while the list scrolls, and in select mode.
+class _DatePill extends StatelessWidget {
+  const _DatePill({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
+      child: Material(
+        key: const Key('timelineDatePill'),
+        color: colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// A timeline row that grows to fit its card, drawing the rail (line and
-/// dot) down the left side to match whatever height the card ends up.
+/// mood circle) down the left side to match whatever height the card ends
+/// up.
 class _FullEntryTimelineRow extends StatelessWidget {
   const _FullEntryTimelineRow({
     required this.isFirst,
@@ -391,13 +474,11 @@ class _FullEntryTimelineRow extends StatelessWidget {
     required this.onLongPress,
     required this.selecting,
     required this.selected,
+    required this.mood,
     required this.child,
   });
 
-  static const double _railWidth = 36;
   static const double _lineWidth = 3;
-  static const double _dotSize = 14;
-  static const double _dotTop = 12;
 
   final bool isFirst;
   final bool isLast;
@@ -405,13 +486,13 @@ class _FullEntryTimelineRow extends StatelessWidget {
   final VoidCallback onLongPress;
   final bool selecting;
   final bool selected;
+  final int? mood;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final railColor = Theme.of(context).colorScheme.outlineVariant;
-    const lineLeft = (_railWidth - _lineWidth) / 2;
-    const dotCenter = _dotTop + _dotSize / 2;
+    const lineLeft = (_RailDot.railWidth - _lineWidth) / 2;
     return Stack(
       children: [
         if (!isFirst)
@@ -419,27 +500,29 @@ class _FullEntryTimelineRow extends StatelessWidget {
             left: lineLeft,
             top: 0,
             width: _lineWidth,
-            height: dotCenter,
+            height: _RailDot.center,
             child: ColoredBox(color: railColor),
           ),
         if (!isLast)
           Positioned(
             left: lineLeft,
-            top: dotCenter,
+            top: _RailDot.center,
             bottom: 0,
             width: _lineWidth,
             child: ColoredBox(color: railColor),
           ),
         Positioned(
           left: 0,
-          width: _railWidth,
-          top: _dotTop + _dotSize / 2 - _RailDot.selectingSize / 2,
-          height: _RailDot.selectingSize,
-          child:
-              Center(child: _RailDot(selecting: selecting, selected: selected)),
+          width: _RailDot.railWidth,
+          top: _RailDot.center - _RailDot.slot / 2,
+          height: _RailDot.slot,
+          child: Center(
+              child: _RailDot(
+                  selecting: selecting, selected: selected, mood: mood)),
         ),
         Padding(
-          padding: const EdgeInsets.only(left: _railWidth, right: 8, bottom: 8),
+          padding: const EdgeInsets.only(
+              left: _RailDot.railWidth, right: 8, bottom: 8),
           child: GestureDetector(
               onTap: onTap, onLongPress: onLongPress, child: child),
         ),
@@ -448,40 +531,71 @@ class _FullEntryTimelineRow extends StatelessWidget {
   }
 }
 
-/// The dot on the timeline rail; becomes a checkbox in select mode.
+/// What sits on the timeline line for an entry (3.7.0.58): its mood in a
+/// circle tinted with the mood's colour (plain grey with Mood colours off),
+/// or the small dot when it has no mood. Becomes a checkbox in select mode.
 class _RailDot extends StatelessWidget {
-  const _RailDot({required this.selecting, required this.selected});
+  const _RailDot(
+      {required this.selecting, required this.selected, required this.mood});
 
+  static const double railWidth = 40;
   static const double size = 14;
+  static const double moodSize = 30;
   static const double selectingSize = 22;
+
+  /// The marker's slot, and how far its middle sits from the row's top.
+  static const double slot = moodSize;
+  static const double center = 19;
 
   final bool selecting;
   final bool selected;
+  final int? mood;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    if (!selecting) {
+    if (selecting) {
       return Container(
+        width: selectingSize,
+        height: selectingSize,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: selected ? colorScheme.primary : colorScheme.surface,
+          border: Border.all(
+              color: selected ? colorScheme.primary : colorScheme.outline,
+              width: 2),
+        ),
+        child: selected
+            ? Icon(Icons.check_rounded, size: 15, color: colorScheme.onPrimary)
+            : null,
+      );
+    }
+    final mood = this.mood;
+    if (mood == null || MoodIcon.getMoodIcon(mood).isEmpty) {
+      return Container(
+        key: const Key('timelineDot'),
         width: size,
         height: size,
         decoration: BoxDecoration(
             shape: BoxShape.circle, color: colorScheme.outlineVariant),
       );
     }
+    final coloured = Moods.calendarColours;
+    final ring = coloured ? Moods.colorOf(mood) : colorScheme.outline;
+    final fill = coloured
+        ? Color.lerp(colorScheme.surface, ring, 0.22)!
+        : colorScheme.surfaceContainerHigh;
     return Container(
-      width: selectingSize,
-      height: selectingSize,
+      key: const Key('timelineMood'),
+      width: moodSize,
+      height: moodSize,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: selected ? colorScheme.primary : colorScheme.surface,
-        border: Border.all(
-            color: selected ? colorScheme.primary : colorScheme.outline,
-            width: 2),
+        color: fill,
+        border: Border.all(color: ring, width: 2),
       ),
-      child: selected
-          ? Icon(Icons.check_rounded, size: 15, color: colorScheme.onPrimary)
-          : null,
+      child: Center(
+          child: MoodIcon(moodValue: mood, size: 16, allowScaling: false)),
     );
   }
 }

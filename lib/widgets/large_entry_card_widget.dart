@@ -111,11 +111,15 @@ class FullEntryCardWidget extends StatelessWidget {
     this.title,
     required this.entry,
     required this.attachments,
+    this.showMood = true,
   });
 
   final Entry entry;
   final List<EntryAttachment> attachments;
   final String? title;
+
+  /// Off on the Timeline, where the mood sits on the line (3.7.0.58).
+  final bool showMood;
 
   @override
   Widget build(BuildContext context) {
@@ -136,6 +140,7 @@ class FullEntryCardWidget extends StatelessWidget {
             child: EntryCardHeaderRow(
               entry: entry,
               title: title == null ? time : title!,
+              showMood: showMood,
               titlePadding: const EdgeInsets.only(left: 4.0),
               titleStyle: TextStyle(
                 color: theme.textTheme.labelSmall?.color,
@@ -192,7 +197,11 @@ class LargeEntryCardWidget extends StatelessWidget {
     this.hideImage = false,
     this.searchQuery,
     this.showLocations = false,
+    this.showMood = true,
   });
+
+  /// Off on the Timeline, where the mood sits on the line (3.7.0.58).
+  final bool showMood;
 
   final Entry entry;
   final List<EntryAttachment> attachments;
@@ -234,6 +243,7 @@ class LargeEntryCardWidget extends StatelessWidget {
       header: EntryCardHeaderRow(
         entry: entry,
         title: title == null ? time : title!,
+        showMood: showMood,
         titlePadding: const EdgeInsets.only(left: 4.0),
         titleStyle: TextStyle(
           color: theme.textTheme.labelSmall?.color,

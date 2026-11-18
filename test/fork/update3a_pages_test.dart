@@ -64,12 +64,12 @@ void main() {
     await tester.fling(find.byType(PageView), const Offset(400, 0), 1500);
     await tester.pumpAndSettle();
     expect(find.textContaining('Twelfth'), findsWidgets);
-    expect(find.text('Oct 12, 2026'), findsOneWidget);
+    expect(find.text('Monday, Oct 12, 2026'), findsOneWidget);
 
     // Swipe left: forward again
     await tester.fling(find.byType(PageView), const Offset(-400, 0), 1500);
     await tester.pumpAndSettle();
-    expect(find.text('Oct 15, 2026'), findsOneWidget);
+    expect(find.text('Thursday, Oct 15, 2026'), findsOneWidget);
   });
 
   testWidgets('gallery keeps upcoming entries in their own row',

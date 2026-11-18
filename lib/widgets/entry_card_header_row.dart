@@ -15,6 +15,10 @@ class EntryCardHeaderRow extends StatelessWidget {
   final TextStyle? titleStyle;
   final EdgeInsetsGeometry titlePadding;
 
+  /// Off on the Timeline, where the mood sits on the line instead
+  /// (3.7.0.58).
+  final bool showMood;
+
   static const double _tagIconSize = 18;
   static const double _tagIconSpacing = 4;
 
@@ -27,6 +31,7 @@ class EntryCardHeaderRow extends StatelessWidget {
     required this.title,
     this.titleStyle,
     this.titlePadding = EdgeInsets.zero,
+    this.showMood = true,
   });
 
   @override
@@ -34,7 +39,7 @@ class EntryCardHeaderRow extends StatelessWidget {
     final tagsProvider = context.watch<TagsProvider>();
     final hasTags = entry.id != null &&
         tagsProvider.getEntryTagsForEntry(entry.id!).isNotEmpty;
-    final hasMood = MoodIcon.getMoodIcon(entry.mood).isNotEmpty;
+    final hasMood = showMood && MoodIcon.getMoodIcon(entry.mood).isNotEmpty;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -71,10 +76,11 @@ class EntryCardHeaderRow extends StatelessWidget {
                   : const SizedBox.shrink(),
             ),
             const SizedBox(width: _segmentGap),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2.0),
-              child: MoodIcon(moodValue: entry.mood),
-            ),
+            if (showMood)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2.0),
+                child: MoodIcon(moodValue: entry.mood),
+              ),
           ],
         );
       },

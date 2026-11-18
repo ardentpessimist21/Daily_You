@@ -8,6 +8,7 @@ import 'dart:io';
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/fork/bulk_entry_actions.dart';
 import 'package:daily_you/fork/entry_share.dart';
+import 'package:daily_you/widgets/action_pill.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
 import 'package:material_ui/material_ui.dart';
@@ -46,6 +47,35 @@ class SelectionActions {
         jsonEncode([for (final action in hidden) action.name]));
   }
 
+  /// Runs [action] on [selected]; [onDone] gets the message to show.
+  static Future<void> run(BuildContext context, SelectionAction action,
+      List<Entry> selected, void Function(String message) onDone) async {
+    final l10n = AppLocalizations.of(context)!;
+    final entries = List<Entry>.from(selected);
+    if (entries.isEmpty) return;
+    switch (action) {
+      case SelectionAction.mood:
+        final chosen = await BulkEntryActions.pickMood(context, entries.length);
+        if (chosen == null || !context.mounted) return;
+        await BulkEntryActions.setMood(entries, chosen.mood);
+        onDone(l10n.bulkMoodChanged);
+      case SelectionAction.tags:
+        final (add, remove) = await BulkEntryActions.pickTags(context, entries);
+        if (add.isEmpty && remove.isEmpty) return;
+        await BulkEntryActions.changeTags(entries, add, remove);
+        onDone(l10n.bulkTagsUpdated);
+      case SelectionAction.share:
+        await EntryShare.share(context, entries);
+      case SelectionAction.delete:
+        final deletedText = l10n.bulkDeleted(entries.length);
+        if (!await BulkEntryActions.confirmDelete(context, entries.length)) {
+          return;
+        }
+        await BulkEntryActions.delete(entries);
+        onDone(deletedText);
+    }
+  }
+
   static IconData iconOf(SelectionAction action) => switch (action) {
         SelectionAction.mood => Icons.mood_rounded,
         SelectionAction.tags => Icons.sell_rounded,
@@ -75,7 +105,12 @@ class SelectionAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.onClear,
     required this.onSelectAll,
     required this.onDone,
+    this.showActions = true,
   });
+
+  /// Off when the actions sit in a [SelectionActionPill] instead (the
+  /// Timeline, 3.7.0.58): the bar keeps ✕, the count and Select all.
+  final bool showActions;
 
   /// Selected entries, and every entry Select all would pick.
   final List<Entry> selected;
@@ -90,32 +125,8 @@ class SelectionAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 
-  Future<void> _run(BuildContext context, SelectionAction action) async {
-    final l10n = AppLocalizations.of(context)!;
-    final entries = List<Entry>.from(selected);
-    if (entries.isEmpty) return;
-    switch (action) {
-      case SelectionAction.mood:
-        final chosen = await BulkEntryActions.pickMood(context, entries.length);
-        if (chosen == null || !context.mounted) return;
-        await BulkEntryActions.setMood(entries, chosen.mood);
-        onDone(l10n.bulkMoodChanged);
-      case SelectionAction.tags:
-        final (add, remove) = await BulkEntryActions.pickTags(context, entries);
-        if (add.isEmpty && remove.isEmpty) return;
-        await BulkEntryActions.changeTags(entries, add, remove);
-        onDone(l10n.bulkTagsUpdated);
-      case SelectionAction.share:
-        await EntryShare.share(context, entries);
-      case SelectionAction.delete:
-        final deletedText = l10n.bulkDeleted(entries.length);
-        if (!await BulkEntryActions.confirmDelete(context, entries.length)) {
-          return;
-        }
-        await BulkEntryActions.delete(entries);
-        onDone(deletedText);
-    }
-  }
+  Future<void> _run(BuildContext context, SelectionAction action) =>
+      SelectionActions.run(context, action, selected, onDone);
 
   @override
   Widget build(BuildContext context) {
@@ -139,7 +150,7 @@ class SelectionAppBar extends StatelessWidget implements PreferredSizeWidget {
           onPressed: selected.length == all.length ? null : onSelectAll,
         ),
         for (final action in SelectionAction.values)
-          if (SelectionActions.isShown(action))
+          if (showActions && SelectionActions.isShown(action))
             IconButton(
               tooltip: SelectionActions.labelOf(context, action),
               icon: Icon(SelectionActions.iconOf(action)),
@@ -231,6 +242,99 @@ class SelectionOutline extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// The select-mode actions as a floating [ActionPill] at the bottom
+/// (Timeline, 3.7.0.58): Mood, Tags, Share, Delete, each with its label
+/// under the icon. Actions hidden in Settings › Selection actions stay
+/// hidden here too.
+class SelectionActionPill extends StatelessWidget {
+  const SelectionActionPill(
+      {super.key, required this.selected, required this.onDone});
+
+  final List<Entry> selected;
+  final void Function(String message) onDone;
+
+  @override
+  Widget build(BuildContext context) {
+    Provider.of<ConfigProvider>(context);
+    final colorScheme = Theme.of(context).colorScheme;
+    final actions = [
+      for (final action in SelectionAction.values)
+        if (SelectionActions.isShown(action)) action,
+    ];
+    return ActionPill(
+      height: 56,
+      child: Row(
+        key: const ValueKey('selectionActionPill'),
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final action in actions)
+            _PillAction(
+              key: ValueKey('selectionAction-${action.name}'),
+              icon: SelectionActions.iconOf(action),
+              label: switch (action) {
+                SelectionAction.mood => 'Mood',
+                SelectionAction.tags => 'Tags',
+                SelectionAction.share => 'Share',
+                SelectionAction.delete => 'Delete',
+              },
+              tooltip: SelectionActions.labelOf(context, action),
+              color: action == SelectionAction.delete
+                  ? colorScheme.error
+                  : colorScheme.primary,
+              onTap: selected.isEmpty
+                  ? null
+                  : () =>
+                      SelectionActions.run(context, action, selected, onDone),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PillAction extends StatelessWidget {
+  const _PillAction({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.tooltip,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final String tooltip;
+  final Color color;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 22, color: color),
+              const SizedBox(height: 2),
+              Text(label,
+                  textScaler: TextScaler.noScaling,
+                  style: TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w500, color: color)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

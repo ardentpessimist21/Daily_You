@@ -12,9 +12,12 @@ import 'package:material_ui/material_ui.dart';
 /// between them (e.g. actions ⇄ Save/Share). Built once so Settings › Tags,
 /// and later Timeline and Gallery multi-select, look the same.
 class ActionPill extends StatelessWidget {
-  const ActionPill({super.key, required this.child});
+  const ActionPill({super.key, required this.child, this.height = 48});
 
   final Widget child;
+
+  /// The pill's inner height: 48 for icons, more for icons with labels.
+  final double height;
 
   /// Where a Scaffold should put the pill.
   static const location = FloatingActionButtonLocation.centerFloat;
@@ -39,7 +42,7 @@ class ActionPill extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(4),
             child: SizedBox(
-              height: 48,
+              height: height,
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 180),
                 child: child,
