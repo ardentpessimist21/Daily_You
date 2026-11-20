@@ -13,6 +13,7 @@ import 'package:daily_you/pages/gallery_page.dart';
 import 'package:daily_you/providers/entries_provider.dart';
 import 'package:daily_you/providers/entry_attachments_provider.dart';
 import 'package:daily_you/providers/tags_provider.dart';
+import 'package:daily_you/widgets/large_entry_card_widget.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
@@ -191,6 +192,27 @@ void main() {
     });
   });
 
+  testWidgets('only the cards on screen are built, however many days',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 2.6;
+    addTearDown(tester.view.reset);
+    final entries = <Entry>[];
+    for (var i = 0; i < 1500; i++) {
+      entries.add(_entry(i + 1,
+          DateTime(2026, 11, 18, 9).subtract(Duration(days: i)), 'Day $i'));
+    }
+    EntryStore.instance.entries = entries;
+    EntriesProvider.instance.searchText = 'x';
+    EntriesProvider.instance.searchText = '';
+    await ConfigProvider.instance.set(Settings.galleryPageViewMode, 'list');
+    await tester.pumpWidget(_app(const Scaffold(body: GalleryPage())));
+    await tester.pumpAndSettle();
+    expect(find.byType(LargeEntryCardWidget).evaluate().length,
+        lessThan(15));
+    await tester.pump(const Duration(seconds: 2));
+  });
+
   group('Grid view', () {
     testWidgets('one sticky pill per month, with its count', (tester) async {
       // The test font is much wider than the app's, so tile headers
@@ -213,11 +235,16 @@ void main() {
       expect(find.text('36 entries'), findsOneWidget);
       expect(find.byIcon(Icons.arrow_upward_rounded), findsNothing);
 
-      // Scrolled into October: its pill is the one at the top
-      await tester.drag(find.byType(CustomScrollView), const Offset(0, -3000));
+      // Partway down November: its pill is stuck at the top
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -2000));
       await tester.pumpAndSettle();
-      expect(find.text('October 2026'), findsOneWidget);
-      expect(find.text('62 entries'), findsOneWidget);
+      expect(find.text('November 2026').hitTestable(), findsOneWidget);
+
+      // Scrolled into October: its pill takes over
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -2500));
+      await tester.pumpAndSettle();
+      expect(find.text('October 2026').hitTestable(), findsOneWidget);
+      expect(find.text('62 entries').hitTestable(), findsOneWidget);
       await ConfigProvider.instance.set(Settings.galleryPageViewMode, 'list');
       await tester.pump(const Duration(seconds: 2));
     });

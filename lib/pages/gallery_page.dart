@@ -24,7 +24,6 @@ import 'package:daily_you/widgets/tag_picker_dialog.dart';
 import 'package:daily_you/widgets/action_pill.dart';
 import 'package:daily_you/widgets/tag_icon_glyph.dart';
 import 'package:daily_you/widgets/large_entry_card_widget.dart';
-import 'package:flutter/rendering.dart' show FloatingHeaderSnapConfiguration;
 import 'package:material_ui/material_ui.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/widgets/entry_card_widget.dart';
@@ -65,6 +64,40 @@ class _GallerySection {
   final DateTime date;
   final int start;
   final List<Entry> entries = [];
+}
+
+enum _ItemKind { space, upcoming, monthLabel, pill, row, gridRow }
+
+/// One row of the Gallery's list, with its height.
+class _Item {
+  _Item(this.kind, this.extent,
+      {this.entry,
+      this.index = 0,
+      this.first = false,
+      this.last = false,
+      this.timeOnly = false,
+      this.date,
+      this.count = 0,
+      this.tiles,
+      this.tileSize = 0,
+      this.columns = 1});
+
+  _Item.space(double extent) : this(_ItemKind.space, extent);
+
+  final _ItemKind kind;
+  final double extent;
+  final Entry? entry;
+
+  /// Where the row's (first) entry sits in the Gallery's list.
+  final int index;
+  final bool first;
+  final bool last;
+  final bool timeOnly;
+  final DateTime? date;
+  final int count;
+  final List<Entry>? tiles;
+  final double tileSize;
+  final int columns;
 }
 
 class _GalleryPageState extends State<GalleryPage>
@@ -185,6 +218,8 @@ class _GalleryPageState extends State<GalleryPage>
       _place = preset.place;
     }
     _searchController.text = _searchText;
+    _scrollController.addListener(_onScroll);
+    _snap.addListener(_onSnap);
     if (preset == null) GalleryPage.tabRetapped.addListener(_backToTop);
   }
 
@@ -284,6 +319,8 @@ class _GalleryPageState extends State<GalleryPage>
   @override
   void dispose() {
     GalleryPage.tabRetapped.removeListener(_backToTop);
+    _snap.dispose();
+    _headerHidden.dispose();
     _searchController.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
@@ -738,6 +775,9 @@ class _GalleryPageState extends State<GalleryPage>
     final chips =
         _selecting ? const <Widget>[] : _filterChips(context, tagsProvider);
 
+    final height = _barHeight + (chips.isNotEmpty ? _chipRowHeight : 0);
+    _headerHeight = height;
+    final background = Theme.of(context).scaffoldBackgroundColor;
     final header = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -756,10 +796,30 @@ class _GalleryPageState extends State<GalleryPage>
       },
       child: Stack(
         children: [
-          _buildScrollView(
-              context, listView, entries, upcoming, entriesProvider, header,
-              headerHeight:
-                  _barHeight + (chips.isNotEmpty ? _chipRowHeight : 0)),
+          _buildList(
+              context, listView, entries, upcoming, entriesProvider, height),
+          AnimatedBuilder(
+            animation: Listenable.merge([_scrollController, _headerHidden]),
+            builder: (context, _) => Stack(children: [
+              _stuckPill(context, listView, background),
+            ]),
+          ),
+          // The search bar and chips: they slide away while you scroll
+          // down and come back on a small pull (3.7.0.59)
+          ValueListenableBuilder<double>(
+            valueListenable: _headerHidden,
+            builder: (context, hidden, child) => Positioned(
+              top: -hidden,
+              left: 0,
+              right: 0,
+              height: height,
+              child: child!,
+            ),
+            child: ColoredBox(
+              color: background,
+              child: Align(alignment: Alignment.topCenter, child: header),
+            ),
+          ),
           Positioned(
             left: 0,
             right: 0,
@@ -807,64 +867,353 @@ class _GalleryPageState extends State<GalleryPage>
     return sections;
   }
 
-  Widget _buildScrollView(
+  // ---- The list ----------------------------------------------------------
+  //
+  // One flat list where every row's height is known up front (3.7.0.59
+  // fix): only what's on screen is built, so opening the Gallery, clearing
+  // filters and switching views stay quick however many entries there are.
+  // The search bar and chips sit on top and slide away on scroll; the
+  // stuck day or month pill is drawn on top too, worked out from the
+  // known heights.
+
+  static const double _pillHeight = 56;
+  static const double _monthLabelHeight = 36;
+
+  /// How far the header has slid up, from 0 (showing) to its height.
+  final ValueNotifier<double> _headerHidden = ValueNotifier(0);
+  double _headerHeight = _barHeight;
+  double _lastPixels = 0;
+  bool _lastScrollUp = false;
+  late final AnimationController _snap = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 200));
+  Animation<double>? _snapTween;
+
+  // What the list last laid out, for the stuck pill.
+  List<_Item> _items = const [];
+  List<double> _offsets = const [];
+  List<int> _pillIndexes = const [];
+  double _contentWidth = 0;
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    final pixels = _scrollController.position.pixels;
+    final delta = pixels - _lastPixels;
+    _lastPixels = pixels;
+    if (delta != 0) _lastScrollUp = delta < 0;
+    if (_snap.isAnimating) _snap.stop();
+    var hidden = (_headerHidden.value + delta).clamp(0.0, _headerHeight);
+    // Near the top the header stays with the list
+    if (pixels <= 0) hidden = 0;
+    if (hidden > pixels) hidden = pixels.clamp(0.0, _headerHeight);
+    _headerHidden.value = hidden;
+  }
+
+  /// After a scroll stops halfway through the header: finish showing it
+  /// after a pull down, or hiding it after a push up.
+  bool _onScrollEnd(ScrollEndNotification notification) {
+    final hidden = _headerHidden.value;
+    if (hidden <= 0 || hidden >= _headerHeight) return false;
+    final target =
+        _lastScrollUp || _lastPixels < _headerHeight ? 0.0 : _headerHeight;
+    _snapTween = Tween(begin: hidden, end: target)
+        .animate(CurvedAnimation(parent: _snap, curve: Curves.easeOut));
+    _snap
+      ..reset()
+      ..forward();
+    return false;
+  }
+
+  void _onSnap() {
+    final tween = _snapTween;
+    if (tween != null) _headerHidden.value = tween.value;
+  }
+
+  /// The rows of the list, with their heights.
+  List<_Item> _layoutItems(
+      {required bool listView,
+      required bool byDate,
+      required List<Entry> entries,
+      required List<Entry> upcoming,
+      required double width,
+      required double headerHeight}) {
+    final items = <_Item>[_Item.space(headerHeight)];
+    if (upcoming.isNotEmpty) {
+      items.add(_Item(_ItemKind.upcoming, _upcomingRowHeight));
+    }
+    if (entries.isEmpty) return items;
+
+    if (listView) {
+      final rowWidth = width < 720 ? width : 720.0;
+      final rowExtent = rowWidth / 2.2;
+      if (!byDate) {
+        for (var i = 0; i < entries.length; i++) {
+          items.add(_Item(_ItemKind.row, rowExtent,
+              entry: entries[i],
+              index: i,
+              first: i == 0,
+              last: i == entries.length - 1));
+        }
+      } else {
+        DateTime? month;
+        for (final section in _sections(entries, byDay: true)) {
+          final sectionMonth = DateTime(section.date.year, section.date.month);
+          if (sectionMonth != month) {
+            month = sectionMonth;
+            items.add(_Item(_ItemKind.monthLabel, _monthLabelHeight,
+                date: sectionMonth));
+          }
+          items.add(_Item(_ItemKind.pill, _pillHeight,
+              date: section.date, count: section.entries.length));
+          for (var i = 0; i < section.entries.length; i++) {
+            items.add(_Item(_ItemKind.row, rowExtent,
+                entry: section.entries[i],
+                index: section.start + i,
+                first: i == 0,
+                last: i == section.entries.length - 1,
+                timeOnly: true));
+          }
+        }
+      }
+    } else {
+      final columns =
+          (width / (300 + _gridSpacing)).ceil().clamp(1, 1 << 20).toInt();
+      final tile = (width - _gridSpacing * (columns - 1)) / columns;
+      void addRows(List<Entry> group, int start, {required bool gap}) {
+        for (var i = 0; i < group.length; i += columns) {
+          final end = i + columns < group.length ? i + columns : group.length;
+          final lastRow = end == group.length;
+          items.add(_Item(
+              _ItemKind.gridRow, tile + _gridSpacing + (gap && lastRow ? 8 : 0),
+              tiles: group.sublist(i, end),
+              index: start + i,
+              tileSize: tile,
+              columns: columns));
+        }
+      }
+
+      if (!byDate) {
+        addRows(entries, 0, gap: false);
+      } else {
+        for (final section in _sections(entries, byDay: false)) {
+          items.add(_Item(_ItemKind.pill, _pillHeight,
+              date: section.date, count: section.entries.length));
+          addRows(section.entries, section.start, gap: true);
+        }
+      }
+    }
+    items.add(_Item.space(_selecting ? ActionPill.clearance : 24));
+    return items;
+  }
+
+  Widget _buildList(
       BuildContext context,
       bool listView,
       List<Entry> entries,
       List<Entry> upcoming,
       EntriesProvider entriesProvider,
-      Widget header,
-      {required double headerHeight}) {
+      double headerHeight) {
     final entryAttachmentsProvider =
         Provider.of<EntryAttachmentsProvider>(context);
     final configProvider = Provider.of<ConfigProvider>(context);
     final searchQuery = _searchText;
-    final background = Theme.of(context).scaffoldBackgroundColor;
     final hideImages = configProvider.get(Settings.hideImagesInGallery);
     // Day and month pills only when entries run by date (not by mood,
     // tracker or last edit)
     final byDate = entriesProvider.orderBy == OrderBy.date && !_lastEdited;
+    final locale = TimeManager.currentLocale(context);
+    final timeFormat = TimeManager.localizedTimeFormat(context, locale);
 
-    final slivers = <Widget>[
-      // The search bar and chips: they slide away while you scroll down
-      // and come back on a small pull (3.7.0.59)
-      SliverPersistentHeader(
-        floating: true,
-        delegate: _FloatingHeaderDelegate(
-          extent: headerHeight,
-          background: background,
-          vsync: this,
-          child: header,
-        ),
-      ),
-      if (upcoming.isNotEmpty)
-        SliverToBoxAdapter(
-          child: SizedBox(
-            height: _upcomingRowHeight,
-            child: _UpcomingRow(count: upcoming.length, onTap: _openUpcoming),
-          ),
-        ),
-    ];
+    return LayoutBuilder(builder: (context, constraints) {
+      final width = constraints.maxWidth;
+      final items = _layoutItems(
+          listView: listView,
+          byDate: byDate,
+          entries: entries,
+          upcoming: upcoming,
+          width: width,
+          headerHeight: headerHeight);
+      final offsets = <double>[];
+      final pills = <int>[];
+      var offset = 0.0;
+      for (var i = 0; i < items.length; i++) {
+        offsets.add(offset);
+        offset += items[i].extent;
+        if (items[i].kind == _ItemKind.pill) pills.add(i);
+      }
+      _items = items;
+      _offsets = offsets;
+      _pillIndexes = pills;
+      _contentWidth = listView && width > 720 ? 720 : width;
 
-    if (entries.isEmpty && upcoming.isEmpty) {
-      slivers.add(SliverFillRemaining(
-        hasScrollBody: false,
-        child: _emptyState(context),
-      ));
-    } else if (listView) {
-      slivers.addAll(_timelineSlivers(context, entries, byDate,
-          entryAttachmentsProvider, hideImages, searchQuery, background));
-    } else {
-      slivers.addAll(_gridSlivers(context, entries, byDate,
-          entryAttachmentsProvider, hideImages, searchQuery, background));
+      Widget buildItem(BuildContext context, int i) {
+        final item = items[i];
+        switch (item.kind) {
+          case _ItemKind.space:
+            return const SizedBox.shrink();
+          case _ItemKind.upcoming:
+            return _UpcomingRow(count: upcoming.length, onTap: _openUpcoming);
+          case _ItemKind.monthLabel:
+            return _narrow(
+                _MonthLabel(text: DateFormat.yMMMM(locale).format(item.date!)));
+          case _ItemKind.pill:
+            return _narrow(_pillFor(item, locale, listView, stuck: false));
+          case _ItemKind.row:
+            final entry = item.entry!;
+            return _narrow(_entryTap(
+              entry,
+              item.index,
+              _GalleryTimelineRow(
+                isFirst: item.first,
+                isLast: item.last,
+                selecting: _selecting,
+                selected: _selected.contains(entry.id),
+                mood: entry.mood,
+                card: LargeEntryCardWidget(
+                  title: item.timeOnly
+                      ? timeFormat.format(entry.timeCreate)
+                      : null,
+                  entry: entry,
+                  attachments:
+                      _visualAttachmentsOf(entryAttachmentsProvider, entry),
+                  hideImage: hideImages,
+                  searchQuery: searchQuery,
+                  showLocations: true,
+                  showMood: false,
+                ),
+              ),
+            ));
+          case _ItemKind.gridRow:
+            final tiles = item.tiles!;
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (var t = 0; t < tiles.length; t++) ...[
+                    if (t > 0) const SizedBox(width: _gridSpacing),
+                    SizedBox(
+                      width: item.tileSize,
+                      height: item.tileSize,
+                      child: _entryTap(
+                        tiles[t],
+                        item.index + t,
+                        SelectionOutline(
+                          selected: _selected.contains(tiles[t].id),
+                          showTick: true,
+                          child: EntryCardWidget(
+                            entry: tiles[t],
+                            attachments: _visualAttachmentsOf(
+                                entryAttachmentsProvider, tiles[t]),
+                            hideImage: hideImages,
+                            searchQuery: searchQuery,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            );
+        }
+      }
+
+      final empty = entries.isEmpty && upcoming.isEmpty;
+      return NotificationListener<ScrollEndNotification>(
+        onNotification: _onScrollEnd,
+        child: CustomScrollView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverVariedExtentList.builder(
+              itemCount: items.length,
+              itemExtentBuilder: (index, _) =>
+                  index < items.length ? items[index].extent : null,
+              itemBuilder: buildItem,
+            ),
+            if (empty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: _emptyState(context),
+              ),
+          ],
+        ),
+      );
+    });
+  }
+
+  /// Timeline-view rows, pills and labels keep to the middle on wide
+  /// screens.
+  Widget _narrow(Widget child) => Center(
+        child: SizedBox(
+            width: _contentWidth, height: double.infinity, child: child),
+      );
+
+  Widget _pillFor(_Item item, String locale, bool listView,
+      {required bool stuck}) {
+    final date = item.date!;
+    if (listView) {
+      return _DatePill(
+        key: ValueKey(
+            '${stuck ? 'stuck' : 'gallery'}-day-${date.year}-${date.month}-${date.day}'),
+        title: DateFormat('EEEE d', locale).format(date),
+        month: DateFormat.yMMM(locale).format(date),
+        showMonth: stuck,
+        count: item.count,
+        onTap: () => _pickMonthFilter(DateTime(date.year, date.month)),
+      );
     }
-    slivers.add(SliverToBoxAdapter(
-        child: SizedBox(height: _selecting ? ActionPill.clearance : 24)));
+    return _DatePill(
+      key: ValueKey(
+          '${stuck ? 'stuck' : 'gallery'}-month-${date.year}-${date.month}'),
+      title: DateFormat.yMMMM(locale).format(date),
+      showArrow: true,
+      count: item.count,
+      onTap: () => _pickMonthFilter(date),
+    );
+  }
 
-    return CustomScrollView(
-      controller: _scrollController,
-      physics: const AlwaysScrollableScrollPhysics(),
-      slivers: slivers,
+  /// The pill stuck under the header: the last day (or month) whose own
+  /// pill has scrolled up under it, pushed up by the next one.
+  Widget _stuckPill(BuildContext context, bool listView, Color background) {
+    if (!_scrollController.hasClients || _pillIndexes.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final pixels = _scrollController.position.pixels;
+    final shown = _headerHeight - _headerHidden.value;
+    double screen(int item) => _offsets[item] - pixels;
+    // The last pill at or above the header's bottom
+    var low = 0;
+    var high = _pillIndexes.length - 1;
+    var found = -1;
+    while (low <= high) {
+      final mid = (low + high) ~/ 2;
+      if (screen(_pillIndexes[mid]) <= shown) {
+        found = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+    if (found < 0 || screen(_pillIndexes[found]) > shown - 0.5) {
+      return const SizedBox.shrink();
+    }
+    var top = shown;
+    if (found + 1 < _pillIndexes.length) {
+      final next = screen(_pillIndexes[found + 1]);
+      if (next < shown + _pillHeight) top = next - _pillHeight;
+    }
+    final item = _items[_pillIndexes[found]];
+    return Positioned(
+      top: top,
+      left: 0,
+      right: 0,
+      height: _pillHeight,
+      child: ColoredBox(
+        color: background,
+        child: _narrow(_pillFor(
+            item, TimeManager.currentLocale(context), listView,
+            stuck: true)),
+      ),
     );
   }
 
@@ -930,237 +1279,6 @@ class _GalleryPageState extends State<GalleryPage>
       child: child,
     );
   }
-
-  // ---- Timeline view ---------------------------------------------------
-
-  /// Timeline view (3.7.0.59): the Timeline's look, previews only. By date,
-  /// each day gets a pill ("Tuesday 28") that sticks under the search bar
-  /// and adds the month while stuck; month labels split the months.
-  List<Widget> _timelineSlivers(
-      BuildContext context,
-      List<Entry> entries,
-      bool byDate,
-      EntryAttachmentsProvider attachmentsProvider,
-      bool hideImages,
-      String searchQuery,
-      Color background) {
-    final locale = TimeManager.currentLocale(context);
-    final timeFormat = TimeManager.localizedTimeFormat(context, locale);
-
-    Widget rows(List<Entry> group, int start, {required bool timeOnly}) {
-      return SliverList(
-        delegate: SliverChildBuilderDelegate(
-          childCount: group.length,
-          (context, i) {
-            final entry = group[i];
-            return _entryTap(
-              entry,
-              start + i,
-              _GalleryTimelineRow(
-                isFirst: i == 0,
-                isLast: i == group.length - 1,
-                selecting: _selecting,
-                selected: _selected.contains(entry.id),
-                mood: entry.mood,
-                card: LargeEntryCardWidget(
-                  title: timeOnly ? timeFormat.format(entry.timeCreate) : null,
-                  entry: entry,
-                  attachments: _visualAttachmentsOf(attachmentsProvider, entry),
-                  hideImage: hideImages,
-                  searchQuery: searchQuery,
-                  showLocations: true,
-                  showMood: false,
-                ),
-              ),
-            );
-          },
-        ),
-      );
-    }
-
-    Widget constrained(Widget sliver) =>
-        SliverConstrainedCrossAxis(maxExtent: 720, sliver: sliver);
-
-    if (!byDate) {
-      return [
-        const SliverToBoxAdapter(child: SizedBox(height: 4)),
-        constrained(rows(entries, 0, timeOnly: false)),
-      ];
-    }
-
-    final slivers = <Widget>[];
-    DateTime? month;
-    for (final section in _sections(entries, byDay: true)) {
-      final sectionMonth = DateTime(section.date.year, section.date.month);
-      if (sectionMonth != month) {
-        month = sectionMonth;
-        slivers.add(constrained(SliverToBoxAdapter(
-          child:
-              _MonthLabel(text: DateFormat.yMMMM(locale).format(sectionMonth)),
-        )));
-      }
-      final day = section.date;
-      slivers.add(constrained(SliverMainAxisGroup(slivers: [
-        SliverPersistentHeader(
-          pinned: true,
-          delegate: _PillDelegate(
-            background: background,
-            builder: (stuck) => _DatePill(
-              key: ValueKey('gallery-day-${day.year}-${day.month}-${day.day}'),
-              title: DateFormat('EEEE d', locale).format(day),
-              month: DateFormat.yMMM(locale).format(day),
-              showMonth: stuck,
-              count: section.entries.length,
-              onTap: () => _pickMonthFilter(sectionMonth),
-            ),
-          ),
-        ),
-        rows(section.entries, section.start, timeOnly: true),
-      ])));
-    }
-    return slivers;
-  }
-
-  // ---- Grid view -------------------------------------------------------
-
-  /// Grid view (3.7.0.59): by date, each month gets a pill ("October 2026",
-  /// with its count) that sticks under the search bar; each month starts
-  /// on a fresh row. Tiles keep their own dates.
-  List<Widget> _gridSlivers(
-      BuildContext context,
-      List<Entry> entries,
-      bool byDate,
-      EntryAttachmentsProvider attachmentsProvider,
-      bool hideImages,
-      String searchQuery,
-      Color background) {
-    final locale = TimeManager.currentLocale(context);
-
-    Widget grid(List<Entry> group, int start) {
-      return SliverGrid(
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 300,
-            crossAxisSpacing: _gridSpacing,
-            mainAxisSpacing: _gridSpacing,
-            childAspectRatio: 1),
-        delegate: SliverChildBuilderDelegate(
-          childCount: group.length,
-          (context, i) {
-            final entry = group[i];
-            return _entryTap(
-              entry,
-              start + i,
-              SelectionOutline(
-                selected: _selected.contains(entry.id),
-                showTick: true,
-                child: EntryCardWidget(
-                  entry: entry,
-                  attachments: _visualAttachmentsOf(attachmentsProvider, entry),
-                  hideImage: hideImages,
-                  searchQuery: searchQuery,
-                ),
-              ),
-            );
-          },
-        ),
-      );
-    }
-
-    if (!byDate) return [grid(entries, 0)];
-
-    return [
-      for (final section in _sections(entries, byDay: false))
-        SliverMainAxisGroup(slivers: [
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _PillDelegate(
-              background: background,
-              builder: (stuck) => _DatePill(
-                key: ValueKey(
-                    'gallery-month-${section.date.year}-${section.date.month}'),
-                title: DateFormat.yMMMM(locale).format(section.date),
-                showArrow: true,
-                count: section.entries.length,
-                onTap: () => _pickMonthFilter(section.date),
-              ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.only(bottom: 8),
-            sliver: grid(section.entries, section.start),
-          ),
-        ]),
-    ];
-  }
-}
-
-/// The floating header: slides away while scrolling down, snaps back on a
-/// small pull up (3.7.0.59).
-class _FloatingHeaderDelegate extends SliverPersistentHeaderDelegate {
-  _FloatingHeaderDelegate({
-    required this.extent,
-    required this.background,
-    required this.vsync,
-    required this.child,
-  });
-
-  final double extent;
-  final Color background;
-  @override
-  final TickerProvider vsync;
-  final Widget child;
-
-  @override
-  double get minExtent => extent;
-  @override
-  double get maxExtent => extent;
-
-  @override
-  FloatingHeaderSnapConfiguration get snapConfiguration =>
-      FloatingHeaderSnapConfiguration(
-          curve: Curves.easeOut, duration: const Duration(milliseconds: 200));
-
-  @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return SizedBox.expand(
-      child: ColoredBox(
-        color: background,
-        child: Align(alignment: Alignment.topCenter, child: child),
-      ),
-    );
-  }
-
-  @override
-  bool shouldRebuild(covariant _FloatingHeaderDelegate oldDelegate) => true;
-}
-
-/// A day or month pill that sticks under the header; [builder] gets whether
-/// it is stuck (content has scrolled under it).
-class _PillDelegate extends SliverPersistentHeaderDelegate {
-  _PillDelegate({required this.background, required this.builder});
-
-  static const double height = 56;
-
-  final Color background;
-  final Widget Function(bool stuck) builder;
-
-  @override
-  double get minExtent => height;
-  @override
-  double get maxExtent => height;
-
-  @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
-    final stuck = shrinkOffset > 0 || overlapsContent;
-    return SizedBox.expand(
-      child: ColoredBox(color: background, child: builder(stuck)),
-    );
-  }
-
-  @override
-  bool shouldRebuild(covariant _PillDelegate oldDelegate) => true;
 }
 
 /// "Tuesday 28" (Timeline view) or "October 2026" (Grid view), with the
@@ -1414,8 +1532,7 @@ class _GalleryTimelineRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final railColor = Theme.of(context).colorScheme.outlineVariant;
     final faded = railColor.withValues(alpha: 0);
-    return AspectRatio(
-      aspectRatio: 2.2,
+    return SizedBox.expand(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
