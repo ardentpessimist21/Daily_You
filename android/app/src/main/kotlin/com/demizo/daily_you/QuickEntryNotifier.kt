@@ -12,15 +12,15 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.app.RemoteInput
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 /**
  * The pinned "Add to Daily You" notification (Update Q): tap to open the
- * quick-entry sheet, or reply right in it as a new entry or added to today's
- * last entry ("Add to last entry" only shows when there is one).
+ * quick-entry sheet. 3.7.0.59: the reply buttons (New entry / Add to last
+ * entry) are gone, since replying from the lock screen lost the text; an
+ * "Open Daily You" button opens the app instead.
  */
 object QuickEntryNotifier {
     const val CHANNEL_ID = "daily_you_quick_entry"
@@ -116,12 +116,19 @@ object QuickEntryNotifier {
             context, 40, QuickEntry.sheetIntent(context),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
-        val last = lastLabelToday(context)
+        val app = PendingIntent.getActivity(
+            context, 46,
+            Intent(context, MainActivity::class.java)
+                .setAction(Intent.ACTION_MAIN)
+                .addCategory(Intent.CATEGORY_LAUNCHER)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("Add to Daily You")
-            .setContentText(status ?: "Tap to open, or reply right here")
+            .setContentText(status ?: "Tap to write a quick entry")
             .setContentIntent(open)
             .setOngoing(true)
             .setAutoCancel(false)
@@ -130,12 +137,11 @@ object QuickEntryNotifier {
             .setShowWhen(false)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .addAction(replyAction(context, "new", "New entry", "New entry for today"))
-        if (last != null) {
-            builder.addAction(
-                replyAction(context, "last", "Add to last entry", "Add to the $last entry")
+            .addAction(
+                NotificationCompat.Action.Builder(
+                    R.drawable.ic_quick_entry, "Open Daily You", app
+                ).build()
             )
-        }
         // Update F: bring a hidden floating button back
         if (FloatingButton.isEnabled(context) && FloatingButton.isUserHidden(context)) {
             val show = PendingIntent.getBroadcast(
@@ -151,24 +157,5 @@ object QuickEntryNotifier {
             )
         }
         return builder.build()
-    }
-
-    private fun replyAction(
-        context: Context, target: String, title: String, hint: String
-    ): NotificationCompat.Action {
-        val input = RemoteInput.Builder(KEY_TEXT).setLabel(hint).build()
-        val intent = Intent(context, QuickReplyReceiver::class.java)
-            .setAction("com.demizo.daily_you.QUICK_REPLY_$target")
-            .putExtra(EXTRA_TARGET, target)
-        val flags = PendingIntent.FLAG_UPDATE_CURRENT or
-            (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0)
-        val pending = PendingIntent.getBroadcast(
-            context, if (target == "last") 42 else 41, intent, flags
-        )
-        return NotificationCompat.Action.Builder(R.drawable.ic_quick_entry, title, pending)
-            .addRemoteInput(input)
-            .setAllowGeneratedReplies(false)
-            .setShowsUserInterface(false)
-            .build()
     }
 }

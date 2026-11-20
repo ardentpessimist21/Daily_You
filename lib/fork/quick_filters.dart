@@ -7,13 +7,80 @@ import 'package:daily_you/fork/favourites.dart';
 import 'package:daily_you/fork/place_filter.dart';
 import 'package:daily_you/fork/tag_pins.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
+import 'package:daily_you/models/attachment.dart';
 import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/models/tag.dart';
 import 'package:daily_you/models/tag_icon_type.dart';
+import 'package:daily_you/providers/entry_attachments_provider.dart';
 import 'package:daily_you/providers/tags_provider.dart';
 import 'package:daily_you/utils/tag_visuals.dart';
 import 'package:daily_you/widgets/tag_icon_glyph.dart';
 import 'package:material_ui/material_ui.dart';
+
+/// Media Quick filters (3.7.0.59). Photos, Audio and Video can be combined
+/// (an entry with any of the picked kinds shows); Any media and No media
+/// each stand alone.
+enum MediaFilter {
+  photos,
+  audio,
+  video,
+  any,
+  none;
+
+  bool get standsAlone => this == any || this == none;
+
+  IconData get icon => switch (this) {
+        photos => Icons.photo_rounded,
+        audio => Icons.mic_rounded,
+        video => Icons.videocam_rounded,
+        any => Icons.perm_media_rounded,
+        none => Icons.hide_image_rounded,
+      };
+
+  Color get color => switch (this) {
+        photos => const Color(0xFF3F8CFF),
+        audio => const Color(0xFFB45CE0),
+        video => const Color(0xFFE0507A),
+        any => const Color(0xFF4FA36B),
+        none => const Color(0xFF8A939C),
+      };
+
+  String label(AppLocalizations l10n) => switch (this) {
+        photos => l10n.quickFilterPhotos,
+        audio => l10n.quickFilterAudio,
+        video => l10n.quickFilterVideo,
+        any => l10n.quickFilterAnyMedia,
+        none => l10n.quickFilterNoMedia,
+      };
+
+  /// [current] with [filter] switched on or off: turning on Any media or
+  /// No media clears the rest, and turning on a kind clears those two.
+  static Set<MediaFilter> toggle(Set<MediaFilter> current, MediaFilter filter) {
+    if (current.contains(filter)) return {...current}..remove(filter);
+    if (filter.standsAlone) return {filter};
+    return {...current.where((other) => !other.standsAlone), filter};
+  }
+
+  /// [entries] narrowed to those matching [media] (none picked keeps all).
+  static List<Entry> apply(List<Entry> entries, Set<MediaFilter> media) {
+    if (media.isEmpty) return entries;
+    final types = <int, Set<AttachmentType>>{};
+    for (final attachment in EntryAttachmentsProvider.instance.attachments) {
+      final id = attachment.entryId;
+      if (id != null) (types[id] ??= {}).add(attachment.type);
+    }
+    bool matches(Entry entry) {
+      final has = types[entry.id] ?? const <AttachmentType>{};
+      if (media.contains(none)) return has.isEmpty;
+      if (media.contains(any)) return has.isNotEmpty;
+      return (media.contains(photos) && has.contains(AttachmentType.image)) ||
+          (media.contains(audio) && has.contains(AttachmentType.audio)) ||
+          (media.contains(video) && has.contains(AttachmentType.video));
+    }
+
+    return entries.where(matches).toList();
+  }
+}
 
 /// The Gallery filter's Quick filters: ⭐ Favourite, Trackers, Last Edited,
 /// 📍 Places, then up to [maxPins] tags pinned in Settings › Tags. Unlike tags they're
@@ -263,6 +330,8 @@ class QuickFiltersSection extends StatelessWidget {
     this.place,
     this.onPickPlace,
     this.onClearPlace,
+    this.media = const {},
+    this.onToggleMedia,
   });
 
   final Tag? favourite;
@@ -284,6 +353,11 @@ class QuickFiltersSection extends StatelessWidget {
   final String? place;
   final VoidCallback? onPickPlace;
   final VoidCallback? onClearPlace;
+
+  /// Media filters that are on (3.7.0.59); the chips show when
+  /// [onToggleMedia] is set.
+  final Set<MediaFilter> media;
+  final void Function(MediaFilter)? onToggleMedia;
 
   Widget _tagChip(BuildContext context, Tag tag, Color fallback) {
     final color = tag.resolvedColor(context, fallback: fallback);
@@ -357,6 +431,17 @@ class QuickFiltersSection extends StatelessWidget {
                   : onPickPlace,
           onClear: place != null && !compact ? onClearPlace : null,
         ),
+      if (onToggleMedia != null)
+        for (final filter in MediaFilter.values)
+          QuickFilterChip(
+            key: ValueKey('media-${filter.name}'),
+            label: filter.label(l10n),
+            icon: (iconColor) => Icon(filter.icon, size: 20, color: iconColor),
+            color: filter.color,
+            selected: media.contains(filter),
+            compact: compact,
+            onTap: enabled ? () => onToggleMedia!(filter) : null,
+          ),
       for (final tag in pinned)
         _tagChip(context, tag, theme.colorScheme.secondary),
     ];

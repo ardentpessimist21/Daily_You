@@ -21,17 +21,47 @@ import 'package:material_ui/material_ui.dart';
 ///
 /// The title follows the view: Jump to month / year / date.
 
-/// What the picker returned: a month, or a typed [day] inside [month].
+/// What the picker returned: a month, a typed [day] inside [month], a
+/// range of months ([month] to [endMonth], 3.7.0.59) or Show all.
 class JumpTarget {
   JumpTarget.month(int year, int month)
       : month = DateTime(year, month),
+        endMonth = null,
+        showAll = false,
         day = null;
 
   JumpTarget.day(DateTime date)
       : month = DateTime(date.year, date.month),
+        endMonth = null,
+        showAll = false,
         day = DateTime(date.year, date.month, date.day);
 
+  /// From the earlier of [a] and [b] to the later; the same month twice is
+  /// just that month.
+  JumpTarget.range(DateTime a, DateTime b)
+      : month = DateTime(a.isBefore(b) ? a.year : b.year,
+            a.isBefore(b) ? a.month : b.month),
+        endMonth = a.year == b.year && a.month == b.month
+            ? null
+            : DateTime(a.isBefore(b) ? b.year : a.year,
+                a.isBefore(b) ? b.month : a.month),
+        showAll = false,
+        day = null;
+
+  /// Show all: the Gallery's month filter is cleared.
+  JumpTarget.all()
+      : month = DateTime(0),
+        endMonth = null,
+        showAll = true,
+        day = null;
+
   final DateTime month;
+
+  /// The last month of a range, or null for a single month.
+  final DateTime? endMonth;
+
+  /// Show all was tapped.
+  final bool showAll;
 
   /// Set only when a date was typed.
   final DateTime? day;
@@ -149,6 +179,9 @@ class JumpPicker {
     DateTime? firstDate,
     DateTime? lastDate,
     JumpDateFormat? dateFormat,
+    bool allowRange = false,
+    DateTime? selectedEnd,
+    bool showAllButton = false,
   }) {
     final months = <(int, int), int>{};
     final years = <int, int>{};
@@ -182,6 +215,9 @@ class JumpPicker {
         firstDate: firstDate,
         lastDate: lastDate,
         dateFormat: dateFormat,
+        allowRange: allowRange,
+        selectedEnd: selectedEnd,
+        showAllButton: showAllButton,
       ),
     );
   }
@@ -202,7 +238,16 @@ class JumpPickerDialog extends StatefulWidget {
     this.firstDate,
     this.lastDate,
     this.dateFormat,
+    this.allowRange = false,
+    this.selectedEnd,
+    this.showAllButton = false,
   });
+
+  /// Gallery month filter (3.7.0.59): a Range switch for picking a first
+  /// and last month, and Show all.
+  final bool allowRange;
+  final DateTime? selectedEnd;
+  final bool showAllButton;
 
   final Map<(int, int), int> monthCounts;
   final Map<int, int> yearCounts;
@@ -232,6 +277,47 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
 
   _JumpView _view = _JumpView.months;
   String? _dateError;
+
+  /// Range mode: on when the filter already holds a range. The first tap
+  /// sets [_rangeStart], the second [_rangeEnd]; a third starts over.
+  late bool _range = widget.allowRange && widget.selectedEnd != null;
+  late DateTime? _rangeStart = _range ? widget.selected : null;
+  late DateTime? _rangeEnd = _range ? widget.selectedEnd : null;
+
+  static int _key(DateTime month) => month.year * 12 + month.month;
+
+  void _tapMonth(int year, int month) {
+    if (!_range) {
+      Navigator.pop(context, JumpTarget.month(year, month));
+      return;
+    }
+    final picked = DateTime(year, month);
+    setState(() {
+      if (_rangeStart == null || _rangeEnd != null) {
+        _rangeStart = picked;
+        _rangeEnd = null;
+      } else {
+        _rangeEnd = picked;
+      }
+    });
+  }
+
+  void _setRange(bool on) {
+    setState(() {
+      _range = on;
+      _rangeStart = null;
+      _rangeEnd = null;
+    });
+  }
+
+  void _finishRange() {
+    final start = _rangeStart;
+    if (start == null) {
+      Navigator.pop(context);
+      return;
+    }
+    Navigator.pop(context, JumpTarget.range(start, _rangeEnd ?? start));
+  }
 
   @override
   void dispose() {
@@ -353,10 +439,22 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
         },
       ),
       actions: [
+        if (widget.showAllButton && !typing)
+          TextButton(
+            key: const ValueKey('jump-show-all'),
+            onPressed: () => Navigator.pop(context, JumpTarget.all()),
+            child: Text(l10n.jumpShowAll),
+          ),
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
         ),
+        if (_range && _view == _JumpView.months)
+          TextButton(
+            key: const ValueKey('jump-range-done'),
+            onPressed: _finishRange,
+            child: Text(l10n.jumpDone),
+          ),
         if (typing)
           TextButton(
             onPressed: _submitDate,
@@ -374,6 +472,7 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
       mainAxisSize: MainAxisSize.min,
       children: [
         _buildYearRow(context),
+        if (widget.allowRange) _buildRangeRow(context),
         const SizedBox(height: 8),
         LayoutBuilder(builder: (context, constraints) {
           final tileWidth = (constraints.maxWidth - _gap * 2) / 3;
@@ -453,6 +552,41 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
     );
   }
 
+  /// The Range switch, with a hint while it's on.
+  Widget _buildRangeRow(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 150),
+              opacity: _range ? 1 : 0,
+              child: Text(
+                l10n.jumpRangeHint,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ),
+          ),
+          Text(l10n.jumpRange,
+              style: const TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(width: 6),
+          Transform.scale(
+            scale: 0.8,
+            child: Switch(
+              key: const ValueKey('jump-range-switch'),
+              value: _range,
+              onChanged: _setRange,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMonthGrid(BuildContext context, int year) {
     final l10n = AppLocalizations.of(context)!;
     final monthFormat = DateFormat.MMM(TimeManager.currentLocale(context));
@@ -467,16 +601,32 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
         final month = index + 1;
         final count = widget.monthCounts[(year, month)] ?? 0;
         final name = monthFormat.format(DateTime(year, month));
+        final key = year * 12 + month;
+        final start = _rangeStart;
+        final end = _rangeEnd;
+        final bool selected;
+        var inRange = false;
+        if (_range) {
+          selected = (start != null && _key(start) == key) ||
+              (end != null && _key(end) == key);
+          if (start != null && end != null) {
+            final low = _key(start) < _key(end) ? _key(start) : _key(end);
+            final high = _key(start) < _key(end) ? _key(end) : _key(start);
+            inRange = key > low && key < high;
+          }
+        } else {
+          selected =
+              widget.selected.year == year && widget.selected.month == month;
+        }
         return _tile(
           context,
           key: ValueKey('jump-month-$year-$month'),
           label: name,
           count: count,
-          selected: widget.selected.year == year &&
-              widget.selected.month == month,
+          selected: selected,
+          inRange: inRange,
           semantics: '$name, ${l10n.galleryMonthEntries(count)}',
-          onTap: () =>
-              Navigator.pop(context, JumpTarget.month(year, month)),
+          onTap: () => _tapMonth(year, month),
         );
       }),
     );
@@ -568,18 +718,23 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
     required bool selected,
     required String semantics,
     required VoidCallback onTap,
+    bool inRange = false,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
     final hasEntries = count > 0;
     final enabled = hasEntries || widget.allowEmpty;
     final background = selected
         ? colorScheme.primary
-        : hasEntries
+        : inRange
+            ? colorScheme.primaryContainer
+            : hasEntries
             ? colorScheme.secondaryContainer
             : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5);
     final foreground = selected
         ? colorScheme.onPrimary
-        : hasEntries
+        : inRange
+            ? colorScheme.onPrimaryContainer
+            : hasEntries
             ? colorScheme.onSecondaryContainer
             : enabled
                 ? colorScheme.onSurfaceVariant

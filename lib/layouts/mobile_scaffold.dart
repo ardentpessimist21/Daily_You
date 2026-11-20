@@ -398,6 +398,10 @@ class _MobileScaffoldState extends State<MobileScaffold> {
             if (index == 0 && currentIndex == 0) {
               VerticalCalendar.homeTabRetapped.value++;
             }
+            // Tapping Gallery again goes to the top of the list (3.7.0.59)
+            if (index == 1 && currentIndex == 1) {
+              GalleryPage.tabRetapped.value++;
+            }
             EasyDebounce.cancel("page-change");
             setState(() {
               currentIndex = index;

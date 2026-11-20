@@ -3761,6 +3761,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'since {date}'**
   String statsSince(String date);
+
+  /// No description provided for @quickFilterPhotos.
+  ///
+  /// In en, this message translates to:
+  /// **'Photos'**
+  String get quickFilterPhotos;
+
+  /// No description provided for @quickFilterAudio.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio'**
+  String get quickFilterAudio;
+
+  /// No description provided for @quickFilterVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Video'**
+  String get quickFilterVideo;
+
+  /// No description provided for @quickFilterAnyMedia.
+  ///
+  /// In en, this message translates to:
+  /// **'Any media'**
+  String get quickFilterAnyMedia;
+
+  /// No description provided for @quickFilterNoMedia.
+  ///
+  /// In en, this message translates to:
+  /// **'No media'**
+  String get quickFilterNoMedia;
+
+  /// No description provided for @jumpRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Range'**
+  String get jumpRange;
+
+  /// No description provided for @jumpRangeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a first month, then a last one'**
+  String get jumpRangeHint;
+
+  /// No description provided for @jumpShowAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all'**
+  String get jumpShowAll;
+
+  /// No description provided for @jumpDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get jumpDone;
+
+  /// No description provided for @galleryMonthFilterClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all months'**
+  String get galleryMonthFilterClear;
+
+  /// No description provided for @galleryNoEntriesInMonths.
+  ///
+  /// In en, this message translates to:
+  /// **'No entries in {months}'**
+  String galleryNoEntriesInMonths(String months);
 }
 
 class _AppLocalizationsDelegate

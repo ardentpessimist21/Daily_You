@@ -54,6 +54,10 @@ class TagPickerDialog extends StatefulWidget {
   final void Function(String? place)? onPlaceChanged;
   final List<Entry> placeEntries;
 
+  /// Gallery filter only: media Quick filters that are on (3.7.0.59).
+  final Set<MediaFilter> initialMedia;
+  final void Function(Set<MediaFilter>)? onMediaChanged;
+
   final TagType? tagTypeFilter;
 
   /// Optional line under the title, e.g. multi-select's "On some: …"
@@ -73,6 +77,8 @@ class TagPickerDialog extends StatefulWidget {
     this.initialPlace,
     this.onPlaceChanged,
     this.placeEntries = const [],
+    this.initialMedia = const {},
+    this.onMediaChanged,
     this.tagTypeFilter,
     this.note,
   });
@@ -116,6 +122,7 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
   late Set<int> _quickTagIds;
   late bool _lastEdited;
   String? _place;
+  late Set<MediaFilter> _media;
   late final bool _hasPlaces;
   bool _quickCompact = QuickFilters.compact;
 
@@ -131,6 +138,7 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
     _quickTagIds = {...widget.initialQuickTagIds};
     _lastEdited = widget.initialLastEdited;
     _place = widget.initialPlace;
+    _media = {...widget.initialMedia};
     _hasPlaces = widget.mode == TagPickerMode.filter &&
         PlaceFilter.placesIn(widget.placeEntries).isNotEmpty;
     final entryDates = <int, DateTime>{
@@ -283,6 +291,11 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
     widget.onPlaceChanged?.call(null);
   }
 
+  void _toggleMedia(MediaFilter filter) {
+    setState(() => _media = MediaFilter.toggle(_media, filter));
+    widget.onMediaChanged?.call({..._media});
+  }
+
   void _toggleLastEdited() {
     setState(() => _lastEdited = !_lastEdited);
     _notifyQuick();
@@ -351,10 +364,12 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
       _quickTagIds = {};
       _lastEdited = false;
       _place = null;
+      _media = {};
     });
     _notifyFilter();
     _notifyQuick();
     widget.onPlaceChanged?.call(null);
+    widget.onMediaChanged?.call(const {});
     Navigator.of(context).pop();
   }
 
@@ -737,6 +752,8 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
             place: _place,
             onPickPlace: _pickPlace,
             onClearPlace: _clearPlace,
+            media: _media,
+            onToggleMedia: widget.onMediaChanged == null ? null : _toggleMedia,
           )
         : null;
 

@@ -365,7 +365,7 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               SizedBox(
-                width: _RailDot.railWidth,
+                width: TimelineRailDot.railWidth,
                 child: Stack(
                   children: [
                     Positioned.fill(
@@ -373,7 +373,7 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
                         children: [
                           Container(
                             width: 3,
-                            height: _RailDot.center,
+                            height: TimelineRailDot.center,
                             color: index == 0
                                 ? Colors.transparent
                                 : Theme.of(context).colorScheme.outlineVariant,
@@ -392,12 +392,12 @@ class _EntryTimelinePageState extends State<EntryTimelinePage> {
                       ),
                     ),
                     Positioned(
-                      top: _RailDot.center - _RailDot.slot / 2,
+                      top: TimelineRailDot.center - TimelineRailDot.slot / 2,
                       left: 0,
                       right: 0,
-                      height: _RailDot.slot,
+                      height: TimelineRailDot.slot,
                       child: Center(
-                        child: _RailDot(
+                        child: TimelineRailDot(
                             selecting: _selecting,
                             selected: isSelected,
                             mood: entry.mood),
@@ -492,7 +492,7 @@ class _FullEntryTimelineRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final railColor = Theme.of(context).colorScheme.outlineVariant;
-    const lineLeft = (_RailDot.railWidth - _lineWidth) / 2;
+    const lineLeft = (TimelineRailDot.railWidth - _lineWidth) / 2;
     return Stack(
       children: [
         if (!isFirst)
@@ -500,29 +500,29 @@ class _FullEntryTimelineRow extends StatelessWidget {
             left: lineLeft,
             top: 0,
             width: _lineWidth,
-            height: _RailDot.center,
+            height: TimelineRailDot.center,
             child: ColoredBox(color: railColor),
           ),
         if (!isLast)
           Positioned(
             left: lineLeft,
-            top: _RailDot.center,
+            top: TimelineRailDot.center,
             bottom: 0,
             width: _lineWidth,
             child: ColoredBox(color: railColor),
           ),
         Positioned(
           left: 0,
-          width: _RailDot.railWidth,
-          top: _RailDot.center - _RailDot.slot / 2,
-          height: _RailDot.slot,
+          width: TimelineRailDot.railWidth,
+          top: TimelineRailDot.center - TimelineRailDot.slot / 2,
+          height: TimelineRailDot.slot,
           child: Center(
-              child: _RailDot(
+              child: TimelineRailDot(
                   selecting: selecting, selected: selected, mood: mood)),
         ),
         Padding(
           padding: const EdgeInsets.only(
-              left: _RailDot.railWidth, right: 8, bottom: 8),
+              left: TimelineRailDot.railWidth, right: 8, bottom: 8),
           child: GestureDetector(
               onTap: onTap, onLongPress: onLongPress, child: child),
         ),
@@ -534,9 +534,13 @@ class _FullEntryTimelineRow extends StatelessWidget {
 /// What sits on the timeline line for an entry (3.7.0.58): its mood in a
 /// circle tinted with the mood's colour (plain grey with Mood colours off),
 /// or the small dot when it has no mood. Becomes a checkbox in select mode.
-class _RailDot extends StatelessWidget {
-  const _RailDot(
-      {required this.selecting, required this.selected, required this.mood});
+/// Public so the Gallery's Timeline view can use it too (3.7.0.59).
+class TimelineRailDot extends StatelessWidget {
+  const TimelineRailDot(
+      {super.key,
+      required this.selecting,
+      required this.selected,
+      required this.mood});
 
   static const double railWidth = 40;
   static const double size = 14;

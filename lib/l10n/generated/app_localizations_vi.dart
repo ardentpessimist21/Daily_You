@@ -2175,4 +2175,39 @@ class AppLocalizationsVi extends AppLocalizations {
   String statsSince(String date) {
     return 'since $date';
   }
+
+  @override
+  String get quickFilterPhotos => 'Photos';
+
+  @override
+  String get quickFilterAudio => 'Audio';
+
+  @override
+  String get quickFilterVideo => 'Video';
+
+  @override
+  String get quickFilterAnyMedia => 'Any media';
+
+  @override
+  String get quickFilterNoMedia => 'No media';
+
+  @override
+  String get jumpRange => 'Range';
+
+  @override
+  String get jumpRangeHint => 'Tap a first month, then a last one';
+
+  @override
+  String get jumpShowAll => 'Show all';
+
+  @override
+  String get jumpDone => 'Done';
+
+  @override
+  String get galleryMonthFilterClear => 'Show all months';
+
+  @override
+  String galleryNoEntriesInMonths(String months) {
+    return 'No entries in $months';
+  }
 }
