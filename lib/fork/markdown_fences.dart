@@ -7,8 +7,6 @@
 /// Labelling them "plaintext" for display only looks the same and stops it.
 /// The saved entry text is never changed.
 class MarkdownFences {
-  static final RegExp _opening = RegExp(r'^( {0,3})(`{3,}|~{3,})[ \t]*$');
-
   static String labelBare(String text) {
     if (!text.contains('```') && !text.contains('~~~')) return text;
 
@@ -43,9 +41,11 @@ class MarkdownFences {
 
       fenceChar = char;
       fenceLength = _leadingRun(trimmed, char);
-      final bare = _opening.firstMatch(line);
-      if (bare != null) {
-        lines[i] = '${bare.group(1)}${bare.group(2)}plaintext';
+      // Nothing after the fence but spaces, a non-breaking space or the \r
+      // of a Windows line ending (pasted text often has these)
+      if (trimmed.substring(fenceLength).trim().isEmpty) {
+        lines[i] = '${line.substring(0, indent + fenceLength)}plaintext'
+            '${line.endsWith('\r') ? '\r' : ''}';
         changed = true;
       }
     }

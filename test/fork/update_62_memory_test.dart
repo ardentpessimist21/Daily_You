@@ -4,7 +4,6 @@
 
 import 'package:daily_you/fork/markdown_fences.dart';
 import 'package:daily_you/widgets/scaled_markdown.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -28,6 +27,13 @@ void main() {
     test('a shorter fence inside a longer block is just text', () {
       expect(MarkdownFences.labelBare('````\n```\n````'),
           '````plaintext\n```\n````');
+    });
+
+    test('pasted text: Windows line endings and non-breaking spaces', () {
+      expect(MarkdownFences.labelBare('a\r\n```\r\ncode\r\n```\r\n'),
+          'a\r\n```plaintext\r\ncode\r\n```\r\n');
+      expect(MarkdownFences.labelBare('```\u00a0\ncode\n```'),
+          '```plaintext\ncode\n```');
     });
 
     test('text with no fences comes back untouched', () {
