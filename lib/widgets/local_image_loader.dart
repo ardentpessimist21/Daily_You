@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'dart:async';
+
 import 'package:daily_you/database/attachment_storage.dart';
 import 'package:daily_you/widgets/local_image_cache.dart';
 import 'package:flutter/foundation.dart';
@@ -26,10 +28,20 @@ class _LocalImageLoaderState extends State<LocalImageLoader> {
   bool _imageNotFound = false;
   int _cacheVersion = AttachmentStorage.instance.cacheVersion.value;
 
+  // While showing the full-size original, waits for the small copy so the
+  // original's bytes can be let go (3.7.0.60)
+  StreamSubscription<String>? _waitForResize;
+
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _waitForResize?.cancel();
+    super.dispose();
   }
 
   @override
@@ -48,8 +60,37 @@ class _LocalImageLoaderState extends State<LocalImageLoader> {
   }
 
   Future<void> _load() async {
-    final bytes = await LocalImageCache.instance
-        .getResizedImageBytes(widget.imagePath, widget.cacheSize);
+    _waitForResize?.cancel();
+    _waitForResize = null;
+    final path = widget.imagePath;
+    final size = widget.cacheSize;
+    final key = LocalImageCache.keyFor(path, size);
+    // Listen before asking, so a copy finished in between isn't missed
+    var copyReady = false;
+    final waiting = LocalImageCache.instance.resized
+        .where((k) => k == key)
+        .listen((_) => copyReady = true);
+    final (:bytes, :resized) =
+        await LocalImageCache.instance.getImageBytes(path, size);
+    if (!mounted || path != widget.imagePath || size != widget.cacheSize) {
+      await waiting.cancel();
+      return;
+    }
+    if (bytes != null && !resized) {
+      if (copyReady) {
+        await waiting.cancel();
+        _load();
+        return;
+      }
+      waiting.onData((_) {
+        waiting.cancel();
+        if (identical(_waitForResize, waiting)) _waitForResize = null;
+        if (mounted) _load();
+      });
+      _waitForResize = waiting;
+    } else {
+      await waiting.cancel();
+    }
     if (mounted) {
       if (bytes != null) {
         setState(() => _bytes = bytes);
@@ -68,6 +109,8 @@ class _LocalImageLoaderState extends State<LocalImageLoader> {
         width: double.infinity,
         height: double.infinity,
         cacheWidth: widget.cacheSize,
+        // Keeps the picture up while it swaps to the small copy
+        gaplessPlayback: true,
         errorBuilder: (_, __, ___) {
           return const Center(
             child: Icon(

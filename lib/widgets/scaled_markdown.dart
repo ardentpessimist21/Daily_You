@@ -5,6 +5,7 @@
 import 'package:daily_you/fork/checklists.dart';
 import 'package:daily_you/fork/hyphenation.dart';
 import 'package:daily_you/fork/links.dart';
+import 'package:daily_you/fork/markdown_fences.dart';
 import 'package:daily_you/fork/markdown_theme.dart';
 import 'package:daily_you/fork/search_highlight.dart';
 import 'package:daily_you/widgets/markdown_highlight_syntax.dart';
@@ -13,7 +14,7 @@ import 'package:markdown_widget/markdown_widget.dart';
 
 // Fixes duplicate scaling issues with markdown_widget
 // See: https://github.com/asjqkkkk/markdown_widget/issues/208
-class ScaledMarkdown extends StatelessWidget {
+class ScaledMarkdown extends StatefulWidget {
   final String data;
   final int? maxCharacters;
   final double scaleFactor;
@@ -53,18 +54,19 @@ class ScaledMarkdown extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+  State<ScaledMarkdown> createState() => _ScaledMarkdownState();
+
+  /// Builds the markdown from scratch. [onBoxTap] and [context] come from the
+  /// state, so taps always reach the newest callback even when the built
+  /// widget is reused.
+  Widget _build(BuildContext context, ThemeData theme, TextScaler customScaler,
+      void Function(int index) onBoxTap) {
     String text = data;
 
     if (maxCharacters != null && text.length > maxCharacters!) {
       text = "${text.substring(0, maxCharacters)}…";
     }
-
-    // Get the device's current text scaling to respect user settings
-    final deviceScaler = MediaQuery.textScalerOf(context);
-    // Apply custom scaling to the user's text scale
-    final customScaler = TextScaler.linear(deviceScaler.scale(scaleFactor));
+    text = MarkdownFences.labelBare(text);
 
     final baseConfig = theme.brightness == Brightness.light
         ? MarkdownConfig.defaultConfig
@@ -82,7 +84,7 @@ class ScaledMarkdown extends StatelessWidget {
           final index = nextBox++ % boxCount;
           return _TappableCheckbox(
             checked: checked,
-            onTap: () => onCheckboxTap!(index),
+            onTap: () => onBoxTap(index),
           );
         }),
       // `---` as a thin, muted line that follows the theme (3.7.0.40); the
@@ -196,6 +198,48 @@ class ScaledMarkdown extends StatelessWidget {
     );
 
     return selectable ? SelectionArea(child: markdown) : markdown;
+  }
+}
+
+/// Keeps the built markdown and hands back the same widget while nothing it
+/// shows has changed. Flutter then skips the whole subtree, so a long entry
+/// isn't parsed and laid out again each time the page around it rebuilds
+/// (keyboard opening, editor on top, scrolling) — 3.7.0.60.
+class _ScaledMarkdownState extends State<ScaledMarkdown> {
+  Widget? _built;
+  Object? _builtFor;
+
+  void _onBoxTap(int index) => widget.onCheckboxTap?.call(index);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    // Get the device's current text scaling to respect user settings
+    final deviceScaler = MediaQuery.textScalerOf(context);
+    // Apply custom scaling to the user's text scale
+    final customScaler =
+        TextScaler.linear(deviceScaler.scale(widget.scaleFactor));
+
+    // Search marks fill the caller's key list on every build, so those
+    // aren't reused.
+    final searching =
+        widget.matchKeys != null || (widget.searchQuery?.isNotEmpty ?? false);
+    final key = (
+      widget.data,
+      widget.maxCharacters,
+      customScaler.scale(16),
+      widget.compact,
+      widget.selectable,
+      widget.justify,
+      widget.onCheckboxTap != null,
+      theme,
+    );
+
+    if (searching || _built == null || _builtFor != key) {
+      _built = widget._build(context, theme, customScaler, _onBoxTap);
+      _builtFor = searching ? null : key;
+    }
+    return _built!;
   }
 }
 
