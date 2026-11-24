@@ -6,8 +6,6 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:daily_you/fork/favourites.dart';
-import 'package:daily_you/fork/place_filter.dart';
-import 'package:daily_you/fork/quick_filters.dart';
 import 'package:daily_you/fork/tag_bulk_move.dart';
 import 'package:daily_you/fork/tag_pins.dart';
 import 'package:daily_you/models/tag.dart';
@@ -845,28 +843,6 @@ class _TagsSettingsState extends State<TagsSettings> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (isGallery)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      _LockedChip(
-                          label: l10n.quickFilterFavourite,
-                          color: QuickFilters.favouriteFallback),
-                      _LockedChip(
-                          label: l10n.tagFilterTrackers,
-                          color: QuickFilters.trackersColor),
-                      _LockedChip(
-                          label: l10n.quickFilterLastEdited,
-                          color: QuickFilters.lastEditedColor),
-                      _LockedChip(
-                          label: l10n.quickFilterPlaces,
-                          color: PlaceFilter.color),
-                    ],
-                  ),
-                ),
               // Wraps onto more lines instead of scrolling sideways;
               // drag a chip by its grip onto another to move it (3.7.0.40)
               Wrap(
@@ -1414,38 +1390,6 @@ class _AddPillEntryState extends State<_AddPillEntry> {
             width: 1, height: 24, color: theme.colorScheme.outlineVariant),
         option('tag', Icons.local_offer_rounded, widget.l10n.tagLabel),
       ],
-    );
-  }
-}
-
-/// Favourite, Trackers, Last Edited and Places: always first in the Gallery
-/// filter.
-class _LockedChip extends StatelessWidget {
-  const _LockedChip({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.6)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.lock_rounded,
-              size: 14, color: theme.colorScheme.onSurfaceVariant),
-          const SizedBox(width: 4),
-          Text(label,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-        ],
-      ),
     );
   }
 }

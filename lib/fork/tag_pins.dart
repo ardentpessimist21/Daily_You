@@ -15,8 +15,7 @@ import 'package:daily_you/widgets/tag_icon_glyph.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// A list of pinned tags, set from Settings › Tags. There are two:
-/// [gallery] (the Gallery filter's Quick filters, after Favourite, Trackers
-/// and Last Edited) and [addTags] (the Add Tags popup's Pinned row). Each
+/// [gallery] (the Gallery Filter screen's custom quick filters) and [addTags] (the Add Tags popup's Pinned row). Each
 /// keeps its own order; a tag can be in both.
 class TagPinList {
   const TagPinList._(this.setting, this.max);
@@ -24,7 +23,9 @@ class TagPinList {
   final Setting<String> setting;
   final int max;
 
-  static const gallery = TagPinList._(Settings.quickFilterPins, 3);
+  // Up to 6 since 3.7.0.64, when Favourite, Trackers, Last Edited and
+  // Places moved into the Gallery's own pill row
+  static const gallery = TagPinList._(Settings.quickFilterPins, 6);
   static const addTags = TagPinList._(Settings.addTagsPins, 6);
 
   static const all = [gallery, addTags];

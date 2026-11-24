@@ -137,6 +137,17 @@ class Settings {
   static const quickFilterPins = Setting<String>("quickFilterPins", "[]");
   static const quickFiltersCompact =
       Setting<bool>("quickFiltersCompact", false);
+
+  /// Gallery filter pill row folded to icons only (3.7.0.64).
+  static const galleryFilterIconsOnly =
+      Setting<bool>("galleryFilterIconsOnly", false);
+
+  /// One-time tips in the Gallery's Date picker (3.7.0.64).
+  static const filterYearTipSeen = Setting<bool>("filterYearTipSeen", false);
+  static const filterMonthTipSeen = Setting<bool>("filterMonthTipSeen", false);
+
+  /// Where the scrolling editor toolbar was left (3.7.0.64), in pixels.
+  static const editorToolbarScroll = Setting<int>("editorToolbarScroll", 0);
   static const addTagsPins = Setting<String>("addTagsPins", "[]");
   static const addTagsPinsCompact = Setting<bool>("addTagsPinsCompact", false);
   static const addTagsSortMode = Setting<String>("addTagsSortMode", "usage");
@@ -277,6 +288,10 @@ class Settings {
     selectionActionsHidden,
     quickFilterPins,
     quickFiltersCompact,
+    galleryFilterIconsOnly,
+    filterYearTipSeen,
+    filterMonthTipSeen,
+    editorToolbarScroll,
     addTagsPins,
     addTagsPinsCompact,
     addTagsSortMode,

@@ -282,7 +282,7 @@ void main() {
       expect(find.byIcon(Icons.add_rounded), findsOneWidget);
     });
 
-    testWidgets('Gallery filter: ⭐ pinned, No tags beside Any/All',
+    testWidgets('Gallery filter: No tags beside Any/All, ⭐ in the pill row',
         (tester) async {
       await open(
           tester,
@@ -290,7 +290,8 @@ void main() {
             mode: TagPickerMode.filter,
             initialSelectedTagIds: const [1, 4],
           ));
-      expect(find.text(Favourites.tagName), findsOneWidget);
+      // ⭐ Favourite is a pill in the Gallery's row since 3.7.0.64
+      expect(find.text(Favourites.tagName), findsNothing);
       expect(find.text('No Tags'), findsOneWidget);
       final anyAll =
           tester.getCenter(find.byType(SegmentedButton<TagFilterMode>));

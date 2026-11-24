@@ -104,12 +104,14 @@ void main() {
     useTemporaryConfig();
     setUp(_seed);
 
-    test('up to 3, in pin order, skipping what does not fit', () async {
+    // Up to 6 since 3.7.0.64 (was 3)
+    test('up to 6, in pin order', () async {
+      expect(QuickFilters.maxPins, 6);
       expect(await QuickFilters.pin([2, 1]), (2, 0));
-      expect(await QuickFilters.pin([4, 3]), (1, 1));
-      expect(QuickFilters.pinnedIds, [2, 1, 4]);
+      expect(await QuickFilters.pin([4, 3]), (2, 0));
+      expect(QuickFilters.pinnedIds, [2, 1, 4, 3]);
       await QuickFilters.unpin([1]);
-      expect(QuickFilters.pinnedIds, [2, 4]);
+      expect(QuickFilters.pinnedIds, [2, 4, 3]);
     });
 
     test('deleted tags and ⭐ never count as pins', () async {
@@ -144,32 +146,27 @@ void main() {
       EasyDebounce.cancelAll();
     });
 
-    testWidgets('Quick filters row, tinting in place', (tester) async {
+    // Since 3.7.0.64 only your custom pins are here; ⭐, Trackers, Last
+    // Edited, Places and Media are pills in the Gallery's row
+    testWidgets('Quick filters row holds only custom pins, tinting in place',
+        (tester) async {
       Set<int>? quickTags;
-      bool? lastEdited;
       await _open(
           tester,
           TagPickerDialog(
             mode: TagPickerMode.filter,
-            onQuickFiltersChanged: (tags, edited) {
-              quickTags = tags;
-              lastEdited = edited;
-            },
+            onQuickFiltersChanged: (tags, edited) => quickTags = tags,
           ));
       expect(find.text('QUICK FILTERS'), findsOneWidget);
-      expect(find.text(Favourites.tagName), findsOneWidget);
-      expect(find.text('Trackers'), findsOneWidget);
-      expect(find.text('Last Edited'), findsOneWidget);
+      expect(find.text(Favourites.tagName), findsNothing);
+      expect(find.text('Trackers'), findsNothing);
+      expect(find.text('Last Edited'), findsNothing);
 
-      await tester.tap(find.text(Favourites.tagName));
+      await tester.tap(find.text('Movie').first);
       await tester.pumpAndSettle();
-      expect(quickTags, {99});
+      expect(quickTags, {2});
       // Stays where it is: no ✕ chip among the selected tags
       expect(find.byIcon(Icons.close), findsNothing);
-
-      await tester.tap(find.text('Last Edited'));
-      await tester.pumpAndSettle();
-      expect(lastEdited, isTrue);
     });
 
     testWidgets('pinned tag shows in Quick filters and its category',
@@ -202,8 +199,7 @@ void main() {
       await tester.tap(find.text('QUICK FILTERS'));
       await tester.pumpAndSettle();
       EasyDebounce.cancelAll();
-      expect(find.text('Last Edited'), findsNothing);
-      expect(find.byTooltip('Last Edited'), findsOneWidget);
+      expect(find.byTooltip('Movie'), findsOneWidget);
       expect(QuickFilters.compact, isTrue);
     });
 

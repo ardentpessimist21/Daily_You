@@ -2160,4 +2160,93 @@ class AppLocalizationsMs extends AppLocalizations {
   String galleryNoEntriesInMonths(String months) {
     return 'No entries in $months';
   }
+
+  @override
+  String get galleryFilterDate => 'Date';
+
+  @override
+  String get galleryFilterMood => 'Mood';
+
+  @override
+  String get galleryFilterMedia => 'Media';
+
+  @override
+  String get galleryFilterTags => 'Tags';
+
+  @override
+  String get galleryFilterKeywords => 'Keywords';
+
+  @override
+  String galleryFilterCount(String name, int count) {
+    return '$name · $count';
+  }
+
+  @override
+  String galleryShowLogs(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Show $count Logs',
+      one: 'Show 1 Log',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get galleryNoLogsMatch => 'No Logs Match';
+
+  @override
+  String get galleryNoLogsMatchHint => 'Try fewer filters';
+
+  @override
+  String get galleryFilterNoMood => 'No mood';
+
+  @override
+  String get galleryFiltersFold => 'Show icons only';
+
+  @override
+  String get galleryFiltersUnfold => 'Show filter names';
+
+  @override
+  String get galleryNoTrackers => 'No trackers yet';
+
+  @override
+  String get keywordsHint => 'Type a word, then Enter';
+
+  @override
+  String get keywordsAll => 'All keywords';
+
+  @override
+  String get keywordsAny => 'Any keyword';
+
+  @override
+  String get keywordsMatchCase => 'Match case';
+
+  @override
+  String get keywordsNoText => 'No Text';
+
+  @override
+  String get filterByMonth => 'Filter by month';
+
+  @override
+  String get filterByYear => 'Filter by year';
+
+  @override
+  String get filterByRange => 'Filter by range';
+
+  @override
+  String get filterByDate => 'Filter by date';
+
+  @override
+  String get pickDaysTitle => 'Pick days';
+
+  @override
+  String get pickDaysHint => 'Tap a first day, then a last one';
+
+  @override
+  String get filterYearLongPressTip =>
+      'Tip: long-press a year to filter all of it';
+
+  @override
+  String get filterMonthLongPressTip => 'Tip: long-press a month to pick days';
 }

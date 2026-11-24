@@ -123,18 +123,24 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('jump-month-2026-10')));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('chip-month')), findsOneWidget);
-      expect(find.text('Oct 2026'), findsOneWidget);
+      // The Date pill (3.7.0.64) shows the month
+      expect(
+          find.descendant(
+              of: find.byKey(const ValueKey('gallery-pill-date')),
+              matching: find.text('Oct 2026')),
+          findsOneWidget);
       expect(find.text('OCTOBER 2026'), findsOneWidget);
       expect(find.text('NOVEMBER 2026'), findsNothing);
       expect(find.text('62 logs'), findsOneWidget);
 
-      // ✕ on the chip shows every month again
-      await tester.tap(find.descendant(
-          of: find.byKey(const ValueKey('chip-month')),
-          matching: find.byIcon(Icons.close_rounded)));
+      // The search bar's ✕ clears the filters: every month again
+      await tester.tap(find.byIcon(Icons.clear));
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('chip-month')), findsNothing);
+      expect(
+          find.descendant(
+              of: find.byKey(const ValueKey('gallery-pill-date')),
+              matching: find.text('Oct 2026')),
+          findsNothing);
       expect(find.text('NOVEMBER 2026'), findsOneWidget);
     });
 
@@ -208,8 +214,7 @@ void main() {
     await ConfigProvider.instance.set(Settings.galleryPageViewMode, 'list');
     await tester.pumpWidget(_app(const Scaffold(body: GalleryPage())));
     await tester.pumpAndSettle();
-    expect(find.byType(LargeEntryCardWidget).evaluate().length,
-        lessThan(15));
+    expect(find.byType(LargeEntryCardWidget).evaluate().length, lessThan(15));
     await tester.pump(const Duration(seconds: 2));
   });
 
@@ -265,8 +270,7 @@ void main() {
     });
 
     test('a range is ordered and the same month twice is one month', () {
-      final range =
-          JumpTarget.range(DateTime(2026, 11), DateTime(2025, 12));
+      final range = JumpTarget.range(DateTime(2026, 11), DateTime(2025, 12));
       expect(range.month, DateTime(2025, 12));
       expect(range.endMonth, DateTime(2026, 11));
       final single = JumpTarget.range(DateTime(2026, 3), DateTime(2026, 3));

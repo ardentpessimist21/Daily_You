@@ -3,6 +3,8 @@
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
 import 'package:daily_you/fork/favourites.dart';
+import 'package:daily_you/fork/gallery_filters.dart';
+import 'package:daily_you/fork/moods.dart';
 import 'package:daily_you/fork/place_filter.dart';
 import 'package:daily_you/fork/quick_filters.dart';
 import 'package:daily_you/fork/selection_actions.dart';
@@ -14,15 +16,12 @@ import 'package:daily_you/time_manager.dart';
 import 'package:daily_you/models/attachment.dart';
 import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/models/tag.dart';
-import 'package:daily_you/models/tag_icon_type.dart';
-import 'package:daily_you/utils/tag_visuals.dart';
 import 'package:daily_you/providers/entries_provider.dart';
 import 'package:daily_you/providers/entry_attachments_provider.dart';
 import 'package:daily_you/providers/tags_provider.dart';
 import 'package:daily_you/widgets/app_dialog.dart';
 import 'package:daily_you/widgets/tag_picker_dialog.dart';
 import 'package:daily_you/widgets/action_pill.dart';
-import 'package:daily_you/widgets/tag_icon_glyph.dart';
 import 'package:daily_you/widgets/large_entry_card_widget.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
@@ -51,6 +50,11 @@ class GalleryPage extends StatefulWidget {
   /// Bumped when the Gallery tab is tapped while already open (3.7.0.59):
   /// the list goes back to the top, whichever way it's sorted.
   static final ValueNotifier<int> tabRetapped = ValueNotifier(0);
+
+  /// Back on the Gallery tab (3.7.0.64): while entries are selected it
+  /// clears the selection instead of going to Home. True when it did.
+  static bool Function()? _backHandler;
+  static bool handleBack() => _backHandler?.call() ?? false;
 
   @override
   State<GalleryPage> createState() => _GalleryPageState();
@@ -121,11 +125,23 @@ class _GalleryPageState extends State<GalleryPage>
   /// 📍 Places: the picked place's name (3.7.0.40).
   String? _place;
 
-  /// Month filter (3.7.0.59): the first and last month shown (the same
-  /// month for one month), or null for every month.
-  DateTime? _monthFrom;
-  DateTime? _monthTo;
-  bool get _hasMonthFilter => _monthFrom != null;
+  /// Date filter (3.7.0.59, by day since 3.7.0.64): the first and last day
+  /// shown, or null for every day. Months and years are whole runs of days.
+  DateTime? _dateFrom;
+  DateTime? _dateTo;
+  bool get _hasDateFilter => _dateFrom != null;
+
+  /// Mood (3.7.0.64): moods picked, null for No mood.
+  Set<int?> _moods = {};
+
+  /// Trackers (3.7.0.64): tracker tags picked.
+  Set<int> _trackerIds = {};
+
+  /// Keywords (3.7.0.64).
+  KeywordFilter _keywords = const KeywordFilter();
+
+  /// The pill row folded to icons only (remembered).
+  bool _iconsOnly = GalleryFilterRow.savedCompact;
 
   /// Opened from Statistics: this page's own search, apart from the tab's.
   String? _localSearch;
@@ -145,7 +161,10 @@ class _GalleryPageState extends State<GalleryPage>
       _lastEdited ||
       _place != null ||
       _media.isNotEmpty ||
-      _hasMonthFilter;
+      _moods.isNotEmpty ||
+      _trackerIds.isNotEmpty ||
+      _keywords.isOn ||
+      _hasDateFilter;
 
   // Entry ids picked in select mode (started by long-pressing a tile)
   final Set<int> _selected = {};
@@ -201,7 +220,7 @@ class _GalleryPageState extends State<GalleryPage>
   // Heights of the floating header: the search (or selection) bar, and the
   // row of filter chips under it when any are on.
   static const double _barHeight = 68;
-  static const double _chipRowHeight = 46;
+  static const double _chipRowHeight = GalleryFilterRow.height;
   static const double _upcomingRowHeight = 60;
   static const double _gridSpacing = 1.0;
 
@@ -220,7 +239,16 @@ class _GalleryPageState extends State<GalleryPage>
     _searchController.text = _searchText;
     _scrollController.addListener(_onScroll);
     _snap.addListener(_onSnap);
-    if (preset == null) GalleryPage.tabRetapped.addListener(_backToTop);
+    if (preset == null) {
+      GalleryPage.tabRetapped.addListener(_backToTop);
+      GalleryPage._backHandler = _onBack;
+    }
+  }
+
+  bool _onBack() {
+    if (!_selecting) return false;
+    setState(_selected.clear);
+    return true;
   }
 
   /// Re-tapping the Gallery tab: back to the top of the list, with the
@@ -236,13 +264,18 @@ class _GalleryPageState extends State<GalleryPage>
   /// stays; tapping the search bar brings the keyboard back.
   void _dropSearchFocus() => _focusNode.unfocus();
 
-  void _setMonthFilter(DateTime? from, DateTime? to) {
+  /// Shows only [fromDay] to [toDay] (null clears it).
+  void _setDateFilter(DateTime? fromDay, DateTime? toDay) {
     setState(() {
-      _monthFrom = from;
-      _monthTo = to ?? from;
+      _dateFrom = fromDay;
+      _dateTo = toDay ?? fromDay;
     });
     if (_scrollController.hasClients) _scrollController.jumpTo(0);
   }
+
+  /// Whole months [from] to [to].
+  void _setMonthFilter(DateTime from, DateTime to) => _setDateFilter(
+      DateTime(from.year, from.month), DateTime(to.year, to.month + 1, 0));
 
   /// The month picker (3.7.0.59): picking a month (or a range) shows only
   /// those months; Show all clears it. A typed date still opens that entry.
@@ -251,17 +284,27 @@ class _GalleryPageState extends State<GalleryPage>
     final unfiltered = FutureEntries.past(_getVisibleEntries(
         EntriesProvider.instance, TagsProvider.instance,
         ignoreMonth: true));
-    final from = _monthFrom;
-    final to = _monthTo;
+    final from = _dateFrom;
+    final to = _dateTo;
+    final fromMonth = from == null ? null : DateTime(from.year, from.month);
+    final toMonth = to == null ? null : DateTime(to.year, to.month);
     final picked = await JumpPicker.show(context,
         entryDates: unfiltered.map((entry) => entry.timeCreate),
-        selected: from ?? around,
-        selectedEnd: from != null && to != null && to != from ? to : null,
+        selected: fromMonth ?? around,
+        selectedEnd:
+            fromMonth != null && toMonth != null && toMonth != fromMonth
+                ? toMonth
+                : null,
         allowRange: true,
-        showAllButton: _hasMonthFilter);
+        filterMode: true,
+        showAllButton: _hasDateFilter);
     if (picked == null || !mounted) return;
     if (picked.showAll) {
-      _setMonthFilter(null, null);
+      _setDateFilter(null, null);
+      return;
+    }
+    if (picked.fromDay != null) {
+      _setDateFilter(picked.fromDay, picked.toDay);
       return;
     }
     final day = picked.day;
@@ -319,6 +362,7 @@ class _GalleryPageState extends State<GalleryPage>
   @override
   void dispose() {
     GalleryPage.tabRetapped.removeListener(_backToTop);
+    if (GalleryPage._backHandler == _onBack) GalleryPage._backHandler = null;
     _snap.dispose();
     _headerHidden.dispose();
     _searchController.dispose();
@@ -347,14 +391,17 @@ class _GalleryPageState extends State<GalleryPage>
           result.where((entry) => PlaceFilter.matches(entry, place)).toList();
     }
     result = MediaFilter.apply(result, _media);
-    final from = _monthFrom;
-    final to = _monthTo ?? from;
+    result = MoodFilter.apply(result, _moods);
+    result = TrackerFilter.apply(result, _trackerIds);
+    result = _keywords.apply(result);
+    final from = _dateFrom;
+    final to = _dateTo ?? from;
     if (!ignoreMonth && from != null && to != null) {
-      final low = from.year * 12 + from.month;
-      final high = to.year * 12 + to.month;
+      final low = DateTime(from.year, from.month, from.day);
+      final high = DateTime(to.year, to.month, to.day + 1);
       result = result.where((entry) {
-        final key = entry.timeCreate.year * 12 + entry.timeCreate.month;
-        return key >= low && key <= high;
+        final time = entry.timeCreate;
+        return !time.isBefore(low) && time.isBefore(high);
       }).toList();
     }
     return result;
@@ -442,6 +489,7 @@ class _GalleryPageState extends State<GalleryPage>
         placeEntries: EntriesProvider.instance.entries,
         initialMedia: _media,
         onMediaChanged: (media) => setState(() => _media = media),
+        resultCount: () => _visibleCount(),
         onFilterChanged: (tagIds, mode, noTagsOnly) {
           setState(() {
             _filterTagIds = tagIds;
@@ -567,9 +615,8 @@ class _GalleryPageState extends State<GalleryPage>
     );
   }
 
-  void _clearAll() {
-    _searchController.clear();
-    _setSearchText("");
+  /// Clears every filter; the search text stays (3.7.0.64).
+  void _clearFilters() {
     setState(() {
       _filterTagIds = [];
       _filterTagMode = TagFilterMode.any;
@@ -578,10 +625,29 @@ class _GalleryPageState extends State<GalleryPage>
       _lastEdited = false;
       _place = null;
       _media = {};
-      _monthFrom = null;
-      _monthTo = null;
+      _moods = {};
+      _trackerIds = {};
+      _keywords = const KeywordFilter();
+      _dateFrom = null;
+      _dateTo = null;
     });
   }
+
+  /// The search bar's ✕: clears the filters, or the search text when no
+  /// filter is on.
+  void _clearAll() {
+    if (_hasTagFilter) {
+      _clearFilters();
+      return;
+    }
+    _searchController.clear();
+    _setSearchText("");
+  }
+
+  /// How many logs the Gallery shows right now, for the pickers' buttons.
+  int _visibleCount() => FutureEntries.past(
+          _getVisibleEntries(EntriesProvider.instance, TagsProvider.instance))
+      .length;
 
   Widget _searchBar(BuildContext context, EntriesProvider entriesProvider,
       int count, bool showClear) {
@@ -628,8 +694,8 @@ class _GalleryPageState extends State<GalleryPage>
                 ),
               );
             },
-            // Clears everything: search, tags, Quick filters, places, media
-            // and the month filter
+            // Clears every filter (the search text stays), or the search
+            // text when no filter is on
             child: showClear
                 ? IconButton(
                     visualDensity:
@@ -645,14 +711,6 @@ class _GalleryPageState extends State<GalleryPage>
               padding: const EdgeInsets.only(right: 8.0),
               child: Text(AppLocalizations.of(context)!.logCount(count)),
             ),
-          IconButton(
-            icon: Icon(
-              Icons.filter_alt_rounded,
-              color:
-                  _hasTagFilter ? Theme.of(context).colorScheme.primary : null,
-            ),
-            onPressed: () => _showTagFilterDialog(context),
-          ),
           // Shows the direction (3.7.0.41): lines long to short for newest
           // first; flipped and in the accent colour for oldest first
           IconButton(
@@ -682,79 +740,223 @@ class _GalleryPageState extends State<GalleryPage>
     );
   }
 
-  /// "Oct 2026", "Sep – Nov 2026" or "Nov 2025 – Feb 2026".
-  String _monthFilterLabel(BuildContext context) {
-    final from = _monthFrom!;
-    final to = _monthTo ?? from;
+  /// The Date pill: "Oct 2026", "Sep – Nov 2026", "2025", "2024 – 2025",
+  /// "Mar 3 – Apr 12, 2026"...
+  String _dateFilterLabel(BuildContext context) {
+    final from = _dateFrom!;
+    final to = _dateTo ?? from;
     final locale = TimeManager.currentLocale(context);
-    if (from == to) return DateFormat.yMMM(locale).format(from);
-    if (from.year == to.year) {
-      return '${DateFormat.MMM(locale).format(from)} – '
+    final wholeFromMonth = from.day == 1;
+    final wholeToMonth = to.day == DateUtils.getDaysInMonth(to.year, to.month);
+    if (wholeFromMonth && wholeToMonth && from.month == 1 && to.month == 12) {
+      return from.year == to.year
+          ? '${from.year}'
+          : '${from.year} – ${to.year}';
+    }
+    if (wholeFromMonth && wholeToMonth) {
+      final fromMonth = DateTime(from.year, from.month);
+      final toMonth = DateTime(to.year, to.month);
+      if (fromMonth == toMonth) return DateFormat.yMMM(locale).format(from);
+      if (from.year == to.year) {
+        return '${DateFormat.MMM(locale).format(from)} – '
+            '${DateFormat.yMMM(locale).format(to)}';
+      }
+      return '${DateFormat.yMMM(locale).format(from)} – '
           '${DateFormat.yMMM(locale).format(to)}';
     }
-    return '${DateFormat.yMMM(locale).format(from)} – '
-        '${DateFormat.yMMM(locale).format(to)}';
+    if (DateUtils.isSameDay(from, to)) {
+      return DateFormat.yMMMd(locale).format(from);
+    }
+    if (from.year == to.year) {
+      return '${DateFormat.MMMd(locale).format(from)} – '
+          '${DateFormat.yMMMd(locale).format(to)}';
+    }
+    return '${DateFormat.yMMMd(locale).format(from)} – '
+        '${DateFormat.yMMMd(locale).format(to)}';
   }
 
-  /// The chips under the search bar (3.7.0.59): the month filter first,
-  /// then each Quick filter that's on. Tags and places don't get chips.
-  List<Widget> _filterChips(BuildContext context, TagsProvider tagsProvider) {
+  Future<void> _openPicker(String title,
+      Widget Function(BuildContext context, VoidCallback refresh) body) {
+    _dropSearchFocus();
+    return showGalleryFilterPicker(context,
+        title: title,
+        body: body,
+        count: _visibleCount,
+        onClearAll: _clearFilters);
+  }
+
+  Future<void> _pickPlace() async {
+    _dropSearchFocus();
+    final picked = await PlaceFilter.pick(
+        context, EntriesProvider.instance.entries,
+        current: _place);
+    if (picked == null || !mounted) return;
+    setState(() => _place = picked == PlaceFilter.cleared ? null : picked);
+  }
+
+  /// One pill's label while on: what's picked, or "Name · 3".
+  String _pickedLabel(AppLocalizations l10n, String name, List<String> picked) {
+    if (picked.length == 1) return picked.first;
+    return l10n.galleryFilterCount(name, picked.length);
+  }
+
+  /// The pill row (3.7.0.64), in its set order; the row moves the ones
+  /// that are on to the front.
+  List<GalleryPillSpec> _filterPills(
+      BuildContext context, TagsProvider tagsProvider) {
     final l10n = AppLocalizations.of(context)!;
-    final colorScheme = Theme.of(context).colorScheme;
-    final chips = <Widget>[];
-    if (_hasMonthFilter) {
-      chips.add(_FilterChipPill(
-        key: const ValueKey('chip-month'),
-        icon: Icon(Icons.calendar_month_rounded,
-            size: 16, color: colorScheme.onPrimaryContainer),
-        label: _monthFilterLabel(context),
-        accent: true,
-        onTap: () => _pickMonthFilter(_monthFrom!),
-        onClear: () => _setMonthFilter(null, null),
-        clearTooltip: l10n.galleryMonthFilterClear,
-      ));
-    }
     final favouriteId = Favourites.tag?.id;
-    for (final id in _quickTagIds) {
-      final tag = tagsProvider.tags.where((tag) => tag.id == id).firstOrNull;
-      if (tag == null) continue;
-      final isFavourite = id == favouriteId;
-      chips.add(_FilterChipPill(
-        key: ValueKey('chip-tag-$id'),
-        icon: TagIconGlyph(
-          icon: tag.icon,
-          iconType: isFavourite ? TagIconType.character : tag.iconType,
-          fallbackIcon: tag.typeIcon,
-          color: tag.resolvedColor(context,
-              fallback: isFavourite
-                  ? QuickFilters.favouriteFallback
-                  : colorScheme.secondary),
-          size: 16,
-        ),
-        label: isFavourite ? l10n.quickFilterFavourite : tag.name,
-        onClear: () =>
-            setState(() => _quickTagIds = {..._quickTagIds}..remove(id)),
-      ));
-    }
-    if (_lastEdited) {
-      chips.add(_FilterChipPill(
-        key: const ValueKey('chip-last-edited'),
-        icon: const Icon(Icons.history_rounded,
-            size: 16, color: QuickFilters.lastEditedColor),
+    final favouriteOn =
+        favouriteId != null && _quickTagIds.contains(favouriteId);
+    final tagNames = {for (final tag in tagsProvider.tags) tag.id: tag.name};
+
+    final moodNames = [
+      for (final mood in [...Moods.values, null])
+        if (_moods.contains(mood))
+          mood == null ? l10n.galleryFilterNoMood : Moods.nameOf(mood),
+    ];
+    final mediaNames = [
+      for (final filter in MediaFilter.values)
+        if (_media.contains(filter)) filter.label(l10n),
+    ];
+    final trackerNames = [
+      for (final id in _trackerIds)
+        if (tagNames[id] != null) tagNames[id]!,
+    ];
+    final customPins = _quickTagIds.where((id) => id != favouriteId).toList();
+    final tagCount =
+        _filterTagIds.length + customPins.length + (_filterNoTags ? 1 : 0);
+    final keywordNames = _keywords.noText
+        ? [l10n.keywordsNoText]
+        : [for (final word in _keywords.words) '“$word”'];
+
+    return [
+      GalleryPillSpec(
+        id: 'favourite',
+        name: l10n.quickFilterFavourite,
+        label: l10n.quickFilterFavourite,
+        icon: favouriteOn ? Icons.star_rounded : Icons.star_outline_rounded,
+        activeIconColor: const Color(0xFFF4C542),
+        active: favouriteOn,
+        onTap: favouriteId == null
+            ? () {}
+            : () => setState(() {
+                  _quickTagIds = {..._quickTagIds};
+                  if (!_quickTagIds.remove(favouriteId)) {
+                    _quickTagIds.add(favouriteId);
+                  }
+                }),
+      ),
+      GalleryPillSpec(
+        id: 'last-edited',
+        name: l10n.quickFilterLastEdited,
         label: l10n.quickFilterLastEdited,
-        onClear: () => setState(() => _lastEdited = false),
-      ));
-    }
-    for (final filter in MediaFilter.values) {
-      if (!_media.contains(filter)) continue;
-      chips.add(_FilterChipPill(
-        key: ValueKey('chip-media-${filter.name}'),
-        icon: Icon(filter.icon, size: 16, color: filter.color),
-        label: filter.label(l10n),
-        onClear: () => setState(() => _media = {..._media}..remove(filter)),
-      ));
-    }
-    return chips;
+        icon: Icons.history_rounded,
+        active: _lastEdited,
+        onTap: () => setState(() => _lastEdited = !_lastEdited),
+      ),
+      GalleryPillSpec(
+        id: 'date',
+        name: l10n.galleryFilterDate,
+        label:
+            _hasDateFilter ? _dateFilterLabel(context) : l10n.galleryFilterDate,
+        icon: Icons.calendar_month_rounded,
+        active: _hasDateFilter,
+        opensPicker: true,
+        onTap: () => _pickMonthFilter(_dateFrom ?? DateTime.now()),
+      ),
+      GalleryPillSpec(
+        id: 'mood',
+        name: l10n.galleryFilterMood,
+        label: moodNames.isEmpty
+            ? l10n.galleryFilterMood
+            : _pickedLabel(l10n, l10n.galleryFilterMood, moodNames),
+        icon: Icons.sentiment_satisfied_alt_rounded,
+        active: moodNames.isNotEmpty,
+        count: moodNames.length,
+        opensPicker: true,
+        onTap: () => _openPicker(
+            l10n.galleryFilterMood,
+            (context, refresh) => moodFilterBody(context,
+                moods: _moods,
+                onChanged: (moods) => setState(() => _moods = moods),
+                refresh: refresh)),
+      ),
+      GalleryPillSpec(
+        id: 'media',
+        name: l10n.galleryFilterMedia,
+        label: mediaNames.isEmpty
+            ? l10n.galleryFilterMedia
+            : _pickedLabel(l10n, l10n.galleryFilterMedia, mediaNames),
+        icon: Icons.perm_media_rounded,
+        active: mediaNames.isNotEmpty,
+        count: mediaNames.length,
+        opensPicker: true,
+        onTap: () => _openPicker(
+            l10n.galleryFilterMedia,
+            (context, refresh) => mediaFilterBody(context,
+                media: _media,
+                onChanged: (media) => setState(() => _media = media),
+                refresh: refresh)),
+      ),
+      GalleryPillSpec(
+        id: 'places',
+        name: l10n.quickFilterPlaces,
+        label: _place == null
+            ? l10n.quickFilterPlaces
+            : PlaceFilter.label(context, _place!),
+        icon: Icons.place_rounded,
+        active: _place != null,
+        opensPicker: true,
+        onTap: _pickPlace,
+      ),
+      GalleryPillSpec(
+        id: 'trackers',
+        name: l10n.tagFilterTrackers,
+        label: trackerNames.isEmpty
+            ? l10n.tagFilterTrackers
+            : _pickedLabel(l10n, l10n.tagFilterTrackers, trackerNames),
+        icon: Icons.numbers_rounded,
+        active: trackerNames.isNotEmpty,
+        count: trackerNames.length,
+        opensPicker: true,
+        onTap: () => _openPicker(
+            l10n.tagFilterTrackers,
+            (context, refresh) => trackerFilterBody(context,
+                tagIds: _trackerIds,
+                onChanged: (ids) => setState(() => _trackerIds = ids),
+                refresh: refresh)),
+      ),
+      GalleryPillSpec(
+        id: 'tags',
+        name: l10n.galleryFilterTags,
+        label: tagCount == 0
+            ? l10n.galleryFilterTags
+            : l10n.galleryFilterCount(l10n.galleryFilterTags, tagCount),
+        icon: Icons.local_offer_rounded,
+        active: tagCount > 0,
+        count: tagCount,
+        opensPicker: true,
+        onTap: () => _showTagFilterDialog(context),
+      ),
+      GalleryPillSpec(
+        id: 'keywords',
+        name: l10n.galleryFilterKeywords,
+        label: keywordNames.isEmpty
+            ? l10n.galleryFilterKeywords
+            : _pickedLabel(l10n, l10n.galleryFilterKeywords, keywordNames),
+        icon: Icons.text_fields_rounded,
+        active: _keywords.isOn,
+        count: _keywords.count,
+        opensPicker: true,
+        onTap: () => _openPicker(
+            l10n.galleryFilterKeywords,
+            (context, refresh) => KeywordFilterBody(
+                filter: _keywords,
+                onChanged: (filter) => setState(() => _keywords = filter),
+                refresh: refresh)),
+      ),
+    ];
   }
 
   @override
@@ -772,10 +974,9 @@ class _GalleryPageState extends State<GalleryPage>
     final bool showClear = _searchController.text.isNotEmpty || _hasTagFilter;
     // Entries deleted or filtered away drop out of the selection
     _selected.removeWhere((id) => !entries.any((entry) => entry.id == id));
-    final chips =
-        _selecting ? const <Widget>[] : _filterChips(context, tagsProvider);
+    final pills = _selecting ? null : _filterPills(context, tagsProvider);
 
-    final height = _barHeight + (chips.isNotEmpty ? _chipRowHeight : 0);
+    final height = _barHeight + (pills != null ? _chipRowHeight : 0);
     _headerHeight = height;
     final background = Theme.of(context).scaffoldBackgroundColor;
     final header = Column(
@@ -785,14 +986,24 @@ class _GalleryPageState extends State<GalleryPage>
           _selectionBar(entries)
         else
           _searchBar(context, entriesProvider, entries.length, showClear),
-        if (chips.isNotEmpty) _ChipRow(chips: chips),
+        if (pills != null)
+          GalleryFilterRow(
+            pills: pills,
+            compact: _iconsOnly,
+            onToggleCompact: () {
+              setState(() => _iconsOnly = !_iconsOnly);
+              GalleryFilterRow.saveCompact(_iconsOnly);
+            },
+          ),
       ],
     );
 
+    // On the Gallery tab the app's own Back handler asks [handleBack]; a
+    // Gallery opened from Statistics handles Back itself
     return PopScope(
-      canPop: !_selecting,
+      canPop: widget.preset == null || !_selecting,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) setState(_selected.clear);
+        if (!didPop && widget.preset != null) setState(_selected.clear);
       },
       child: Stack(
         children: [
@@ -1218,40 +1429,27 @@ class _GalleryPageState extends State<GalleryPage>
   }
 
   Widget _emptyState(BuildContext context) {
-    final place = _place;
     final l10n = AppLocalizations.of(context)!;
-    if (place != null) {
-      // A place filter with nothing left, e.g. after changing the one
-      // entry's location (3.7.0.42)
+    final theme = Theme.of(context);
+    if (_hasTagFilter) {
+      // Filters left nothing: No Logs Match, with Clear all (3.7.0.64)
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(place == PlaceFilter.anyPlace
-                ? l10n.galleryNoEntriesWithPlace
-                : l10n.galleryNoEntriesAtPlace(place)),
-            const SizedBox(height: 8),
-            TextButton.icon(
-              style: TextButton.styleFrom(foregroundColor: PlaceFilter.color),
-              icon: const Icon(Icons.close_rounded),
-              label: Text(l10n.placeFilterClear),
-              onPressed: () => setState(() => _place = null),
-            ),
-          ],
-        ),
-      );
-    }
-    if (_hasMonthFilter) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(l10n.galleryNoEntriesInMonths(_monthFilterLabel(context))),
-            const SizedBox(height: 8),
-            TextButton.icon(
-              icon: const Icon(Icons.close_rounded),
-              label: Text(l10n.galleryMonthFilterClear),
-              onPressed: () => _setMonthFilter(null, null),
+            Icon(Icons.filter_alt_off_outlined,
+                size: 44, color: theme.colorScheme.onSurfaceVariant),
+            const SizedBox(height: 10),
+            Text(l10n.galleryNoLogsMatch, style: theme.textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(l10n.galleryNoLogsMatchHint,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            const SizedBox(height: 12),
+            FilledButton.tonal(
+              key: const ValueKey('gallery-clear-all'),
+              onPressed: _clearFilters,
+              child: Text(l10n.clearAllFilters),
             ),
           ],
         ),
@@ -1259,9 +1457,7 @@ class _GalleryPageState extends State<GalleryPage>
     }
     return Center(
       child: Text(
-        _searchController.text.isNotEmpty || _hasTagFilter
-            ? l10n.noResults
-            : l10n.noLogs,
+        _searchController.text.isNotEmpty ? l10n.noResults : l10n.noLogs,
       ),
     );
   }
@@ -1384,123 +1580,6 @@ class _MonthLabel extends StatelessWidget {
           color: theme.colorScheme.onSurfaceVariant,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.8,
-        ),
-      ),
-    );
-  }
-}
-
-/// The filter chips, centred under the search bar; when they don't fit
-/// they scroll sideways from the left, fading at the right edge.
-class _ChipRow extends StatelessWidget {
-  const _ChipRow({required this.chips});
-
-  final List<Widget> chips;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: _GalleryPageState._chipRowHeight,
-      child: LayoutBuilder(builder: (context, constraints) {
-        return ShaderMask(
-          shaderCallback: (rect) => const LinearGradient(
-            colors: [Colors.black, Colors.black, Colors.transparent],
-            stops: [0, 0.92, 1],
-          ).createShader(rect),
-          blendMode: BlendMode.dstIn,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minWidth: constraints.maxWidth - 24),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  for (var i = 0; i < chips.length; i++) ...[
-                    if (i > 0) const SizedBox(width: 6),
-                    chips[i],
-                  ],
-                ],
-              ),
-            ),
-          ),
-        );
-      }),
-    );
-  }
-}
-
-/// One filter chip: icon, name and ✕. The month chip is [accent]-filled.
-class _FilterChipPill extends StatelessWidget {
-  const _FilterChipPill({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.onClear,
-    this.onTap,
-    this.accent = false,
-    this.clearTooltip,
-  });
-
-  final Widget icon;
-  final String label;
-  final VoidCallback onClear;
-  final VoidCallback? onTap;
-  final bool accent;
-  final String? clearTooltip;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final background = accent
-        ? colorScheme.primaryContainer
-        : colorScheme.surfaceContainerHigh;
-    final foreground =
-        accent ? colorScheme.onPrimaryContainer : colorScheme.onSurface;
-    return Material(
-      color: background,
-      shape: const StadiumBorder(),
-      child: InkWell(
-        customBorder: const StadiumBorder(),
-        onTap: onTap,
-        child: SizedBox(
-          height: 36,
-          child: Padding(
-            padding: const EdgeInsets.only(left: 12, right: 2),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                icon,
-                const SizedBox(width: 6),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 160),
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        color: foreground,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13.5),
-                  ),
-                ),
-                SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    iconSize: 16,
-                    color: foreground,
-                    tooltip: clearTooltip ??
-                        MaterialLocalizations.of(context).deleteButtonTooltip,
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: onClear,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ),
       ),
     );

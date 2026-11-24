@@ -7,6 +7,7 @@ import 'dart:ui' show lerpDouble;
 import 'package:daily_you/widgets/editor_action_bar/dock_metrics.dart';
 import 'package:daily_you/widgets/editor_action_bar/toolbar_entry.dart';
 import 'package:daily_you/widgets/editor_action_bar/toolbar_morph.dart';
+import 'package:daily_you/widgets/editor_action_bar/toolbar_scroller.dart';
 import 'package:material_ui/material_ui.dart';
 
 class ActionBarPill extends StatelessWidget {
@@ -17,12 +18,17 @@ class ActionBarPill extends StatelessWidget {
   final bool showingMainActions;
   final void Function(BuildContext buttonContext) onShowOverflow;
 
+  /// Set when the buttons scroll sideways instead of overflowing
+  /// (3.7.0.64): the width they scroll in.
+  final double? scrollWidth;
+
   const ActionBarPill({
     super.key,
     required this.metrics,
     required this.split,
     required this.showingMainActions,
     required this.onShowOverflow,
+    this.scrollWidth,
   });
 
   @override
@@ -56,8 +62,18 @@ class ActionBarPill extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      for (final entry in split.visible)
-                        entry.build(context, null),
+                      if (scrollWidth != null)
+                        ToolbarScroller(
+                          width: scrollWidth!,
+                          height: metrics.buttonSize,
+                          children: [
+                            for (final entry in split.visible)
+                              entry.build(context, null),
+                          ],
+                        )
+                      else
+                        for (final entry in split.visible)
+                          entry.build(context, null),
                       if (split.hasOverflow)
                         Builder(
                           builder: (buttonContext) => ToolbarIconButton(

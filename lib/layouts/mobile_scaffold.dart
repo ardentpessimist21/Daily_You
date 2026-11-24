@@ -566,6 +566,8 @@ class _MobileScaffoldState extends State<MobileScaffold> {
   /// first back only shows "Swipe again to exit", so the app never closes
   /// by accident.
   void _onBack(AppLocalizations l10n) {
+    // Gallery select mode: Back clears the selection first (3.7.0.64)
+    if (currentIndex == 1 && GalleryPage.handleBack()) return;
     if (currentIndex != 0) {
       EasyDebounce.cancel("page-change");
       setState(() => currentIndex = 0);

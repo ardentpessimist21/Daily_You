@@ -3827,6 +3827,162 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No entries in {months}'**
   String galleryNoEntriesInMonths(String months);
+
+  /// No description provided for @galleryFilterDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Date'**
+  String get galleryFilterDate;
+
+  /// No description provided for @galleryFilterMood.
+  ///
+  /// In en, this message translates to:
+  /// **'Mood'**
+  String get galleryFilterMood;
+
+  /// No description provided for @galleryFilterMedia.
+  ///
+  /// In en, this message translates to:
+  /// **'Media'**
+  String get galleryFilterMedia;
+
+  /// No description provided for @galleryFilterTags.
+  ///
+  /// In en, this message translates to:
+  /// **'Tags'**
+  String get galleryFilterTags;
+
+  /// No description provided for @galleryFilterKeywords.
+  ///
+  /// In en, this message translates to:
+  /// **'Keywords'**
+  String get galleryFilterKeywords;
+
+  /// No description provided for @galleryFilterCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{name} · {count}'**
+  String galleryFilterCount(String name, int count);
+
+  /// No description provided for @galleryShowLogs.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{Show 1 Log} other{Show {count} Logs}}'**
+  String galleryShowLogs(int count);
+
+  /// No description provided for @galleryNoLogsMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'No Logs Match'**
+  String get galleryNoLogsMatch;
+
+  /// No description provided for @galleryNoLogsMatchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Try fewer filters'**
+  String get galleryNoLogsMatchHint;
+
+  /// No description provided for @galleryFilterNoMood.
+  ///
+  /// In en, this message translates to:
+  /// **'No mood'**
+  String get galleryFilterNoMood;
+
+  /// No description provided for @galleryFiltersFold.
+  ///
+  /// In en, this message translates to:
+  /// **'Show icons only'**
+  String get galleryFiltersFold;
+
+  /// No description provided for @galleryFiltersUnfold.
+  ///
+  /// In en, this message translates to:
+  /// **'Show filter names'**
+  String get galleryFiltersUnfold;
+
+  /// No description provided for @galleryNoTrackers.
+  ///
+  /// In en, this message translates to:
+  /// **'No trackers yet'**
+  String get galleryNoTrackers;
+
+  /// No description provided for @keywordsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Type a word, then Enter'**
+  String get keywordsHint;
+
+  /// No description provided for @keywordsAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All keywords'**
+  String get keywordsAll;
+
+  /// No description provided for @keywordsAny.
+  ///
+  /// In en, this message translates to:
+  /// **'Any keyword'**
+  String get keywordsAny;
+
+  /// No description provided for @keywordsMatchCase.
+  ///
+  /// In en, this message translates to:
+  /// **'Match case'**
+  String get keywordsMatchCase;
+
+  /// No description provided for @keywordsNoText.
+  ///
+  /// In en, this message translates to:
+  /// **'No Text'**
+  String get keywordsNoText;
+
+  /// No description provided for @filterByMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter by month'**
+  String get filterByMonth;
+
+  /// No description provided for @filterByYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter by year'**
+  String get filterByYear;
+
+  /// No description provided for @filterByRange.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter by range'**
+  String get filterByRange;
+
+  /// No description provided for @filterByDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter by date'**
+  String get filterByDate;
+
+  /// No description provided for @pickDaysTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick days'**
+  String get pickDaysTitle;
+
+  /// No description provided for @pickDaysHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a first day, then a last one'**
+  String get pickDaysHint;
+
+  /// No description provided for @filterYearLongPressTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Tip: long-press a year to filter all of it'**
+  String get filterYearLongPressTip;
+
+  /// No description provided for @filterMonthLongPressTip.
+  ///
+  /// In en, this message translates to:
+  /// **'Tip: long-press a month to pick days'**
+  String get filterMonthLongPressTip;
 }
 
 class _AppLocalizationsDelegate

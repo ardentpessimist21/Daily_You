@@ -6,6 +6,7 @@ import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/fork/favourites.dart';
 import 'package:daily_you/fork/place_filter.dart';
 import 'package:daily_you/models/entry.dart';
+import 'package:daily_you/fork/gallery_filters.dart';
 import 'package:daily_you/fork/quick_filters.dart';
 import 'package:daily_you/fork/tag_picker_layout.dart';
 import 'package:daily_you/fork/tag_pins.dart';
@@ -58,6 +59,10 @@ class TagPickerDialog extends StatefulWidget {
   final Set<MediaFilter> initialMedia;
   final void Function(Set<MediaFilter>)? onMediaChanged;
 
+  /// Gallery filter only (3.7.0.64): how many logs the Gallery shows now,
+  /// for the "Show 14 Logs" button.
+  final int Function()? resultCount;
+
   final TagType? tagTypeFilter;
 
   /// Optional line under the title, e.g. multi-select's "On some: …"
@@ -79,6 +84,7 @@ class TagPickerDialog extends StatefulWidget {
     this.placeEntries = const [],
     this.initialMedia = const {},
     this.onMediaChanged,
+    this.resultCount,
     this.tagTypeFilter,
     this.note,
   });
@@ -355,21 +361,22 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
     if (value) _notifyQuick();
   }
 
+  /// Clears the tags, No tags and custom quick filters. The Gallery's
+  /// pill-row filters (⭐, Last Edited, Places, Media...) stay (3.7.0.64).
   void _clearAllFilters() {
+    final favouriteId = Favourites.tag?.id;
     setState(() {
       _selectedTagIds = [];
       _filterMode = TagFilterMode.any;
       _noTagsOnly = false;
       _trackersOnly = false;
-      _quickTagIds = {};
-      _lastEdited = false;
-      _place = null;
-      _media = {};
+      _quickTagIds = {
+        for (final id in _quickTagIds)
+          if (id == favouriteId) id,
+      };
     });
     _notifyFilter();
     _notifyQuick();
-    widget.onPlaceChanged?.call(null);
-    widget.onMediaChanged?.call(const {});
     Navigator.of(context).pop();
   }
 
@@ -731,14 +738,18 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
       ],
     );
 
-    final quick = widget.mode == TagPickerMode.filter
+    // Since 3.7.0.64 Favourite, Trackers, Last Edited, Places and Media
+    // are pills in the Gallery's row; this keeps only your custom pins
+    final pinnedQuick = [
+      for (final id in QuickFilters.pinnedIds)
+        ...provider.tags.where((tag) => tag.id == id),
+    ];
+    final quick = widget.mode == TagPickerMode.filter && pinnedQuick.isNotEmpty
         ? QuickFiltersSection(
+            builtIns: false,
             favourite: Favourites.tag,
             showTrackers: hasTrackers,
-            pinned: [
-              for (final id in QuickFilters.pinnedIds)
-                ...provider.tags.where((tag) => tag.id == id),
-            ],
+            pinned: pinnedQuick,
             activeTagIds: _quickTagIds,
             trackersOn: _trackersOnly,
             lastEditedOn: _lastEdited,
@@ -981,12 +992,17 @@ class _TagPickerDialogState extends State<TagPickerDialog> {
       case TagPickerMode.selectSingle:
         return [close];
       case TagPickerMode.filter:
+        final count = widget.resultCount;
         return [
           TextButton(
             onPressed: _clearAllFilters,
             child: Text(l10n.clearAllFilters),
           ),
-          close,
+          if (count == null)
+            close
+          else
+            GalleryShowLogsButton(
+                count: count(), onPressed: () => Navigator.of(context).pop()),
         ];
     }
   }

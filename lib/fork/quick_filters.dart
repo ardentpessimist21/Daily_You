@@ -332,7 +332,12 @@ class QuickFiltersSection extends StatelessWidget {
     this.onClearPlace,
     this.media = const {},
     this.onToggleMedia,
+    this.builtIns = true,
   });
+
+  /// Favourite, Trackers, Last Edited, Places and Media. Off since
+  /// 3.7.0.64, when they moved to the Gallery's pill row.
+  final bool builtIns;
 
   final Tag? favourite;
   final bool showTrackers;
@@ -391,9 +396,9 @@ class QuickFiltersSection extends StatelessWidget {
       letterSpacing: 0.6,
     );
     final chips = <Widget>[
-      if (favourite != null)
+      if (builtIns && favourite != null)
         _tagChip(context, favourite!, QuickFilters.favouriteFallback),
-      if (showTrackers)
+      if (builtIns && showTrackers)
         QuickFilterChip(
           label: l10n.tagFilterTrackers,
           icon: (iconColor) =>
@@ -403,16 +408,17 @@ class QuickFiltersSection extends StatelessWidget {
           compact: compact,
           onTap: enabled ? onToggleTrackers : null,
         ),
-      QuickFilterChip(
-        label: l10n.quickFilterLastEdited,
-        icon: (iconColor) =>
-            Icon(Icons.history_rounded, size: 20, color: iconColor),
-        color: QuickFilters.lastEditedColor,
-        selected: lastEditedOn,
-        compact: compact,
-        onTap: enabled ? onToggleLastEdited : null,
-      ),
-      if (showPlaces || place != null)
+      if (builtIns)
+        QuickFilterChip(
+          label: l10n.quickFilterLastEdited,
+          icon: (iconColor) =>
+              Icon(Icons.history_rounded, size: 20, color: iconColor),
+          color: QuickFilters.lastEditedColor,
+          selected: lastEditedOn,
+          compact: compact,
+          onTap: enabled ? onToggleLastEdited : null,
+        ),
+      if (builtIns && (showPlaces || place != null))
         QuickFilterChip(
           label: place == null
               ? l10n.quickFilterPlaces
@@ -431,7 +437,7 @@ class QuickFiltersSection extends StatelessWidget {
                   : onPickPlace,
           onClear: place != null && !compact ? onClearPlace : null,
         ),
-      if (onToggleMedia != null)
+      if (builtIns && onToggleMedia != null)
         for (final filter in MediaFilter.values)
           QuickFilterChip(
             key: ValueKey('media-${filter.name}'),

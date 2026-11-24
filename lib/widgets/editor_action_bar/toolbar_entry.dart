@@ -40,6 +40,11 @@ class ToolbarEntrySplit {
 
   bool get hasOverflow => overflow.isNotEmpty;
 
+  /// Every entry in a row that scrolls (3.7.0.64), [width] wide.
+  factory ToolbarEntrySplit.scrolling(List<ToolbarEntry> entries,
+          {required double width}) =>
+      ToolbarEntrySplit._(entries, const <ToolbarEntry>[], width);
+
   factory ToolbarEntrySplit.fit(
     List<ToolbarEntry> entries, {
     required double maxWidth,

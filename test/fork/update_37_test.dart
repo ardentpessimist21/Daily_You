@@ -120,13 +120,14 @@ void main() {
     useTemporaryConfig();
     setUp(_seed);
 
-    test('Gallery holds 3 and Add Tags 6, kept apart', () async {
-      expect(await TagPinList.gallery.pin([1, 2, 3, 4]), (3, 1));
+    // Gallery holds 6 since 3.7.0.64 (was 3)
+    test('Gallery and Add Tags hold 6 each, kept apart', () async {
+      expect(await TagPinList.gallery.pin([1, 2, 3, 4, 6, 7, 8]), (6, 1));
       expect(await TagPinList.addTags.pin([4, 3, 2, 1, 6, 7, 8]), (6, 1));
-      expect(TagPinList.gallery.ids, [1, 2, 3]);
+      expect(TagPinList.gallery.ids, [1, 2, 3, 4, 6, 7]);
       expect(TagPinList.addTags.ids, [4, 3, 2, 1, 6, 7]);
       expect(TagPinList.gallery.free, 0);
-      expect(QuickFilters.pinnedIds, [1, 2, 3]);
+      expect(QuickFilters.pinnedIds, [1, 2, 3, 4, 6, 7]);
     });
 
     test('Add Tags starts empty, whatever the Gallery has', () async {
@@ -387,7 +388,8 @@ void main() {
       await tester.tap(find.byTooltip('Pin to'));
       await tester.pumpAndSettle();
       expect(find.text('Gallery filter'), findsOneWidget);
-      expect(find.text('6 of 6 free'), findsOneWidget);
+      // Both lists hold 6 since 3.7.0.64
+      expect(find.text('6 of 6 free'), findsNWidgets(2));
       await tester.tap(find.text('Add Tags'));
       await tester.pumpAndSettle();
       EasyDebounce.cancelAll();
@@ -403,8 +405,9 @@ void main() {
       await tester.tap(find.text('Pinned · Gallery'));
       await tester.pumpAndSettle();
       expect(find.text('Walking'), findsOneWidget);
-      expect(find.text('2 free'), findsOneWidget);
-      expect(find.text('Last Edited'), findsOneWidget);
+      expect(find.text('5 free'), findsOneWidget);
+      // The built-ins moved to the Gallery's pill row (3.7.0.64)
+      expect(find.text('Last Edited'), findsNothing);
       await tester.tap(find.byTooltip('Unpin from Quick filters'));
       await tester.pumpAndSettle();
       EasyDebounce.cancelAll();

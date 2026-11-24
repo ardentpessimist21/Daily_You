@@ -301,14 +301,22 @@ class _EditorActionBarState extends State<EditorActionBar> {
                 ? AlignmentDirectional.centerStart
                 : AlignmentDirectional.center;
 
-            final split = ToolbarEntrySplit.fit(
-              showingMainActions
-                  ? _mainActionEntries(metrics)
-                  : _markdownEntries(context, metrics),
+            final entries = showingMainActions
+                ? _mainActionEntries(metrics)
+                : _markdownEntries(context, metrics);
+            var split = ToolbarEntrySplit.fit(
+              entries,
               maxWidth: maxPillWidth,
               overflowButtonWidth: metrics.buttonSize,
               padding: metrics.pillPadding,
             );
+            // Formatting buttons that don't fit scroll sideways instead of
+            // going into ⋯ (3.7.0.64)
+            double? scrollWidth;
+            if (!showingMainActions && split.hasOverflow) {
+              scrollWidth = maxPillWidth - metrics.pillPadding * 2;
+              split = ToolbarEntrySplit.scrolling(entries, width: maxPillWidth);
+            }
 
             return Stack(
               children: [
@@ -334,6 +342,7 @@ class _EditorActionBarState extends State<EditorActionBar> {
                             metrics: metrics,
                             split: split,
                             showingMainActions: showingMainActions,
+                            scrollWidth: scrollWidth,
                             onShowOverflow: (buttonContext) => _overflowPopup
                                 .show(buttonContext, split.overflow),
                           ),

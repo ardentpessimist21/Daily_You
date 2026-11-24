@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:daily_you/fork/gallery_filters.dart';
 import 'package:daily_you/config_provider.dart';
 import 'package:daily_you/database/entry_store.dart';
 import 'package:daily_you/custom_locale_delegates.dart';
@@ -229,33 +230,51 @@ void main() {
       TagsProvider.instance.debugSetEntryTags([]);
     });
 
-    testWidgets('shows every tracker in its own category, ⭐ stays',
-        (tester) async {
+    // 3.7.0.64: Trackers is its own pill in the Gallery's row; its picker
+    // lists every tracker and the Filter screen no longer has the button
+    testWidgets(
+        'the Trackers pill lists every tracker; the Filter screen '
+        'has no Trackers button', (tester) async {
+      Set<int> picked = {};
       await tester.pumpWidget(_app(Builder(
         builder: (context) => Scaffold(
-          body: TextButton(
-            onPressed: () => showDialog(
-                context: context,
-                builder: (_) =>
-                    const TagPickerDialog(mode: TagPickerMode.filter)),
-            child: const Text('open'),
-          ),
+          body: Column(children: [
+            TextButton(
+              onPressed: () => showGalleryFilterPicker(context,
+                  title: 'Trackers',
+                  count: () => 3,
+                  onClearAll: () {},
+                  body: (context, refresh) => trackerFilterBody(context,
+                      tagIds: picked,
+                      onChanged: (ids) => picked = ids,
+                      refresh: refresh)),
+              child: const Text('pill'),
+            ),
+            TextButton(
+              onPressed: () => showDialog(
+                  context: context,
+                  builder: (_) =>
+                      const TagPickerDialog(mode: TagPickerMode.filter)),
+              child: const Text('open'),
+            ),
+          ]),
         ),
       )));
+      await tester.tap(find.text('pill'));
+      await tester.pumpAndSettle();
+      expect(find.text('Steps'), findsOneWidget);
+      expect(find.text('Sleep hours'), findsOneWidget);
+      expect(find.text('Friends'), findsNothing);
+      expect(find.text('Show 3 Logs'), findsOneWidget);
+      await tester.tap(find.text('Steps'));
+      await tester.pumpAndSettle();
+      expect(picked, {1});
+      await tester.tap(find.text('Show 3 Logs'));
+      await tester.pumpAndSettle();
+
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
-      expect(find.text('Trackers'), findsOneWidget);
-      expect(find.text('Steps'), findsNothing);
-
-      await tester.tap(find.text('Trackers'));
-      await tester.pumpAndSettle();
-      expect(find.text(Favourites.tagName), findsOneWidget);
-      expect(find.text('Health'), findsOneWidget);
-      expect(find.text('Steps'), findsOneWidget);
-      expect(find.text('Uncategorized'), findsOneWidget);
-      expect(find.text('Sleep hours'), findsOneWidget);
-      expect(find.text('People'), findsNothing);
-      expect(find.text('Friends'), findsNothing);
+      expect(find.text('Trackers'), findsNothing);
     });
   });
 }

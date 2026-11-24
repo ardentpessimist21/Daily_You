@@ -4,6 +4,8 @@
 
 import 'dart:ui' show PlatformDispatcher;
 
+import 'package:daily_you/config_provider.dart';
+
 import 'package:daily_you/fork/date_template_box.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/time_manager.dart';
@@ -28,32 +30,62 @@ class JumpTarget {
       : month = DateTime(year, month),
         endMonth = null,
         showAll = false,
-        day = null;
+        day = null,
+        fromDay = null,
+        toDay = null;
 
   JumpTarget.day(DateTime date)
       : month = DateTime(date.year, date.month),
         endMonth = null,
         showAll = false,
-        day = DateTime(date.year, date.month, date.day);
+        day = DateTime(date.year, date.month, date.day),
+        fromDay = null,
+        toDay = null;
+
+  /// Gallery Date filter (3.7.0.64): a run of days, picked in a month's
+  /// day calendar (it can cross into the next month).
+  JumpTarget.days(DateTime a, DateTime b)
+      : month = DateTime(a.year, a.month),
+        endMonth = null,
+        showAll = false,
+        day = null,
+        fromDay = DateTime(a.isBefore(b) ? a.year : b.year,
+            a.isBefore(b) ? a.month : b.month, a.isBefore(b) ? a.day : b.day),
+        toDay = DateTime(a.isBefore(b) ? b.year : a.year,
+            a.isBefore(b) ? b.month : a.month, a.isBefore(b) ? b.day : a.day);
+
+  /// Gallery Date filter (3.7.0.64): whole years, from a long-pressed year
+  /// (and a second one with Range on).
+  JumpTarget.years(int a, int b)
+      : month = DateTime(a < b ? a : b),
+        endMonth = null,
+        showAll = false,
+        day = null,
+        fromDay = DateTime(a < b ? a : b),
+        toDay = DateTime(a < b ? b : a, 12, 31);
 
   /// From the earlier of [a] and [b] to the later; the same month twice is
   /// just that month.
   JumpTarget.range(DateTime a, DateTime b)
-      : month = DateTime(a.isBefore(b) ? a.year : b.year,
-            a.isBefore(b) ? a.month : b.month),
+      : month = DateTime(
+            a.isBefore(b) ? a.year : b.year, a.isBefore(b) ? a.month : b.month),
         endMonth = a.year == b.year && a.month == b.month
             ? null
             : DateTime(a.isBefore(b) ? b.year : a.year,
                 a.isBefore(b) ? b.month : a.month),
         showAll = false,
-        day = null;
+        day = null,
+        fromDay = null,
+        toDay = null;
 
   /// Show all: the Gallery's month filter is cleared.
   JumpTarget.all()
       : month = DateTime(0),
         endMonth = null,
         showAll = true,
-        day = null;
+        day = null,
+        fromDay = null,
+        toDay = null;
 
   final DateTime month;
 
@@ -65,6 +97,10 @@ class JumpTarget {
 
   /// Set only when a date was typed.
   final DateTime? day;
+
+  /// Set for picked days or whole years: the first and last day shown.
+  final DateTime? fromDay;
+  final DateTime? toDay;
 }
 
 /// The order a typed date is read in, taken from a locale's short date
@@ -182,6 +218,7 @@ class JumpPicker {
     bool allowRange = false,
     DateTime? selectedEnd,
     bool showAllButton = false,
+    bool filterMode = false,
   }) {
     final months = <(int, int), int>{};
     final years = <int, int>{};
@@ -218,12 +255,13 @@ class JumpPicker {
         allowRange: allowRange,
         selectedEnd: selectedEnd,
         showAllButton: showAllButton,
+        filterMode: filterMode,
       ),
     );
   }
 }
 
-enum _JumpView { months, years, date }
+enum _JumpView { months, years, date, days }
 
 class JumpPickerDialog extends StatefulWidget {
   const JumpPickerDialog({
@@ -241,7 +279,12 @@ class JumpPickerDialog extends StatefulWidget {
     this.allowRange = false,
     this.selectedEnd,
     this.showAllButton = false,
+    this.filterMode = false,
   });
+
+  /// Gallery Date filter (3.7.0.64): "Filter by …" titles, long-press a
+  /// month (Range on) to pick days, long-press a year for all of it.
+  final bool filterMode;
 
   /// Gallery month filter (3.7.0.59): a Range switch for picking a first
   /// and last month, and Show all.
@@ -268,10 +311,12 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
   static const double _gap = 8;
   static const double _tileAspect = 1.5;
 
-  late int _year = widget.selected.year.clamp(widget.firstYear, widget.lastYear);
+  late int _year =
+      widget.selected.year.clamp(widget.firstYear, widget.lastYear);
   late PageController _pages =
       PageController(initialPage: _year - widget.firstYear);
   final ScrollController _yearScroll = ScrollController();
+
   /// The typed date, as text [JumpDateFormat.parse] reads.
   String _dateText = '';
 
@@ -283,6 +328,18 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
   late bool _range = widget.allowRange && widget.selectedEnd != null;
   late DateTime? _rangeStart = _range ? widget.selected : null;
   late DateTime? _rangeEnd = _range ? widget.selectedEnd : null;
+
+  /// Pick days: the month shown, and the first and last day tapped.
+  DateTime _daysMonth = DateTime(2000);
+  DateTime? _dayStart;
+  DateTime? _dayEnd;
+
+  /// A year range being picked by long-press (Range on).
+  int? _yearRangeStart;
+
+  /// One-time tips (3.7.0.64).
+  bool _showYearTip = false;
+  bool _showMonthTip = false;
 
   static int _key(DateTime month) => month.year * 12 + month.month;
 
@@ -307,7 +364,64 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
       _range = on;
       _rangeStart = null;
       _rangeEnd = null;
+      _yearRangeStart = null;
     });
+    if (on &&
+        widget.filterMode &&
+        !ConfigProvider.instance.get(Settings.filterMonthTipSeen)) {
+      setState(() => _showMonthTip = true);
+      ConfigProvider.instance.set(Settings.filterMonthTipSeen, true);
+    }
+  }
+
+  /// Long-press a month (Range on): its days as a small calendar.
+  void _openDays(int year, int month) {
+    setState(() {
+      _daysMonth = DateTime(year, month);
+      _dayStart = null;
+      _dayEnd = null;
+      _view = _JumpView.days;
+    });
+  }
+
+  void _tapDay(DateTime day) {
+    setState(() {
+      if (_dayStart == null || _dayEnd != null) {
+        _dayStart = day;
+        _dayEnd = null;
+      } else {
+        _dayEnd = day;
+      }
+    });
+  }
+
+  void _finishDays() {
+    final start = _dayStart;
+    if (start == null) {
+      Navigator.pop(context);
+      return;
+    }
+    Navigator.pop(context, JumpTarget.days(start, _dayEnd ?? start));
+  }
+
+  void _stepDaysMonth(int delta) {
+    final next = DateTime(_daysMonth.year, _daysMonth.month + delta);
+    if (next.year < widget.firstYear || next.year > widget.lastYear) return;
+    setState(() => _daysMonth = next);
+  }
+
+  /// Long-press a year: all of it; with Range on, a first and last year.
+  void _longPressYear(int year) {
+    if (!_range) {
+      Navigator.pop(context, JumpTarget.years(year, year));
+      return;
+    }
+    final start = _yearRangeStart;
+    if (start == null) {
+      setState(() => _yearRangeStart = year);
+      return;
+    }
+    Navigator.pop(context, JumpTarget.years(start, year));
   }
 
   void _finishRange() {
@@ -334,6 +448,11 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
 
   void _showYears() {
     setState(() => _view = _JumpView.years);
+    if (widget.filterMode &&
+        !ConfigProvider.instance.get(Settings.filterYearTipSeen)) {
+      setState(() => _showYearTip = true);
+      ConfigProvider.instance.set(Settings.filterYearTipSeen, true);
+    }
     // Open with the year being looked at in the middle
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_yearScroll.hasClients) return;
@@ -365,7 +484,7 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
   void _pickYear(int year) => _showMonths(year);
 
   void _toggleDate() {
-    if (_view == _JumpView.date) {
+    if (_view == _JumpView.date || _view == _JumpView.days) {
       _showMonths(_year);
     } else {
       setState(() {
@@ -387,8 +506,8 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
       error = l10n.jumpDateOutOfRange;
     } else if (!widget.allowEmpty &&
         (widget.monthCounts[(date.year, date.month)] ?? 0) == 0) {
-      error = l10n
-          .jumpNoEntriesInMonth(TimeManager.formatMonthYear(date, context));
+      error =
+          l10n.jumpNoEntriesInMonth(TimeManager.formatMonthYear(date, context));
     }
     if (error != null) {
       setState(() => _dateError = error);
@@ -409,11 +528,21 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final typing = _view == _JumpView.date;
-    final title = switch (_view) {
-      _JumpView.months => l10n.galleryJumpToMonth,
-      _JumpView.years => l10n.jumpToYearTitle,
-      _JumpView.date => l10n.jumpToDateTitle,
-    };
+    final days = _view == _JumpView.days;
+    final title = widget.filterMode
+        ? switch (_view) {
+            _JumpView.months =>
+              _range ? l10n.filterByRange : l10n.filterByMonth,
+            _JumpView.years => _range ? l10n.filterByRange : l10n.filterByYear,
+            _JumpView.date => l10n.filterByDate,
+            _JumpView.days => l10n.pickDaysTitle,
+          }
+        : switch (_view) {
+            _JumpView.months => l10n.galleryJumpToMonth,
+            _JumpView.years => l10n.jumpToYearTitle,
+            _JumpView.date => l10n.jumpToDateTitle,
+            _JumpView.days => l10n.pickDaysTitle,
+          };
 
     return AlertDialog(
       titlePadding: const EdgeInsets.fromLTRB(24, 16, 12, 0),
@@ -421,8 +550,8 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
         children: [
           Expanded(child: Text(title)),
           IconButton(
-            tooltip: typing ? l10n.jumpBackToMonths : l10n.jumpTypeDate,
-            icon: Icon(typing
+            tooltip: typing || days ? l10n.jumpBackToMonths : l10n.jumpTypeDate,
+            icon: Icon(typing || days
                 ? Icons.calendar_month_rounded
                 : Icons.edit_outlined),
             onPressed: _toggleDate,
@@ -436,10 +565,11 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
           _JumpView.months => _buildMonths(context),
           _JumpView.years => _buildYears(context),
           _JumpView.date => _buildDate(context),
+          _JumpView.days => _buildDays(context),
         },
       ),
       actions: [
-        if (widget.showAllButton && !typing)
+        if (widget.showAllButton && !typing && !days)
           TextButton(
             key: const ValueKey('jump-show-all'),
             onPressed: () => Navigator.pop(context, JumpTarget.all()),
@@ -453,6 +583,12 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
           TextButton(
             key: const ValueKey('jump-range-done'),
             onPressed: _finishRange,
+            child: Text(l10n.jumpDone),
+          ),
+        if (days)
+          TextButton(
+            key: const ValueKey('jump-days-done'),
+            onPressed: _finishDays,
             child: Text(l10n.jumpDone),
           ),
         if (typing)
@@ -473,6 +609,8 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
       children: [
         _buildYearRow(context),
         if (widget.allowRange) _buildRangeRow(context),
+        if (_showMonthTip && _range)
+          _tip(context, AppLocalizations.of(context)!.filterMonthLongPressTip),
         const SizedBox(height: 8),
         LayoutBuilder(builder: (context, constraints) {
           final tileWidth = (constraints.maxWidth - _gap * 2) / 3;
@@ -627,6 +765,9 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
           inRange: inRange,
           semantics: '$name, ${l10n.galleryMonthEntries(count)}',
           onTap: () => _tapMonth(year, month),
+          onLongPress: widget.filterMode && _range && count > 0
+              ? () => _openDays(year, month)
+              : null,
         );
       }),
     );
@@ -639,7 +780,7 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
     final years = [
       for (var year = widget.firstYear; year <= widget.lastYear; year++) year
     ];
-    return ConstrainedBox(
+    final grid = ConstrainedBox(
       constraints: const BoxConstraints(maxHeight: 300),
       // The edges fade to show there are more years to scroll to
       child: ShaderMask(
@@ -671,14 +812,181 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
                 key: ValueKey('jump-year-$year'),
                 label: '$year',
                 count: widget.yearCounts[year] ?? 0,
-                selected: widget.selected.year == year,
+                selected: _yearRangeStart != null
+                    ? _yearRangeStart == year
+                    : widget.selected.year == year,
                 semantics:
                     '$year, ${l10n.galleryMonthEntries(widget.yearCounts[year] ?? 0)}',
                 onTap: () => _pickYear(year),
+                onLongPress:
+                    widget.filterMode && (widget.yearCounts[year] ?? 0) > 0
+                        ? () => _longPressYear(year)
+                        : null,
               ),
           ],
         ),
       ),
+    );
+    if (!_showYearTip) return grid;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [_tip(context, l10n.filterYearLongPressTip), grid],
+    );
+  }
+
+  Widget _tip(BuildContext context, String text) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        children: [
+          Icon(Icons.lightbulb_outline_rounded,
+              size: 16, color: theme.colorScheme.primary),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(text,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---- Days ------------------------------------------------------------
+
+  /// Pick days (3.7.0.64): one month as a small calendar. Tap a first day
+  /// and a last one; ‹ › change month, so a run can cross into the next.
+  Widget _buildDays(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final locale = TimeManager.currentLocale(context);
+    final month = _daysMonth;
+    final firstWeekday =
+        MaterialLocalizations.of(context).firstDayOfWeekIndex; // 0 = Sunday
+    final daysInMonth = DateUtils.getDaysInMonth(month.year, month.month);
+    final leading =
+        (DateTime(month.year, month.month).weekday % 7 - firstWeekday + 7) % 7;
+    final narrowDays = MaterialLocalizations.of(context).narrowWeekdays;
+    final start = _dayStart;
+    final end = _dayEnd;
+    int key(DateTime day) => day.year * 10000 + day.month * 100 + day.day;
+    final low = start == null
+        ? null
+        : end == null || key(start) <= key(end)
+            ? start
+            : end;
+    final high = start == null
+        ? null
+        : end == null
+            ? start
+            : key(start) <= key(end)
+                ? end
+                : start;
+
+    Widget cell(int dayNumber) {
+      final day = DateTime(month.year, month.month, dayNumber);
+      final hasEntries =
+          widget.entryDays.contains((day.year, day.month, day.day));
+      final isEnd = (low != null && key(day) == key(low)) ||
+          (high != null && key(day) == key(high));
+      final inside = low != null &&
+          high != null &&
+          key(day) > key(low) &&
+          key(day) < key(high);
+      final background = isEnd
+          ? colorScheme.primary
+          : inside
+              ? colorScheme.primaryContainer
+              : Colors.transparent;
+      final foreground = isEnd
+          ? colorScheme.onPrimary
+          : inside
+              ? colorScheme.onPrimaryContainer
+              : hasEntries
+                  ? colorScheme.onSurface
+                  : colorScheme.onSurface.withValues(alpha: 0.38);
+      return Material(
+        key: ValueKey('jump-day-${day.year}-${day.month}-${day.day}'),
+        color: background,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: () => _tapDay(day),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('$dayNumber',
+                  style: TextStyle(
+                      color: foreground,
+                      fontWeight: hasEntries ? FontWeight.w600 : null)),
+              Container(
+                width: 4,
+                height: 4,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: hasEntries && !isEnd
+                      ? colorScheme.primary
+                      : Colors.transparent,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.chevron_left_rounded),
+              onPressed: month.year > widget.firstYear || month.month > 1
+                  ? () => _stepDaysMonth(-1)
+                  : null,
+            ),
+            Expanded(
+              child: Text(
+                DateFormat.yMMMM(locale).format(month),
+                textAlign: TextAlign.center,
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.chevron_right_rounded),
+              onPressed: month.year < widget.lastYear || month.month < 12
+                  ? () => _stepDaysMonth(1)
+                  : null,
+            ),
+          ],
+        ),
+        Text(l10n.pickDaysHint,
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: colorScheme.onSurfaceVariant)),
+        const SizedBox(height: 8),
+        GridView.count(
+          crossAxisCount: 7,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          mainAxisSpacing: 2,
+          crossAxisSpacing: 2,
+          children: [
+            for (var i = 0; i < 7; i++)
+              Center(
+                child: Text(narrowDays[(firstWeekday + i) % 7],
+                    style: theme.textTheme.labelSmall
+                        ?.copyWith(color: colorScheme.onSurfaceVariant)),
+              ),
+            for (var i = 0; i < leading; i++) const SizedBox.shrink(),
+            for (var d = 1; d <= daysInMonth; d++) cell(d),
+          ],
+        ),
+      ],
     );
   }
 
@@ -719,6 +1027,7 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
     required String semantics,
     required VoidCallback onTap,
     bool inRange = false,
+    VoidCallback? onLongPress,
   }) {
     final colorScheme = Theme.of(context).colorScheme;
     final hasEntries = count > 0;
@@ -728,17 +1037,17 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
         : inRange
             ? colorScheme.primaryContainer
             : hasEntries
-            ? colorScheme.secondaryContainer
-            : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5);
+                ? colorScheme.secondaryContainer
+                : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5);
     final foreground = selected
         ? colorScheme.onPrimary
         : inRange
             ? colorScheme.onPrimaryContainer
             : hasEntries
-            ? colorScheme.onSecondaryContainer
-            : enabled
-                ? colorScheme.onSurfaceVariant
-                : Theme.of(context).disabledColor;
+                ? colorScheme.onSecondaryContainer
+                : enabled
+                    ? colorScheme.onSurfaceVariant
+                    : Theme.of(context).disabledColor;
     return Material(
       key: key,
       color: background,
@@ -746,6 +1055,7 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: enabled ? onTap : null,
+        onLongPress: enabled ? onLongPress : null,
         child: Semantics(
           button: enabled,
           label: semantics,
@@ -754,8 +1064,8 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(label,
-                  style:
-                      TextStyle(color: foreground, fontWeight: FontWeight.w600)),
+                  style: TextStyle(
+                      color: foreground, fontWeight: FontWeight.w600)),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
