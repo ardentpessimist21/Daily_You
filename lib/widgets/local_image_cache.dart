@@ -54,12 +54,19 @@ class LocalImageCache {
 
   SendPort? _resizeSendPort;
 
+  // Keys whose small copy has just been made, so a tile still showing the
+  // full-size original can swap to it and let the original go (3.7.0.62).
+  final StreamController<String> _resized = StreamController.broadcast();
+  Stream<String> get resized => _resized.stream;
+
   LocalImageCache._internal()
       : _diskCache = CacheManager(
           Config(
             'resizedImages',
-            stalePeriod: const Duration(days: 7),
-            maxNrOfCacheObjects: 2000,
+            // Small copies were thrown away after a week, so every photo was
+            // opened at full size again to remake them (3.7.0.62)
+            stalePeriod: const Duration(days: 365),
+            maxNrOfCacheObjects: 10000,
           ),
         ) {
     _initResizeIsolate();
@@ -80,6 +87,9 @@ class LocalImageCache {
       unawaited(_diskCache.removeFile(key));
     }
   }
+
+  static String keyFor(String originalPath, int width) =>
+      _key(originalPath, width);
 
   static String _key(String originalPath, int width) =>
       '${originalPath}_w$width';
@@ -119,6 +129,7 @@ class LocalImageCache {
       }
 
       _pending.remove(key);
+      if (bytes != null) _resized.add(key);
     }
   }
 
@@ -137,11 +148,20 @@ class LocalImageCache {
   }
 
   Future<Uint8List?> getResizedImageBytes(
+          String originalPath, int width) async =>
+      (await getImageBytes(originalPath, width)).bytes;
+
+  /// Like [getResizedImageBytes], also saying whether the bytes are the small
+  /// copy (true) or the full-size original while the copy is being made.
+  Future<({Uint8List? bytes, bool resized})> getImageBytes(
       String originalPath, int width) async {
     // Skip GIFs
     if (extension(originalPath).toLowerCase() == ".gif") {
-      return await AttachmentStorage.instance
-          .getBytes(originalPath, AttachmentType.image);
+      return (
+        bytes: await AttachmentStorage.instance
+            .getBytes(originalPath, AttachmentType.image),
+        resized: true,
+      );
     }
 
     final key = _key(originalPath, width);
@@ -149,7 +169,7 @@ class LocalImageCache {
     // Memory cache
     final bytes = imageCache.get(key);
     if (bytes != null) {
-      return bytes;
+      return (bytes: bytes, resized: true);
     }
 
     // Disk cache
@@ -158,7 +178,7 @@ class LocalImageCache {
     if (fileInfo != null) {
       final bytes = await fileInfo.file.readAsBytes();
       imageCache.put(key, bytes);
-      return bytes;
+      return (bytes: bytes, resized: true);
     }
 
     // Prime cache in the background
@@ -166,9 +186,7 @@ class LocalImageCache {
 
     final originalBytes = await AttachmentStorage.instance
         .getBytes(originalPath, AttachmentType.image);
-    if (originalBytes == null) return null;
-
-    return originalBytes;
+    return (bytes: originalBytes, resized: false);
   }
 }
 
