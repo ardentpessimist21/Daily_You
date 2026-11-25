@@ -241,4 +241,78 @@ void main() {
       expect(GalleryPage.handleBack(), isFalse);
     });
   });
+
+  group('3.7.0.65', () {
+    testWidgets('Favourite is greyed out until something is starred',
+        (tester) async {
+      await _openGallery(tester);
+      await tester.tap(_pill('favourite'));
+      await tester.pumpAndSettle();
+      // Nothing happened: still every log
+      expect(find.text('158 logs'), findsNothing);
+      final opacity = tester.widget<Opacity>(find
+          .ancestor(of: find.text('Favourite'), matching: find.byType(Opacity))
+          .first);
+      expect(opacity.opacity, lessThan(1));
+      EasyDebounce.cancelAll();
+    });
+
+    testWidgets('picker says what is picked; icon mode shows a caption',
+        (tester) async {
+      await _openGallery(tester);
+      await tester.ensureVisible(_pill('date'));
+      await tester.pumpAndSettle();
+      await tester.tap(_pill('date'));
+      await tester.pumpAndSettle();
+      expect(find.byType(JumpPickerDialog), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('jump-range-switch')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('jump-month-2026-9')));
+      await tester.pumpAndSettle();
+      expect(find.text('From Sep 2026 · tap the last month'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('jump-month-2026-10')));
+      await tester.pumpAndSettle();
+      expect(find.text('Showing Sep – Oct 2026'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('jump-range-done')));
+      await tester.pumpAndSettle();
+
+      // Full pills: the pill says it, no caption
+      expect(find.byKey(const ValueKey('gallery-date-caption')), findsNothing);
+      await tester.tap(find.byTooltip('Show icons only'));
+      await tester.pumpAndSettle();
+      expect(find.text('Showing Sep – Oct 2026'), findsOneWidget);
+      // Its ✕ clears the date
+      await tester.tap(find.descendant(
+          of: find.byKey(const ValueKey('gallery-date-caption')),
+          matching: find.byIcon(Icons.close_rounded)));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('gallery-date-caption')), findsNothing);
+      EasyDebounce.cancelAll();
+    });
+
+    testWidgets('upcoming entries count', (tester) async {
+      await _openGallery(tester);
+      final later = DateTime.now().add(const Duration(days: 3));
+      EntryStore.instance.entries = [
+        _entry(9001, later, 'Dentist zebra'),
+        ...EntryStore.instance.entries,
+      ];
+      EntriesProvider.instance.searchText = 'x';
+      EntriesProvider.instance.searchText = '';
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(_pill('keywords'));
+      await tester.pumpAndSettle();
+      await tester.tap(_pill('keywords'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+          find.descendant(
+              of: find.byType(KeywordFilterBody),
+              matching: find.byType(TextField)),
+          'zebra');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.text('Show 1 Log'), findsOneWidget);
+      expect(find.text('No Logs Match'), findsNothing);
+    });
+  });
 }

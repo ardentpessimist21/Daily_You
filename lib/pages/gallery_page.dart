@@ -220,7 +220,6 @@ class _GalleryPageState extends State<GalleryPage>
   // Heights of the floating header: the search (or selection) bar, and the
   // row of filter chips under it when any are on.
   static const double _barHeight = 68;
-  static const double _chipRowHeight = GalleryFilterRow.height;
   static const double _upcomingRowHeight = 60;
   static const double _gridSpacing = 1.0;
 
@@ -644,10 +643,11 @@ class _GalleryPageState extends State<GalleryPage>
     _setSearchText("");
   }
 
-  /// How many logs the Gallery shows right now, for the pickers' buttons.
-  int _visibleCount() => FutureEntries.past(
-          _getVisibleEntries(EntriesProvider.instance, TagsProvider.instance))
-      .length;
+  /// How many logs the Gallery shows right now, for the pickers' buttons;
+  /// upcoming entries count too (3.7.0.65).
+  int _visibleCount() =>
+      _getVisibleEntries(EntriesProvider.instance, TagsProvider.instance)
+          .length;
 
   Widget _searchBar(BuildContext context, EntriesProvider entriesProvider,
       int count, bool showClear) {
@@ -742,38 +742,8 @@ class _GalleryPageState extends State<GalleryPage>
 
   /// The Date pill: "Oct 2026", "Sep – Nov 2026", "2025", "2024 – 2025",
   /// "Mar 3 – Apr 12, 2026"...
-  String _dateFilterLabel(BuildContext context) {
-    final from = _dateFrom!;
-    final to = _dateTo ?? from;
-    final locale = TimeManager.currentLocale(context);
-    final wholeFromMonth = from.day == 1;
-    final wholeToMonth = to.day == DateUtils.getDaysInMonth(to.year, to.month);
-    if (wholeFromMonth && wholeToMonth && from.month == 1 && to.month == 12) {
-      return from.year == to.year
-          ? '${from.year}'
-          : '${from.year} – ${to.year}';
-    }
-    if (wholeFromMonth && wholeToMonth) {
-      final fromMonth = DateTime(from.year, from.month);
-      final toMonth = DateTime(to.year, to.month);
-      if (fromMonth == toMonth) return DateFormat.yMMM(locale).format(from);
-      if (from.year == to.year) {
-        return '${DateFormat.MMM(locale).format(from)} – '
-            '${DateFormat.yMMM(locale).format(to)}';
-      }
-      return '${DateFormat.yMMM(locale).format(from)} – '
-          '${DateFormat.yMMM(locale).format(to)}';
-    }
-    if (DateUtils.isSameDay(from, to)) {
-      return DateFormat.yMMMd(locale).format(from);
-    }
-    if (from.year == to.year) {
-      return '${DateFormat.MMMd(locale).format(from)} – '
-          '${DateFormat.yMMMd(locale).format(to)}';
-    }
-    return '${DateFormat.yMMMd(locale).format(from)} – '
-        '${DateFormat.yMMMd(locale).format(to)}';
-  }
+  String _dateFilterLabel(BuildContext context) =>
+      dateRangeLabel(context, _dateFrom!, _dateTo ?? _dateFrom!);
 
   Future<void> _openPicker(String title,
       Widget Function(BuildContext context, VoidCallback refresh) body) {
@@ -838,6 +808,8 @@ class _GalleryPageState extends State<GalleryPage>
         icon: favouriteOn ? Icons.star_rounded : Icons.star_outline_rounded,
         activeIconColor: const Color(0xFFF4C542),
         active: favouriteOn,
+        // Greyed out until something is starred (3.7.0.65)
+        disabledHint: favouriteId == null ? l10n.favouriteNotYet : null,
         onTap: favouriteId == null
             ? () {}
             : () => setState(() {
@@ -976,7 +948,14 @@ class _GalleryPageState extends State<GalleryPage>
     _selected.removeWhere((id) => !entries.any((entry) => entry.id == id));
     final pills = _selecting ? null : _filterPills(context, tagsProvider);
 
-    final height = _barHeight + (pills != null ? _chipRowHeight : 0);
+    final dateCaption = pills != null && _iconsOnly && _hasDateFilter
+        ? AppLocalizations.of(context)!.filterShowing(_dateFilterLabel(context))
+        : null;
+    final height = _barHeight +
+        (pills != null
+            ? GalleryFilterRow.heightFor(
+                compact: _iconsOnly, caption: dateCaption != null)
+            : 0);
     _headerHeight = height;
     final background = Theme.of(context).scaffoldBackgroundColor;
     final header = Column(
@@ -985,11 +964,13 @@ class _GalleryPageState extends State<GalleryPage>
         if (_selecting)
           _selectionBar(entries)
         else
-          _searchBar(context, entriesProvider, entries.length, showClear),
+          _searchBar(context, entriesProvider, visible.length, showClear),
         if (pills != null)
           GalleryFilterRow(
             pills: pills,
             compact: _iconsOnly,
+            caption: dateCaption,
+            onClearCaption: () => _setDateFilter(null, null),
             onToggleCompact: () {
               setState(() => _iconsOnly = !_iconsOnly);
               GalleryFilterRow.saveCompact(_iconsOnly);

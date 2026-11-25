@@ -9,10 +9,12 @@ import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/models/tag.dart';
 import 'package:daily_you/providers/tags_provider.dart';
+import 'package:daily_you/time_manager.dart';
 import 'package:daily_you/utils/tag_visuals.dart';
 import 'package:daily_you/widgets/app_dialog.dart';
 import 'package:daily_you/widgets/mood_icon.dart';
 import 'package:daily_you/widgets/tag_icon_glyph.dart';
+import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// The Gallery's filter pill row (3.7.0.64): Favourite, Last Edited, Date,
@@ -93,6 +95,37 @@ class TrackerFilter {
   }
 }
 
+/// A run of days as words: "Oct 2026", "Sep – Nov 2026", "2025",
+/// "2024 – 2025", "Mar 2, 2022" or "Mar 2 – Mar 15, 2022".
+String dateRangeLabel(BuildContext context, DateTime from, DateTime to) {
+  final locale = TimeManager.currentLocale(context);
+  final wholeFromMonth = from.day == 1;
+  final wholeToMonth = to.day == DateUtils.getDaysInMonth(to.year, to.month);
+  if (wholeFromMonth && wholeToMonth && from.month == 1 && to.month == 12) {
+    return from.year == to.year ? '${from.year}' : '${from.year} – ${to.year}';
+  }
+  if (wholeFromMonth && wholeToMonth) {
+    if (from.year == to.year && from.month == to.month) {
+      return DateFormat.yMMM(locale).format(from);
+    }
+    if (from.year == to.year) {
+      return '${DateFormat.MMM(locale).format(from)} – '
+          '${DateFormat.yMMM(locale).format(to)}';
+    }
+    return '${DateFormat.yMMM(locale).format(from)} – '
+        '${DateFormat.yMMM(locale).format(to)}';
+  }
+  if (DateUtils.isSameDay(from, to)) {
+    return DateFormat.yMMMd(locale).format(from);
+  }
+  if (from.year == to.year) {
+    return '${DateFormat.MMMd(locale).format(from)} – '
+        '${DateFormat.yMMMd(locale).format(to)}';
+  }
+  return '${DateFormat.yMMMd(locale).format(from)} – '
+      '${DateFormat.yMMMd(locale).format(to)}';
+}
+
 /// One pill of the row.
 class GalleryPillSpec {
   const GalleryPillSpec({
@@ -105,7 +138,13 @@ class GalleryPillSpec {
     this.opensPicker = false,
     this.count = 0,
     this.activeIconColor,
+    this.disabledHint,
   });
+
+  /// Set while the pill can't be used yet (⭐ before anything is starred,
+  /// 3.7.0.65): greyed out, and a long-press shows this.
+  final String? disabledHint;
+  bool get enabled => disabledHint == null;
 
   final String id;
 
@@ -134,9 +173,17 @@ class GalleryFilterRow extends StatelessWidget {
     required this.pills,
     required this.compact,
     required this.onToggleCompact,
+    this.caption,
+    this.onClearCaption,
   });
 
   static const double height = 46;
+  static const double captionHeight = 32;
+
+  /// How tall the row is: with icons only and a date on, a caption line
+  /// sits under it (3.7.0.65).
+  static double heightFor({required bool compact, required bool caption}) =>
+      height + (compact && caption ? captionHeight : 0);
   static const double _pillHeight = 36;
   static const double _iconSize = 34;
 
@@ -151,6 +198,11 @@ class GalleryFilterRow extends StatelessWidget {
   final List<GalleryPillSpec> pills;
   final bool compact;
   final VoidCallback onToggleCompact;
+
+  /// "Showing Mar 2 – Mar 15, 2022": shown under the icons while a date is
+  /// on, since the folded Date icon can't say it. ✕ clears the date.
+  final String? caption;
+  final VoidCallback? onClearCaption;
 
   @override
   Widget build(BuildContext context) {
@@ -221,7 +273,7 @@ class GalleryFilterRow extends StatelessWidget {
       );
     }
 
-    return SizedBox(
+    final row = SizedBox(
       height: height,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 2, 10, 8),
@@ -233,6 +285,49 @@ class GalleryFilterRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+    final text = caption;
+    if (!compact || text == null) return row;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        row,
+        SizedBox(
+          height: captionHeight,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+            child: Material(
+              key: const ValueKey('gallery-date-caption'),
+              color: colorScheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(13),
+              child: Row(
+                children: [
+                  const SizedBox(width: 10),
+                  Icon(Icons.calendar_month_rounded,
+                      size: 15, color: colorScheme.onSurfaceVariant),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(text,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontSize: 13, color: colorScheme.onSurface)),
+                  ),
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                    iconSize: 16,
+                    tooltip:
+                        MaterialLocalizations.of(context).deleteButtonTooltip,
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: onClearCaption,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -248,9 +343,10 @@ class _FullPill extends StatelessWidget {
     final on = pill.active;
     final foreground =
         on ? colorScheme.onPrimaryContainer : colorScheme.onSurfaceVariant;
-    return Semantics(
+    final pillWidget = Semantics(
       button: true,
       selected: on,
+      enabled: pill.enabled,
       child: Material(
         color: on ? colorScheme.primaryContainer : Colors.transparent,
         shape: StadiumBorder(
@@ -259,7 +355,7 @@ class _FullPill extends StatelessWidget {
         ),
         child: InkWell(
           customBorder: const StadiumBorder(),
-          onTap: pill.onTap,
+          onTap: pill.enabled ? pill.onTap : null,
           child: SizedBox(
             height: GalleryFilterRow._pillHeight,
             child: Padding(
@@ -297,7 +393,19 @@ class _FullPill extends StatelessWidget {
         ),
       ),
     );
+    return _greyedOut(pill, pillWidget);
   }
+}
+
+/// A pill that can't be used yet: faded, and a long-press says why.
+Widget _greyedOut(GalleryPillSpec pill, Widget child) {
+  final hint = pill.disabledHint;
+  if (hint == null) return child;
+  return Tooltip(
+    message: hint,
+    triggerMode: TooltipTriggerMode.longPress,
+    child: Opacity(opacity: 0.38, child: child),
+  );
 }
 
 class _IconPill extends StatelessWidget {
@@ -314,6 +422,7 @@ class _IconPill extends StatelessWidget {
       button: true,
       selected: on,
       label: pill.name,
+      enabled: pill.enabled,
       excludeSemantics: true,
       child: Material(
         color: on ? colorScheme.primaryContainer : Colors.transparent,
@@ -323,7 +432,7 @@ class _IconPill extends StatelessWidget {
         ),
         child: InkWell(
           customBorder: const CircleBorder(),
-          onTap: pill.onTap,
+          onTap: pill.enabled ? pill.onTap : null,
           child: SizedBox(
             width: size,
             height: size,
@@ -337,6 +446,7 @@ class _IconPill extends StatelessWidget {
       ),
     );
     final showCount = on && pill.count > 1;
+    if (!pill.enabled) return _greyedOut(pill, circle);
     return Tooltip(
       message: pill.name,
       triggerMode: TooltipTriggerMode.longPress,

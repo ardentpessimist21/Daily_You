@@ -148,8 +148,8 @@ class _DateTemplateBoxState extends State<DateTemplateBox> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final style = theme.textTheme.titleMedium ?? const TextStyle(fontSize: 16);
-    final hintStyle =
-        style.copyWith(color: theme.colorScheme.onSurfaceVariant.withValues(
+    final hintStyle = style.copyWith(
+        color: theme.colorScheme.onSurfaceVariant.withValues(
       alpha: 0.6,
     ));
     final focused = _focus.values.any((node) => node.hasFocus);
@@ -160,8 +160,7 @@ class _DateTemplateBoxState extends State<DateTemplateBox> {
         children.add(Padding(
           padding: const EdgeInsets.symmetric(horizontal: 6),
           child: Text(widget.separator,
-              style: style.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant)),
+              style: style.copyWith(color: theme.colorScheme.onSurfaceVariant)),
         ));
       }
       final last = i == widget.order.length - 1;

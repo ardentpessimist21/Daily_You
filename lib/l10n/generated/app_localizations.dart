@@ -3983,6 +3983,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tip: long-press a month to pick days'**
   String get filterMonthLongPressTip;
+
+  /// No description provided for @filterShowing.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing {range}'**
+  String filterShowing(String range);
+
+  /// No description provided for @filterFromDay.
+  ///
+  /// In en, this message translates to:
+  /// **'From {date} · tap the last day'**
+  String filterFromDay(String date);
+
+  /// No description provided for @filterFromMonth.
+  ///
+  /// In en, this message translates to:
+  /// **'From {month} · tap the last month'**
+  String filterFromMonth(String month);
+
+  /// No description provided for @filterFromYear.
+  ///
+  /// In en, this message translates to:
+  /// **'From {year} · long-press the last year'**
+  String filterFromYear(String year);
+
+  /// No description provided for @favouriteNotYet.
+  ///
+  /// In en, this message translates to:
+  /// **'Star an entry first'**
+  String get favouriteNotYet;
 }
 
 class _AppLocalizationsDelegate

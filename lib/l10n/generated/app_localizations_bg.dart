@@ -2298,4 +2298,27 @@ class AppLocalizationsBg extends AppLocalizations {
 
   @override
   String get filterMonthLongPressTip => 'Tip: long-press a month to pick days';
+
+  @override
+  String filterShowing(String range) {
+    return 'Showing $range';
+  }
+
+  @override
+  String filterFromDay(String date) {
+    return 'From $date · tap the last day';
+  }
+
+  @override
+  String filterFromMonth(String month) {
+    return 'From $month · tap the last month';
+  }
+
+  @override
+  String filterFromYear(String year) {
+    return 'From $year · long-press the last year';
+  }
+
+  @override
+  String get favouriteNotYet => 'Star an entry first';
 }

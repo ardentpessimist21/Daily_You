@@ -1299,5 +1299,15 @@
   "filterYearLongPressTip": "Tip: long-press a year to filter all of it",
   "@filterYearLongPressTip": {},
   "filterMonthLongPressTip": "Tip: long-press a month to pick days",
-  "@filterMonthLongPressTip": {}
+  "@filterMonthLongPressTip": {},
+  "filterShowing": "Showing {range}",
+  "@filterShowing": {"placeholders": {"range": {"type": "String"}}},
+  "filterFromDay": "From {date} · tap the last day",
+  "@filterFromDay": {"placeholders": {"date": {"type": "String"}}},
+  "filterFromMonth": "From {month} · tap the last month",
+  "@filterFromMonth": {"placeholders": {"month": {"type": "String"}}},
+  "filterFromYear": "From {year} · long-press the last year",
+  "@filterFromYear": {"placeholders": {"year": {"type": "String"}}},
+  "favouriteNotYet": "Star an entry first",
+  "@favouriteNotYet": {}
 }

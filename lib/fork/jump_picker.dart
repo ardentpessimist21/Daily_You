@@ -5,6 +5,7 @@
 import 'dart:ui' show PlatformDispatcher;
 
 import 'package:daily_you/config_provider.dart';
+import 'package:daily_you/fork/gallery_filters.dart' show dateRangeLabel;
 
 import 'package:daily_you/fork/date_template_box.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
@@ -473,6 +474,8 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
   void _showMonths(int year) {
     final old = _pages;
     setState(() {
+      // Leaving the year grid drops a half-picked year range (3.7.0.65)
+      _yearRangeStart = null;
       _year = year;
       _dateError = null;
       _pages = PageController(initialPage: year - widget.firstYear);
@@ -490,6 +493,7 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
       setState(() {
         _dateError = null;
         _dateText = '';
+        _yearRangeStart = null;
         _view = _JumpView.date;
       });
     }
@@ -544,11 +548,31 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
             _JumpView.days => l10n.pickDaysTitle,
           };
 
+    final summary = widget.filterMode ? _summary(context) : null;
+
     return AlertDialog(
       titlePadding: const EdgeInsets.fromLTRB(24, 16, 12, 0),
       title: Row(
         children: [
-          Expanded(child: Text(title)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(title),
+                if (summary != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      summary,
+                      key: const ValueKey('jump-filter-summary'),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.primary),
+                    ),
+                  ),
+              ],
+            ),
+          ),
           IconButton(
             tooltip: typing || days ? l10n.jumpBackToMonths : l10n.jumpTypeDate,
             icon: Icon(typing || days
@@ -851,6 +875,45 @@ class _JumpPickerDialogState extends State<JumpPickerDialog> {
         ],
       ),
     );
+  }
+
+  /// What's picked so far, live (3.7.0.65): "Showing Mar 2 – Mar 15,
+  /// 2022", or what's needed next ("From Mar 2, 2022 · tap the last day").
+  String? _summary(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final locale = TimeManager.currentLocale(context);
+    switch (_view) {
+      case _JumpView.days:
+        final start = _dayStart;
+        if (start == null) return null;
+        final end = _dayEnd;
+        if (end == null) {
+          return l10n.filterFromDay(DateFormat.yMMMd(locale).format(start));
+        }
+        final low = start.isBefore(end) ? start : end;
+        final high = start.isBefore(end) ? end : start;
+        return l10n.filterShowing(dateRangeLabel(context, low, high));
+      case _JumpView.years:
+        final start = _yearRangeStart;
+        if (start == null) return null;
+        return l10n.filterFromYear('$start');
+      case _JumpView.months:
+        if (!_range) return null;
+        final start = _rangeStart;
+        if (start == null) return null;
+        final end = _rangeEnd;
+        if (end == null) {
+          return l10n.filterFromMonth(DateFormat.yMMM(locale).format(start));
+        }
+        final low = start.isBefore(end) ? start : end;
+        final high = start.isBefore(end) ? end : start;
+        return l10n.filterShowing(dateRangeLabel(
+            context,
+            DateTime(low.year, low.month),
+            DateTime(high.year, high.month + 1, 0)));
+      case _JumpView.date:
+        return null;
+    }
   }
 
   // ---- Days ------------------------------------------------------------
