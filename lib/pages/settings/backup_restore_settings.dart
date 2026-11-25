@@ -14,7 +14,7 @@ import 'package:daily_you/utils/auto_backup_schedule.dart';
 import 'package:daily_you/utils/backup_restore_utils.dart';
 import 'package:daily_you/utils/imports/import_registry.dart';
 import 'package:daily_you/utils/export_utils.dart';
-import 'package:daily_you/utils/operation_outcome.dart';
+import 'package:daily_you/utils/imports/import_helpers.dart';
 import 'package:daily_you/utils/password_store.dart';
 import 'package:daily_you/widgets/app_dialog.dart';
 import 'package:daily_you/widgets/auth_popup.dart';
@@ -74,6 +74,7 @@ class _BackupRestoreSettingsState extends State<BackupRestoreSettings> {
 
     BackupRestoreUtils.showLoadingStatus(context, statusNotifier);
 
+    ImportGuard.reset();
     final outcome =
         await ImportRegistry.instance.optionFor(format).run(context, (status) {
       statusNotifier.value = status;
@@ -86,11 +87,27 @@ class _BackupRestoreSettingsState extends State<BackupRestoreSettings> {
       await showFailureDialog(context,
           description: AppLocalizations.of(context)!.importErrorDescription,
           error: outcome.error);
+    } else if (ImportGuard.skippedFuture > 0) {
+      // Update D: entries dated after today were left out
+      final l10n = AppLocalizations.of(context)!;
+      await showAppDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(l10n.importSkippedFutureTitle),
+          content: Text(l10n.importSkippedFuture(ImportGuard.skippedFuture)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(MaterialLocalizations.of(context).okButtonLabel),
+            ),
+          ],
+        ),
+      );
     }
   }
 
   Future<void> _showExportSelectionPopup() async {
-    ExportFormat chosenFormat = ExportFormat.none;
+    ExportFormatOption? chosen;
     await showAppDialog(
       context: context,
       builder: (BuildContext context) {
@@ -103,31 +120,30 @@ class _BackupRestoreSettingsState extends State<BackupRestoreSettings> {
               Text(AppLocalizations.of(context)!
                   .settingsExportFormatDescription),
               Divider(),
-              ListTile(
-                  title: Text(AppLocalizations.of(context)!.formatMarkdown),
-                  onTap: () {
-                    chosenFormat = ExportFormat.markdown;
-                    Navigator.of(context).pop();
-                  }),
+              for (final option in ExportUtils.options)
+                ListTile(
+                    title: Text(option.name(AppLocalizations.of(context)!)),
+                    onTap: () {
+                      chosen = option;
+                      Navigator.of(context).pop();
+                    }),
             ],
           ),
         );
       },
     );
 
-    if (chosenFormat == ExportFormat.none) return;
+    final option = chosen;
+    if (option == null) return;
     if (!mounted) return;
 
     ValueNotifier<String> statusNotifier = ValueNotifier<String>("");
 
     BackupRestoreUtils.showLoadingStatus(context, statusNotifier);
 
-    var outcome = const OperationOutcome.cancelled();
-    if (chosenFormat == ExportFormat.markdown) {
-      outcome = await ExportUtils.exportToMarkdown(context, (status) {
-        statusNotifier.value = status;
-      });
-    }
+    final outcome = await ExportUtils.export(context, option, (status) {
+      statusNotifier.value = status;
+    });
 
     if (!mounted) return;
     Navigator.of(context).pop();

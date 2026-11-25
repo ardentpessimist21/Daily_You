@@ -1309,5 +1309,15 @@
   "filterFromYear": "From {year} · long-press the last year",
   "@filterFromYear": {"placeholders": {"year": {"type": "String"}}},
   "favouriteNotYet": "Star an entry first",
-  "@favouriteNotYet": {}
+  "@favouriteNotYet": {},
+  "formatCsv": "CSV",
+  "@formatCsv": {},
+  "formatJson": "JSON",
+  "@formatJson": {},
+  "formatDayOne": "Day One",
+  "@formatDayOne": {},
+  "importSkippedFutureTitle": "Some entries left out",
+  "@importSkippedFutureTitle": {},
+  "importSkippedFuture": "{count, plural, one{1 entry is dated after today, so it wasn't imported. A date in the future usually means a wrong date or time zone in the file.} other{{count} entries are dated after today, so they weren't imported. A date in the future usually means a wrong date or time zone in the file.}}",
+  "@importSkippedFuture": {"placeholders": {"count": {"type": "int"}}}
 }

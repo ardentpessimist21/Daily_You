@@ -44,7 +44,8 @@ Future<OperationOutcome> importFromOneShot(
           DateTime.fromMillisecondsSinceEpoch(createdTimestamp * 1000);
       final mood = happinessMapping[entry['happiness']];
 
-      if (!EntriesProvider.instance.hasEntryAtTimestamp(createdDateTime)) {
+      if (!ImportGuard.skip(createdDateTime) &&
+          !EntriesProvider.instance.hasEntryAtTimestamp(createdDateTime)) {
         var addedEntry = await EntriesProvider.instance.add(
             Entry(
                 text: entry['textContent'],

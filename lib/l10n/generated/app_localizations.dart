@@ -4013,6 +4013,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Star an entry first'**
   String get favouriteNotYet;
+
+  /// No description provided for @formatCsv.
+  ///
+  /// In en, this message translates to:
+  /// **'CSV'**
+  String get formatCsv;
+
+  /// No description provided for @formatJson.
+  ///
+  /// In en, this message translates to:
+  /// **'JSON'**
+  String get formatJson;
+
+  /// No description provided for @formatDayOne.
+  ///
+  /// In en, this message translates to:
+  /// **'Day One'**
+  String get formatDayOne;
+
+  /// No description provided for @importSkippedFutureTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Some entries left out'**
+  String get importSkippedFutureTitle;
+
+  /// No description provided for @importSkippedFuture.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, one{1 entry is dated after today, so it wasn\'t imported. A date in the future usually means a wrong date or time zone in the file.} other{{count} entries are dated after today, so they weren\'t imported. A date in the future usually means a wrong date or time zone in the file.}}'**
+  String importSkippedFuture(int count);
 }
 
 class _AppLocalizationsDelegate

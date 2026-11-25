@@ -138,7 +138,8 @@ Future<OperationOutcome> importFromDiaro(
       if (title.isNotEmpty) parts.add("# $title");
       if (text.isNotEmpty) parts.add(text);
 
-      if (!EntriesProvider.instance.hasEntryAtTimestamp(created)) {
+      if (!ImportGuard.skip(created) &&
+          !EntriesProvider.instance.hasEntryAtTimestamp(created)) {
         final addedEntry = await EntriesProvider.instance.add(
             Entry(
               text: parts.join("\n\n"),

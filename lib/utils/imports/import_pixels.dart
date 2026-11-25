@@ -33,7 +33,8 @@ Future<OperationOutcome> importFromPixels(Function(String) updateStatus) async {
         DateTime timeCreated = DateFormat("yyyy-MM-dd").parse(entry['date']);
         DateTime timeModified = DateTime.now();
 
-        if (!EntriesProvider.instance.hasEntryAtTimestamp(timeCreated)) {
+        if (!ImportGuard.skip(timeCreated) &&
+            !EntriesProvider.instance.hasEntryAtTimestamp(timeCreated)) {
           // Average multiple scores within a single Pixels entry
           int avgMood =
               (entry['scores'] as List<dynamic>).reduce((a, b) => a + b) ~/

@@ -637,18 +637,28 @@ class ConfigProvider with ChangeNotifier {
     }
   }
 
+  /// The save in progress; the next one waits for it (Update D), so two
+  /// saves never write and rename `config.json.tmp` at the same time.
+  Future<void> _saving = Future.value();
+
   Future<void> writeConfig() async {
-    EasyDebounce.debounce("save-config", Duration(seconds: 1), () async {
-      final filteredConfig = Map<String, dynamic>.from(_config)
-        ..removeWhere((key, _) => _secureKeys.contains(key));
-
-      final tempFile = File('$configFilePath.tmp');
-
-      final jsonString = json.encode(filteredConfig);
-
-      await tempFile.writeAsString(jsonString, flush: true);
-      await tempFile.rename(configFilePath);
+    EasyDebounce.debounce("save-config", Duration(seconds: 1), () {
+      _saving = _saving.then((_) => _saveNow()).catchError((Object error) {
+        _logger.warning('Settings could not be saved', error);
+      });
     });
+  }
+
+  Future<void> _saveNow() async {
+    final filteredConfig = Map<String, dynamic>.from(_config)
+      ..removeWhere((key, _) => _secureKeys.contains(key));
+
+    final tempFile = File('$configFilePath.tmp');
+
+    final jsonString = json.encode(filteredConfig);
+
+    await tempFile.writeAsString(jsonString, flush: true);
+    await tempFile.rename(configFilePath);
   }
 
   /// Name of the settings file inside a backup.

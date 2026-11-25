@@ -235,6 +235,18 @@ class Places {
     }
   }
 
+  /// Adds [places] that aren't saved yet, after the ones that are (import).
+  static Future<void> addSavedPlaces(Iterable<Place> places) async {
+    final saved = savedPlaces();
+    var changed = false;
+    for (final place in places) {
+      if (saved.any((known) => known == place)) continue;
+      saved.add(place);
+      changed = true;
+    }
+    if (changed) await saveSavedPlaces(saved);
+  }
+
   static Future<void> saveSavedPlaces(List<Place> places) =>
       ConfigProvider.instance.set(Settings.savedPlaces,
           jsonEncode(places.map((place) => place.toJson()).toList()));

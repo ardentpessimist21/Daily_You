@@ -108,7 +108,8 @@ Future<OperationOutcome> importFromDaybook(
       if (title.isNotEmpty) parts.add("# $title");
       if (text.isNotEmpty) parts.add(text);
 
-      if (!EntriesProvider.instance.hasEntryAtTimestamp(date)) {
+      if (!ImportGuard.skip(date) &&
+          !EntriesProvider.instance.hasEntryAtTimestamp(date)) {
         final addedEntry = await EntriesProvider.instance.add(
           Entry(
             text: parts.join("\n\n"),

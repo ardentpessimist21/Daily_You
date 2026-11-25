@@ -2,119 +2,134 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
-import 'dart:convert';
 import 'dart:io';
 
-import 'package:daily_you/database/attachment_storage.dart';
-import 'package:daily_you/storage/file_store.dart';
+import 'package:daily_you/l10n/generated/app_localizations.dart';
+import 'package:daily_you/models/attachment.dart';
 import 'package:daily_you/storage/local_file_store.dart';
 import 'package:daily_you/storage/storage_picker.dart';
-import 'package:daily_you/models/entry.dart';
-import 'package:daily_you/models/attachment.dart';
-import 'package:daily_you/providers/entries_provider.dart';
-import 'package:daily_you/providers/entry_attachments_provider.dart';
 import 'package:daily_you/time_manager.dart';
+import 'package:daily_you/utils/exports/export_snapshot.dart';
+import 'package:daily_you/utils/exports/export_writers.dart';
 import 'package:daily_you/utils/operation_outcome.dart';
 import 'package:daily_you/utils/zip_utils.dart';
 import 'package:daily_you/widgets/app_dialog.dart';
 import 'package:daily_you/widgets/attachment_type_presentation.dart';
-import 'package:daily_you/widgets/mood_icon.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:intl/intl.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:daily_you/l10n/generated/app_localizations.dart';
 
-enum ExportFormat {
-  none,
-  markdown,
+/// The export formats (Update D: CSV, JSON and Day One join Markdown).
+enum ExportFormat { markdown, csv, json, dayOne }
+
+class ExportFormatOption {
+  const ExportFormatOption(this.format, this.name, this.write,
+      {this.documentName, this.documentMimeType, this.alwaysZip = false});
+
+  final ExportFormat format;
+  final String Function(AppLocalizations localizations) name;
+  final ExportWriter write;
+
+  /// With no attachments, this one file is saved on its own, not zipped.
+  final String? documentName;
+  final String? documentMimeType;
+
+  /// Zipped even without attachments (Markdown's many notes, Day One).
+  final bool alwaysZip;
 }
 
 class ExportUtils {
-  static Future<OperationOutcome> exportToMarkdown(
-      BuildContext context, Function(String) updateStatus) async {
+  ExportUtils._();
+
+  static final List<ExportFormatOption> options = [
+    ExportFormatOption(
+        ExportFormat.markdown, (l10n) => l10n.formatMarkdown, writeMarkdown,
+        alwaysZip: true),
+    ExportFormatOption(ExportFormat.csv, (l10n) => l10n.formatCsv, writeCsv,
+        documentName: csvDocumentName, documentMimeType: 'text/csv'),
+    ExportFormatOption(ExportFormat.json, (l10n) => l10n.formatJson, writeJson,
+        documentName: jsonDocumentName, documentMimeType: 'application/json'),
+    ExportFormatOption(
+        ExportFormat.dayOne, (l10n) => l10n.formatDayOne, writeDayOne,
+        alwaysZip: true),
+  ];
+
+  static ExportFormatOption optionFor(ExportFormat format) =>
+      options.firstWhere((option) => option.format == format);
+
+  /// Asks which attachment types to include and where to save, then writes
+  /// [option]'s export there: one file, or a .zip with the attachments.
+  static Future<OperationOutcome> export(BuildContext context,
+      ExportFormatOption option, void Function(String) updateStatus) async {
     final localizations = AppLocalizations.of(context)!;
     final locale = TimeManager.currentLocale(context);
 
-    final includedTypes = await _pickIncludedTypes(context);
+    final includedTypes = await pickIncludedTypes(context);
     if (includedTypes == null) return const OperationOutcome.cancelled();
 
     updateStatus("(1/2) 0%");
 
-    PickedDirectory? exportFolder;
+    PickedDirectory? folder;
     try {
-      exportFolder = await StoragePicker.pickDirectory();
+      folder = await StoragePicker.pickDirectory();
     } catch (error) {
       return OperationOutcome.failed(error);
     }
-    if (exportFolder == null) return const OperationOutcome.cancelled();
+    if (folder == null) return const OperationOutcome.cancelled();
 
-    var outcome = const OperationOutcome.succeeded();
-
-    var tempDir = await getTemporaryDirectory();
-    final tempExportFolder = Directory(join(tempDir.path, "logs"));
-    await tempExportFolder.create(recursive: true);
-    final exportedZipName =
-        "daily_you_markdown_export_${DateTime.now().toIso8601String().replaceAll(':', '-')}.zip";
-
-    final exportStore = LocalFileStore(tempExportFolder.path);
-
+    Directory? staging;
     try {
-      final entries = EntriesProvider.instance.entries;
-      final totalLogs = entries.length;
-      int processedLogs = 0;
-      final writer =
-          MarkdownExportWriter(noteStore: exportStore, locale: locale);
+      staging = await (await getTemporaryDirectory()).createTemp('export_');
+      final documents =
+          await Directory(join(staging.path, 'documents')).create();
+      final snapshot = await buildExportSnapshot(
+          locale: locale,
+          includedTypes: includedTypes,
+          onProgress: (fraction) =>
+              updateStatus("(1/2) ${(fraction * 100).round()}%"));
+      final sources =
+          await option.write(snapshot, LocalFileStore(documents.path));
 
-      for (Entry entry in entries) {
-        final attachments = <(EntryAttachment, String)>[];
-        for (EntryAttachment attachment in EntryAttachmentsProvider.instance
-            .getForEntry(entry)
-            .where((attachment) => includedTypes.contains(attachment.type))) {
-          final path = await AttachmentStorage.instance
-              .getLocalPath(attachment.filePath, attachment.type);
-          if (path != null) attachments.add((attachment, path));
-        }
+      final single =
+          sources.isEmpty && !option.alwaysZip ? option.documentName : null;
+      final stamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+      final exportName = single == null
+          ? 'daily_you_${option.format.name}_export_$stamp.zip'
+          : 'daily_you_${option.format.name}_export_$stamp${extension(single)}';
 
-        await writer.write(entry, attachments);
-
-        processedLogs++;
-        updateStatus("(1/2) ${((processedLogs / totalLogs) * 100).round()}%");
+      final String exportPath;
+      if (single == null) {
+        exportPath = join(staging.path, exportName);
+        final written = documents.listSync();
+        await ZipUtils.compress(
+            exportPath,
+            [for (final file in written.whereType<File>()) file.path],
+            [for (final dir in written.whereType<Directory>()) dir.path],
+            filesByArchivePath: sources,
+            onProgress: (percent) => updateStatus("(2/2) ${percent.round()}%"));
+      } else {
+        exportPath = join(documents.path, single);
       }
 
-      final exportFolderName = basename(tempExportFolder.path);
-      await ZipUtils.compress(join(tempDir.path, exportedZipName), [], [
-        tempExportFolder.path
-      ], filesByArchivePath: {
-        for (final MapEntry(key: relativePath, value: sourcePath)
-            in writer.attachmentSources.entries)
-          '$exportFolderName/$relativePath': sourcePath
-      }, onProgress: (percent) {
-        updateStatus("(2/2) ${percent.round()}%");
-      });
-
-      // Save archive
       updateStatus(localizations.tranferStatus("0"));
-      await exportFolder.copyFileInto(
-          join(tempDir.path, exportedZipName), exportedZipName,
-          mimeType: "application/zip", onProgress: (percent) {
-        updateStatus(localizations.tranferStatus("${percent.round()}"));
-      });
+      await folder.copyFileInto(exportPath, exportName,
+          mimeType:
+              single == null ? 'application/zip' : option.documentMimeType!,
+          onProgress: (percent) =>
+              updateStatus(localizations.tranferStatus("${percent.round()}")));
+      return const OperationOutcome.succeeded();
     } catch (error) {
-      outcome = OperationOutcome.failed(error);
+      return OperationOutcome.failed(error);
+    } finally {
+      updateStatus(localizations.cleanUpStatus);
+      if (staging != null && await staging.exists()) {
+        await staging.delete(recursive: true);
+      }
     }
-
-    // Delete temp files
-    updateStatus(localizations.cleanUpStatus);
-    await File(join(tempDir.path, exportedZipName)).delete();
-    if (await tempExportFolder.exists()) {
-      await tempExportFolder.delete(recursive: true);
-    }
-
-    return outcome;
   }
 
-  static Future<Set<AttachmentType>?> _pickIncludedTypes(
+  /// Which attachment types go in; null if cancelled.
+  static Future<Set<AttachmentType>?> pickIncludedTypes(
       BuildContext context) async {
     final included = {...AttachmentType.values};
     return showAppDialog<Set<AttachmentType>>(
@@ -154,46 +169,5 @@ class ExportUtils {
         ),
       ),
     );
-  }
-}
-
-class MarkdownExportWriter {
-  MarkdownExportWriter({required this.noteStore, required this.locale});
-
-  final FileStore noteStore;
-  final String locale;
-
-  final Map<String, String> attachmentSources = {};
-
-  final Map<String, int> _timestampCount = {};
-
-  Future<void> write(
-      Entry entry, List<(EntryAttachment, String)> attachments) async {
-    final timestamp = DateFormat("yyyy-MM-dd", locale).format(entry.timeCreate);
-    _timestampCount[timestamp] = (_timestampCount[timestamp] ?? 0) + 1;
-    final index = _timestampCount[timestamp]!;
-    final indexSuffix = index > 1 ? "_$index" : "";
-
-    final noteBody = StringBuffer();
-    for (final (attachment, sourcePath) in attachments) {
-      final folderName = attachment.type.folderName;
-      final prefix = attachment.type.name;
-      final prettyName =
-          "${prefix}_$timestamp${indexSuffix}_${attachment.rank}${extension(attachment.filePath)}";
-
-      noteBody.writeln(attachment.type == AttachmentType.image
-          ? '![]($folderName/$prettyName)'
-          : '[$prettyName]($folderName/$prettyName)');
-
-      attachmentSources['$folderName/$prettyName'] = sourcePath;
-    }
-
-    final moodText =
-        entry.mood != null ? "${MoodIcon.getMoodIcon(entry.mood)} " : "";
-    noteBody.writeln(
-        "$moodText${DateFormat.yMMMEd(locale).format(entry.timeCreate)}\n${entry.text}");
-
-    await noteStore.write(
-        "log_$timestamp$indexSuffix.md", utf8.encode(noteBody.toString()));
   }
 }

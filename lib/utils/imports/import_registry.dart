@@ -5,6 +5,7 @@
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:daily_you/utils/imports/import_daybook.dart' as daybook;
 import 'package:daily_you/utils/imports/import_daylio.dart' as daylio;
+import 'package:daily_you/utils/imports/import_dayone.dart' as dayone;
 import 'package:daily_you/utils/imports/import_diarium.dart' as diarium;
 import 'package:daily_you/utils/imports/import_diaro.dart' as diaro;
 import 'package:daily_you/utils/imports/import_format.dart';
@@ -41,6 +42,11 @@ class ImportRegistry {
       ImportFormat.daybook,
       (localizations) => localizations.formatDaybook,
       daybook.importFromDaybook,
+    ),
+    ImportFormatOption(
+      ImportFormat.dayOne,
+      (localizations) => localizations.formatDayOne,
+      (context, updateStatus) => dayone.importFromDayOne(updateStatus),
     ),
     ImportFormatOption(
       ImportFormat.daylio,

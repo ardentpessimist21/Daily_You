@@ -2327,4 +2327,29 @@ class AppLocalizationsFi extends AppLocalizations {
 
   @override
   String get favouriteNotYet => 'Star an entry first';
+
+  @override
+  String get formatCsv => 'CSV';
+
+  @override
+  String get formatJson => 'JSON';
+
+  @override
+  String get formatDayOne => 'Day One';
+
+  @override
+  String get importSkippedFutureTitle => 'Some entries left out';
+
+  @override
+  String importSkippedFuture(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other:
+          '$count entries are dated after today, so they weren\'t imported. A date in the future usually means a wrong date or time zone in the file.',
+      one:
+          '1 entry is dated after today, so it wasn\'t imported. A date in the future usually means a wrong date or time zone in the file.',
+    );
+    return '$_temp0';
+  }
 }

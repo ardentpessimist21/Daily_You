@@ -93,7 +93,8 @@ Future<OperationOutcome> importFromDiarium(
       }
 
       final rating = entry['Rating'] as int?;
-      final mood = rating != null ? rating.clamp(1, 5) - 3 : null;
+      // 0 is "no rating" in Diarium: no mood (Update D)
+      final mood = rating != null && rating > 0 ? rating.clamp(1, 5) - 3 : null;
 
       final parts = <String>[];
       if (heading.isNotEmpty) parts.add("# $heading");
@@ -101,7 +102,9 @@ Future<OperationOutcome> importFromDiarium(
 
       final place = diariumPlace(entry['Latitude'], entry['Longitude']);
 
-      if (!EntriesProvider.instance.hasEntryAtTimestamp(timestamp)) {
+      if (ImportGuard.skip(timestamp)) {
+        // Dated after today: skipped (Update D)
+      } else if (!EntriesProvider.instance.hasEntryAtTimestamp(timestamp)) {
         final addedEntry = await EntriesProvider.instance.add(
             Entry(
               text: EntryLocations.join(parts.join('\n\n'), [

@@ -61,6 +61,7 @@ dependencies:
     path: packages/third_party/html2md
   local_auth: ^3.0.1
   crypto: ^3.0.6
+  timezone: ^0.11.1
   word_count:
     path: packages/third_party/word_count
   xml: ^7.0.1

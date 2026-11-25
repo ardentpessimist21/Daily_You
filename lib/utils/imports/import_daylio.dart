@@ -19,6 +19,7 @@ import 'package:daily_you/providers/entries_provider.dart';
 import 'package:daily_you/providers/tags_provider.dart';
 import 'package:daily_you/storage/storage_picker.dart';
 import 'package:daily_you/utils/imports/import_helpers.dart';
+import 'package:daily_you/utils/imports/import_time.dart';
 import 'package:daily_you/utils/operation_outcome.dart';
 import 'package:daily_you/utils/tag_name_sanitizer.dart';
 import 'package:daily_you/utils/zip_utils.dart';
@@ -105,8 +106,12 @@ Future<OperationOutcome> importFromDaylio(
     int processedEntries = 0;
 
     for (final entry in dayEntries) {
-      final datetime = DateTime.fromMillisecondsSinceEpoch(entry['datetime'])
-          .add(Duration(milliseconds: entry['timeZoneOffset'] ?? 0));
+      // The time on the clock where it was written (Update D, as upstream):
+      // the stored instant moved by its own offset, read as a wall clock,
+      // not shifted again by the phone's own zone
+      final datetime = wallClockOf(
+          DateTime.fromMillisecondsSinceEpoch(entry['datetime'], isUtc: true)
+              .add(Duration(milliseconds: entry['timeZoneOffset'] ?? 0)));
 
       final title = entry['note_title'] ?? '';
       final note = entry['note'] ?? '';
@@ -119,7 +124,8 @@ Future<OperationOutcome> importFromDaylio(
       final mappedMood =
           mood != null ? moodValueMapping[mood.clamp(1, 5)] : null;
 
-      if (!EntriesProvider.instance.hasEntryAtTimestamp(datetime)) {
+      if (!ImportGuard.skip(datetime) &&
+          !EntriesProvider.instance.hasEntryAtTimestamp(datetime)) {
         final addedEntry = await EntriesProvider.instance.add(
             Entry(
               text: parts.join('\n\n'),
