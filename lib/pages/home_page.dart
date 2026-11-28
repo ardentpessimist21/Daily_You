@@ -9,6 +9,7 @@ import 'package:daily_you/fork/share_return.dart';
 import 'package:daily_you/fork/profile.dart';
 import 'package:daily_you/fork/quick_entry/quick_entry_host.dart';
 import 'package:daily_you/layouts/mobile_scaffold.dart';
+import 'package:daily_you/pages/gallery_page.dart';
 import 'package:daily_you/fork/places.dart';
 import 'package:daily_you/fork/future_entries.dart';
 import 'package:daily_you/config_provider.dart';
@@ -57,7 +58,8 @@ class _HomePageState extends State<HomePage>
     _checkForLaunchIntent();
     _checkForNotificationLaunch();
     _listenForShares();
-    QuickEntryHost.instance.start(onOpen: _openFromQuickEntry);
+    QuickEntryHost.instance
+        .start(onOpen: _openFromQuickEntry, onSearch: _openGallerySearch);
     // Update P: name and birthday on a new journal
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) ProfileSetupPage.showIfPending(context);
@@ -78,6 +80,15 @@ class _HomePageState extends State<HomePage>
     final entry = EntriesProvider.instance.entries[index];
     await _editEntry(
         entry, EntryAttachmentsProvider.instance.getForEntry(entry));
+  }
+
+  /// The floating button's Daily You › Search (3.7.0.68): Gallery, ready to
+  /// type.
+  Future<void> _openGallerySearch() async {
+    if (!mounted) return;
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    MobileScaffold.showGallery();
+    GalleryPage.searchRequested.value++;
   }
 
   @override

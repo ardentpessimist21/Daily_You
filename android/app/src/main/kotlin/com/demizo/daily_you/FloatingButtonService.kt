@@ -446,7 +446,7 @@ class FloatingButtonService : Service() {
                         val picked = it.selected
                         removePie()
                         root?.alpha = FloatingButton.opacity(this@FloatingButtonService)
-                        picked?.let { slice -> onPieSlice(slice) }
+                        picked?.let { onPieSlice(it) }
                         return true
                     }
                     if (!dragging) {
@@ -518,15 +518,33 @@ class FloatingButtonService : Service() {
         }
     }
 
-    private fun onPieSlice(slice: FloatingPie.Slice) {
+    private fun onPieSlice(pick: FloatingPie.Pick) {
         FloatingButton.setDot(this, false)
         updateDot()
         try {
-            when (slice) {
-                FloatingPie.Slice.PHOTO -> startActivity(QuickEntry.sheetIntent(this, "photo"))
-                FloatingPie.Slice.VIDEO -> startActivity(QuickEntry.sheetIntent(this, "video"))
-                FloatingPie.Slice.AUDIO -> startActivity(QuickEntry.sheetIntent(this, "audio"))
-                FloatingPie.Slice.APP -> startActivity(
+            val capture = when (pick.option) {
+                FloatingPie.Option.PHOTO_FRONT -> "photo_front"
+                FloatingPie.Option.PHOTO_BACK -> "photo_back"
+                FloatingPie.Option.VIDEO_FRONT -> "video_front"
+                FloatingPie.Option.VIDEO_BACK -> "video_back"
+                FloatingPie.Option.AUDIO_AUTO -> "audio_auto"
+                FloatingPie.Option.APP_SEARCH -> null
+                null -> when (pick.slice) {
+                    FloatingPie.Slice.PHOTO -> "photo"
+                    FloatingPie.Slice.VIDEO -> "video"
+                    FloatingPie.Slice.AUDIO -> "audio"
+                    FloatingPie.Slice.APP -> null
+                }
+            }
+            when {
+                capture != null -> startActivity(QuickEntry.sheetIntent(this, capture))
+                // Daily You › Search: Gallery with the keyboard up (3.7.0.68)
+                pick.option == FloatingPie.Option.APP_SEARCH -> startActivity(
+                    Intent(this, MainActivity::class.java)
+                        .setAction(QuickEntry.ACTION_SEARCH)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+                else -> startActivity(
                     Intent(this, MainActivity::class.java)
                         .setAction(Intent.ACTION_MAIN)
                         .addCategory(Intent.CATEGORY_LAUNCHER)

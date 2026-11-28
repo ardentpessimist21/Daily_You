@@ -15,6 +15,7 @@ import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
 import android.graphics.RectF
 import android.graphics.Typeface
+import android.graphics.drawable.Drawable
 import android.view.HapticFeedbackConstants
 import android.view.View
 import androidx.core.content.ContextCompat
@@ -29,6 +30,11 @@ import kotlin.math.sin
  * You. Keep holding, slide onto a slice and let go; letting go anywhere
  * else closes it. It never takes touches itself: the button's own gesture
  * drives it through [pointAt].
+ *
+ * 3.7.0.68: Material icons instead of emoji, and a second ring. The slice
+ * under the finger shows its options just outside it (Photo and Video:
+ * Front / Back, Audio: Auto record, Daily You: Search); slide on out onto
+ * one and let go.
  */
 @SuppressLint("ViewConstructor")
 class FloatingPie(
@@ -40,48 +46,67 @@ class FloatingPie(
     private val opensLeft: Boolean,
 ) : View(context) {
 
-    enum class Slice(val label: String) {
-        PHOTO("Photo"), VIDEO("Video"), AUDIO("Audio"), APP("Daily You")
+    enum class Slice(val label: String, val icon: Int) {
+        PHOTO("Photo", R.drawable.ic_pie_photo),
+        VIDEO("Video", R.drawable.ic_pie_video),
+        AUDIO("Audio", R.drawable.ic_pie_mic),
+        APP("Daily You", R.drawable.ic_notification),
     }
+
+    /** The second ring's options, top to bottom within their slice. */
+    enum class Option(val slice: Slice, val label: String, val icon: Int) {
+        PHOTO_FRONT(Slice.PHOTO, "Front", R.drawable.ic_pie_front),
+        PHOTO_BACK(Slice.PHOTO, "Back", R.drawable.ic_pie_back),
+        VIDEO_FRONT(Slice.VIDEO, "Front", R.drawable.ic_pie_front),
+        VIDEO_BACK(Slice.VIDEO, "Back", R.drawable.ic_pie_back),
+        AUDIO_AUTO(Slice.AUDIO, "Auto record", R.drawable.ic_pie_record),
+        APP_SEARCH(Slice.APP, "Search", R.drawable.ic_pie_search),
+    }
+
+    /** What letting go would pick: a slice, or one of its options. */
+    data class Pick(val slice: Slice, val option: Option? = null)
 
     private val density = resources.displayMetrics.density
     private val radius = 132 * density
     private val hole = 44 * density
+    private val outer = 206 * density
 
     private val dark = (resources.configuration.uiMode and
         Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
 
-    private val sliceColor = if (dark) Color.parseColor("#2A2D36") else Color.parseColor("#ECEEF6")
-    private val litColor = if (dark) Color.parseColor("#3B5A9A") else Color.parseColor("#C5D5FA")
-    private val textColor = if (dark) Color.parseColor("#E3E2E9") else Color.parseColor("#1B1C22")
-    private val holeColor = if (dark) Color.parseColor("#121318") else Color.WHITE
+    private val sliceColor = if (dark) Color.parseColor("#2B2E38") else Color.parseColor("#ECEEF3")
+    private val openColor = if (dark) Color.parseColor("#323A52") else Color.parseColor("#D6DDF0")
+    private val ringColor = if (dark) Color.parseColor("#353946") else Color.parseColor("#E2E5EE")
+    private val litColor = Color.parseColor("#3D5BA9")
+    private val textColor = if (dark) Color.parseColor("#E3E2E9") else Color.parseColor("#2B2D35")
+    private val litText = Color.WHITE
+    private val recordColor = Color.parseColor(if (dark) "#FF6B6B" else "#E0413A")
+    private val edgeColor = if (dark) Color.parseColor("#15161B") else Color.parseColor("#B9BCC6")
 
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
     private val line = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = 3 * density
-        color = holeColor
+        strokeWidth = (if (dark) 2f else 1.5f) * density
+        color = edgeColor
     }
     private val label = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = Paint.Align.CENTER
         textSize = 13 * density
-        color = textColor
-    }
-    private val emoji = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        textAlign = Paint.Align.CENTER
-        textSize = 21 * density
     }
 
-    /** The app's logo: white in dark mode, dark in light mode. */
-    private val logo = ContextCompat.getDrawable(context, R.drawable.ic_notification)?.mutate()?.apply {
-        colorFilter = PorterDuffColorFilter(
-            if (dark) Color.WHITE else Color.parseColor("#1B1C22"), PorterDuff.Mode.SRC_IN
-        )
-    }
+    private val icons = HashMap<Int, Drawable?>()
 
-    /** The slice under the finger, or null. */
-    var selected: Slice? = null
+    private fun icon(res: Int, color: Int): Drawable? =
+        icons.getOrPut(res) { ContextCompat.getDrawable(context, res)?.mutate() }?.apply {
+            colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN)
+        }
+
+    /** The slice or option under the finger, or null. */
+    var selected: Pick? = null
         private set
+
+    /** The slice whose second ring is showing. */
+    private var open: Slice? = null
 
     /** Top to bottom; each slice is a quarter of the half circle. */
     private val slices = Slice.values()
@@ -90,27 +115,84 @@ class FloatingPie(
     private fun startAngle(index: Int): Float =
         if (opensLeft) 270f - 45f * (index + 1) else -90f + 45f * index
 
+    private fun optionsOf(slice: Slice) = Option.values().filter { it.slice == slice }
+
+    /** Where option [index] of [count] starts in the slice starting at [start]. */
+    private fun optionStart(start: Float, index: Int, count: Int): Float {
+        val step = 45f / count
+        // Top to bottom: opening left the top is the slice's far end
+        return if (opensLeft) start + 45f - step * (index + 1) else start + step * index
+    }
+
+    private fun inSpan(angle: Float, start: Float, sweep: Float): Boolean {
+        var offset = (angle - start) % 360f
+        if (offset < 0) offset += 360f
+        return offset < sweep
+    }
+
     fun pointAt(rawX: Float, rawY: Float) {
         val dx = rawX - centerX
         val dy = rawY - centerY
         val distance = hypot(dx, dy)
-        var found: Slice? = null
-        if (distance > hole * 0.7f && distance < radius * 1.8f) {
-            var angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
-            for ((index, slice) in slices.withIndex()) {
-                val start = startAngle(index)
-                var offset = (angle - start) % 360f
-                if (offset < 0) offset += 360f
-                if (offset < 45f) {
-                    found = slice
-                    break
+        val angle = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
+        var found: Pick? = null
+        var showing = open
+        if (distance > hole * 0.7f) {
+            val index = slices.indices.firstOrNull { inSpan(angle, startAngle(it), 45f) }
+            if (index != null) {
+                val slice = slices[index]
+                if (distance <= radius) {
+                    found = Pick(slice)
+                    showing = slice
+                } else if (distance < outer * 1.5f) {
+                    // Out past the slices: the option under the finger, on
+                    // whichever slice's ring that is
+                    val options = optionsOf(slice)
+                    val start = startAngle(index)
+                    val option = options.indices.firstOrNull {
+                        inSpan(angle, optionStart(start, it, options.size), 45f / options.size)
+                    }?.let { options[it] }
+                    if (option != null) {
+                        found = Pick(slice, option)
+                        showing = slice
+                    }
                 }
             }
+        } else {
+            showing = null
         }
-        if (found != selected) {
+        if (found != selected || showing != open) {
+            if (found != selected && found != null) {
+                performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+            }
             selected = found
-            if (found != null) performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+            open = showing
             invalidate()
+        }
+    }
+
+    private fun ringSlice(box: RectF, inner: RectF, start: Float, sweep: Float) = Path().apply {
+        arcTo(box, start, sweep, true)
+        arcTo(inner, start + sweep, -sweep)
+        close()
+    }
+
+    private fun drawLabel(
+        canvas: Canvas, text: String, iconRes: Int, angle: Float, distance: Float,
+        lit: Boolean, iconColor: Int? = null,
+    ) {
+        val middle = Math.toRadians(angle.toDouble())
+        val x = centerX + distance * cos(middle).toFloat()
+        val y = centerY + distance * sin(middle).toFloat()
+        val color = if (lit) litText else textColor
+        label.color = color
+        label.typeface = if (lit) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
+        canvas.drawText(text, x, y + 16 * density, label)
+        icon(iconRes, if (lit) litText else iconColor ?: color)?.let {
+            val half = (11 * density).toInt()
+            val top = (y - 18 * density).toInt()
+            it.setBounds(x.toInt() - half, top, x.toInt() + half, top + half * 2)
+            it.draw(canvas)
         }
     }
 
@@ -126,33 +208,38 @@ class FloatingPie(
         canvas.drawPath(dim, fill)
         val box = RectF(centerX - radius, centerY - radius, centerX + radius, centerY + radius)
         val inner = RectF(centerX - hole, centerY - hole, centerX + hole, centerY + hole)
+        val far = RectF(centerX - outer, centerY - outer, centerX + outer, centerY + outer)
+        val pick = selected
         for ((index, slice) in slices.withIndex()) {
             val start = startAngle(index)
-            fill.color = if (slice == selected) litColor else sliceColor
-            // A ring slice, so the button shows through the middle
-            val path = Path().apply {
-                arcTo(box, start, 45f, true)
-                arcTo(inner, start + 45f, -45f)
-                close()
+            val lit = pick != null && pick.slice == slice && pick.option == null
+            fill.color = when {
+                lit -> litColor
+                open == slice -> openColor
+                else -> sliceColor
             }
+            // A ring slice, so the button shows through the middle
+            val path = ringSlice(box, inner, start, 45f)
             canvas.drawPath(path, fill)
             canvas.drawPath(path, line)
+            drawLabel(canvas, slice.label, slice.icon, start + 22.5f, radius * 0.66f, lit)
 
-            val middle = Math.toRadians((start + 22.5f).toDouble())
-            val x = centerX + (radius * 0.66f) * cos(middle).toFloat()
-            val y = centerY + (radius * 0.66f) * sin(middle).toFloat()
-            label.typeface = if (slice == selected) Typeface.DEFAULT_BOLD else Typeface.DEFAULT
-            canvas.drawText(slice.label, x, y + 16 * density, label)
-            when (slice) {
-                Slice.PHOTO -> canvas.drawText("📷", x, y, emoji)
-                Slice.VIDEO -> canvas.drawText("🎥", x, y, emoji)
-                Slice.AUDIO -> canvas.drawText("🎙", x, y, emoji)
-                Slice.APP -> logo?.let {
-                    val half = (11 * density).toInt()
-                    val top = (y - 18 * density).toInt()
-                    it.setBounds(x.toInt() - half, top, x.toInt() + half, top + half * 2)
-                    it.draw(canvas)
-                }
+            // The second ring, just outside the slice that's open
+            if (open != slice) continue
+            val options = optionsOf(slice)
+            val step = 45f / options.size
+            for ((optionIndex, option) in options.withIndex()) {
+                val optionStart = optionStart(start, optionIndex, options.size)
+                val optionLit = pick?.option == option
+                fill.color = if (optionLit) litColor else ringColor
+                val optionPath = ringSlice(far, box, optionStart, step)
+                canvas.drawPath(optionPath, fill)
+                canvas.drawPath(optionPath, line)
+                drawLabel(
+                    canvas, option.label, option.icon, optionStart + step / 2,
+                    (radius + outer) / 2f - 4 * density, optionLit,
+                    if (option == Option.AUDIO_AUTO) recordColor else null,
+                )
             }
         }
     }

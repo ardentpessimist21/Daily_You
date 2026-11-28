@@ -130,4 +130,61 @@ void main() {
     expect(QuickCapture.fromKey('audio'), QuickCapture.audio);
     expect(QuickCapture.fromKey(null), isNull);
   });
+
+  // 3.7.0.68: the pie's second ring
+  test('the pie\'s keys carry the lens and auto record', () {
+    final front = QuickCaptureRequest.parse('photo_front')!;
+    expect(front.kind, QuickCapture.photo);
+    expect(front.front, isTrue);
+    final back = QuickCaptureRequest.parse('video_back')!;
+    expect(back.kind, QuickCapture.video);
+    expect(back.front, isFalse);
+    final auto = QuickCaptureRequest.parse('audio_auto')!;
+    expect(auto.kind, QuickCapture.audio);
+    expect(auto.autoStart, isTrue);
+    final plain = QuickCaptureRequest.parse('video')!;
+    expect(plain.front, isNull);
+    expect(plain.autoStart, isFalse);
+    expect(QuickCaptureRequest.parse('nope'), isNull);
+    expect(QuickCaptureRequest.parse(null), isNull);
+  });
+
+  // 3.7.0.68: with the keyboard up, 📎 leaves the text box focused
+  testWidgets('📎 keeps the keyboard up', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider<ConfigProvider>.value(
+            value: ConfigProvider.instance),
+        ChangeNotifierProvider<EntriesProvider>.value(
+            value: EntriesProvider.instance),
+        ChangeNotifierProvider<TagsProvider>.value(
+            value: TagsProvider.instance),
+      ],
+      child: const MaterialApp(home: QuickEntryPage(ready: true)),
+    ));
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    tester.view.viewInsets = const FakeViewPadding(bottom: 800);
+    addTearDown(tester.view.resetViewInsets);
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    final field = find.byType(TextField);
+    final focus = tester.widget<TextField>(field).focusNode!;
+    expect(focus.hasFocus, isTrue);
+    await tester.tap(find.byKey(const ValueKey('quick-entry-attach')));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.text('Take photo'), findsOneWidget);
+    expect(focus.hasFocus, isTrue);
+    expect(tester.testTextInput.hasAnyClients, isTrue);
+  });
 }

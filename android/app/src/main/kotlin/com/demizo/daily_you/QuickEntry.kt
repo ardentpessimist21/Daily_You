@@ -17,6 +17,9 @@ import java.util.UUID
 object QuickEntry {
     const val ACTION_SHEET = "com.demizo.daily_you.QUICK_ENTRY"
     const val ACTION_OPEN = "com.demizo.daily_you.OPEN_FROM_QUICK_ENTRY"
+
+    /** The floating button's Daily You › Search: Gallery, ready to type (3.7.0.68). */
+    const val ACTION_SEARCH = "com.demizo.daily_you.GALLERY_SEARCH"
     const val EXTRA_OPEN_ID = "quickEntryOpenId"
 
     const val SHEET_CHANNEL = "daily_you/quick_entry"

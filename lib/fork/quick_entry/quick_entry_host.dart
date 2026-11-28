@@ -38,11 +38,17 @@ class QuickEntryHost with WidgetsBindingObserver {
   /// Opens entry [id] in the editor, or a new entry for today when -1.
   Future<void> Function(int id)? onOpenRequest;
 
+  /// Daily You › Search from the floating button's pie (3.7.0.68).
+  Future<void> Function()? onSearchRequest;
+
   bool get _supported => Platform.isAndroid;
 
   /// Called once Home is showing (the database is open by then).
-  Future<void> start({required Future<void> Function(int id) onOpen}) async {
+  Future<void> start(
+      {required Future<void> Function(int id) onOpen,
+      Future<void> Function()? onSearch}) async {
     onOpenRequest = onOpen;
+    onSearchRequest = onSearch;
     if (!_supported || _started) return;
     _started = true;
 
@@ -55,11 +61,13 @@ class QuickEntryHost with WidgetsBindingObserver {
     ConfigProvider.instance.addListener(_scheduleNotificationRefresh);
     _channel.setMethodCallHandler((call) async {
       if (call.method == 'openRequest') await _checkOpenRequest();
+      if (call.method == 'searchRequest') await _checkSearchRequest();
     });
 
     await _saveWaitingReplies();
     await refreshNotification();
     await _checkOpenRequest();
+    await _checkSearchRequest();
   }
 
   @override
@@ -72,6 +80,7 @@ class QuickEntryHost with WidgetsBindingObserver {
     await _saveWaitingReplies();
     await refreshNotification();
     await _checkOpenRequest();
+    await _checkSearchRequest();
   }
 
   /// Reloads entries and tags when a quick entry was saved elsewhere.
@@ -136,6 +145,20 @@ class QuickEntryHost with WidgetsBindingObserver {
       await onOpenRequest?.call(id);
     } catch (error, stackTrace) {
       _logger.warning('Opening from Quick entry failed', error, stackTrace);
+    }
+  }
+
+  /// The floating button's Daily You › Search (3.7.0.68): Gallery with the
+  /// search bar focused.
+  Future<void> _checkSearchRequest() async {
+    if (!_supported) return;
+    try {
+      final asked = await _channel.invokeMethod<bool>('consumeSearchRequest');
+      if (asked != true) return;
+      await reloadIfChanged();
+      await onSearchRequest?.call();
+    } catch (error, stackTrace) {
+      _logger.warning('Opening Gallery search failed', error, stackTrace);
     }
   }
 

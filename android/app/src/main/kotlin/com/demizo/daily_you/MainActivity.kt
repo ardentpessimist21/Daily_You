@@ -15,9 +15,11 @@ class MainActivity: FlutterFragmentActivity() {
   // notification's state
   private var quickEntryChannel: MethodChannel? = null
   private var pendingOpenId: Int? = null
+  private var pendingSearch = false
 
   override fun onCreate(savedInstanceState: Bundle?) {
     takeOpenRequest(intent)
+    takeSearchRequest(intent)
     super.onCreate(savedInstanceState)
   }
 
@@ -37,6 +39,10 @@ class MainActivity: FlutterFragmentActivity() {
           "consumeOpenRequest" -> {
             result.success(pendingOpenId)
             pendingOpenId = null
+          }
+          "consumeSearchRequest" -> {
+            result.success(pendingSearch)
+            pendingSearch = false
           }
           "addShortcut" -> {
             QuickEntry.addShortcut(this)
@@ -75,6 +81,7 @@ class MainActivity: FlutterFragmentActivity() {
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
     if (takeOpenRequest(intent)) quickEntryChannel?.invokeMethod("openRequest", null)
+    if (takeSearchRequest(intent)) quickEntryChannel?.invokeMethod("searchRequest", null)
   }
 
   private fun takeOpenRequest(intent: Intent?): Boolean {
@@ -82,6 +89,14 @@ class MainActivity: FlutterFragmentActivity() {
     // Reopened from recents: Android replays the old intent
     if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return false
     pendingOpenId = intent.getIntExtra(QuickEntry.EXTRA_OPEN_ID, -1)
+    intent.action = Intent.ACTION_MAIN
+    return true
+  }
+
+  private fun takeSearchRequest(intent: Intent?): Boolean {
+    if (intent?.action != QuickEntry.ACTION_SEARCH) return false
+    if (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return false
+    pendingSearch = true
     intent.action = Intent.ACTION_MAIN
     return true
   }

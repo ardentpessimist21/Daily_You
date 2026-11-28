@@ -32,6 +32,10 @@ class MobileScaffold extends StatefulWidget {
   /// the shared entry ends on the calendar.
   static void showHome() => _shown?._showHomeNow();
 
+  /// Switches to the Gallery tab without an animation, for the floating
+  /// button's Daily You › Search (3.7.0.68).
+  static void showGallery() => _shown?._showGalleryNow();
+
   /// The tab on screen (0 Home, 1 Gallery, 2 Statistics), for pages that
   /// react to being shown, like the Statistics tap hint (3.7.0.48).
   static final ValueNotifier<int> tab = ValueNotifier(0);
@@ -58,6 +62,13 @@ class _MobileScaffoldState extends State<MobileScaffold> {
     EasyDebounce.cancel("page-change");
     setState(() => currentIndex = 0);
     if (_pageController.hasClients) _pageController.jumpToPage(0);
+  }
+
+  void _showGalleryNow() {
+    if (!mounted || currentIndex == 1) return;
+    EasyDebounce.cancel("page-change");
+    setState(() => currentIndex = 1);
+    if (_pageController.hasClients) _pageController.jumpToPage(1);
   }
 
   @override

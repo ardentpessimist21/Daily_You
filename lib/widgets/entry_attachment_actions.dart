@@ -43,9 +43,14 @@ class PendingAttachment {
 class EntryAttachmentActions {
   static final Logger _logger = Logger('EntryAttachmentActions');
 
-  static Future<List<PendingAttachment>> takePhoto() async {
-    final pickedFile =
-        await ImagePicker().pickImage(source: ImageSource.camera);
+  static CameraDevice _lens(bool? front) =>
+      front == true ? CameraDevice.front : CameraDevice.rear;
+
+  /// [front] asks the camera to start on the selfie lens (true) or the
+  /// back one (false); the camera app may not listen (3.7.0.68).
+  static Future<List<PendingAttachment>> takePhoto({bool? front}) async {
+    final pickedFile = await ImagePicker().pickImage(
+        source: ImageSource.camera, preferredCameraDevice: _lens(front));
     if (pickedFile == null) return const [];
     return _pendingFromPaths(
         [pickedFile.path], AttachmentType.image, _storeImagePath,
@@ -110,9 +115,9 @@ class EntryAttachmentActions {
       storeAll(await _pendingFromPaths(paths, type, store,
           keepNames: true, deleteAfterwards: false));
 
-  static Future<List<PendingAttachment>> takeVideo() async {
-    final pickedFile =
-        await ImagePicker().pickVideo(source: ImageSource.camera);
+  static Future<List<PendingAttachment>> takeVideo({bool? front}) async {
+    final pickedFile = await ImagePicker().pickVideo(
+        source: ImageSource.camera, preferredCameraDevice: _lens(front));
     if (pickedFile == null) return const [];
     return _pendingFromPaths(
         [pickedFile.path], AttachmentType.video, _storeVideo,

@@ -23,7 +23,11 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 
 class AudioRecorderPage extends StatefulWidget {
-  const AudioRecorderPage({super.key});
+  const AudioRecorderPage({super.key, this.autoStart = false});
+
+  /// Starts recording as soon as the page opens (the floating button's
+  /// Audio › Auto record, 3.7.0.68).
+  final bool autoStart;
 
   @override
   State<AudioRecorderPage> createState() => _AudioRecorderPageState();
@@ -69,6 +73,11 @@ class _AudioRecorderPageState extends State<AudioRecorderPage>
     _stateSubscription = _recorder.onStateChanged().listen(_applyState,
         onError: (Object error, StackTrace stackTrace) =>
             _logger.warning('Recorder state error', error, stackTrace));
+    if (widget.autoStart) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(_startRecording());
+      });
+    }
   }
 
   @override

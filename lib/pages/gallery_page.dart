@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Additional terms under GPLv3 section 7 apply; see ADDITIONAL_TERMS.md.
 
+import 'package:flutter/services.dart';
 import 'package:daily_you/fork/favourites.dart';
 import 'package:daily_you/fork/gallery_filters.dart';
 import 'package:daily_you/fork/moods.dart';
@@ -55,6 +56,10 @@ class GalleryPage extends StatefulWidget {
   /// clears the selection instead of going to Home. True when it did.
   static bool Function()? _backHandler;
   static bool handleBack() => _backHandler?.call() ?? false;
+
+  /// Bumped by the floating button's pie, Daily You › Search (3.7.0.68):
+  /// the search bar shows and takes focus, so the keyboard comes up.
+  static final ValueNotifier<int> searchRequested = ValueNotifier(0);
 
   @override
   State<GalleryPage> createState() => _GalleryPageState();
@@ -240,8 +245,21 @@ class _GalleryPageState extends State<GalleryPage>
     _snap.addListener(_onSnap);
     if (preset == null) {
       GalleryPage.tabRetapped.addListener(_backToTop);
+      GalleryPage.searchRequested.addListener(_focusSearch);
       GalleryPage._backHandler = _onBack;
     }
+  }
+
+  /// Shows the search bar and puts the cursor in it (3.7.0.68).
+  void _focusSearch() {
+    if (!mounted) return;
+    if (_snap.isAnimating) _snap.stop();
+    _headerHidden.value = 0;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _focusNode.requestFocus();
+      SystemChannels.textInput.invokeMethod('TextInput.show');
+    });
   }
 
   bool _onBack() {
@@ -362,6 +380,7 @@ class _GalleryPageState extends State<GalleryPage>
   void dispose() {
     GalleryPage.tabRetapped.removeListener(_backToTop);
     if (GalleryPage._backHandler == _onBack) GalleryPage._backHandler = null;
+    GalleryPage.searchRequested.removeListener(_focusSearch);
     _snap.dispose();
     _headerHidden.dispose();
     _searchController.dispose();

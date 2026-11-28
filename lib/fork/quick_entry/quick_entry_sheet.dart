@@ -20,6 +20,8 @@ import 'package:daily_you/widgets/tag_attachment_source.dart';
 import 'package:daily_you/widgets/tag_picker_dialog.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:daily_you/pages/attachment_view_page.dart';
+import 'package:daily_you/widgets/attachment_tile_background.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// The quick-entry sheet (Update Q). It runs in its own small window over
@@ -124,11 +126,13 @@ class _QuickEntryPageState extends State<QuickEntryPage> {
     if (launch is! Map) return;
     final locked = launch['locked'] == true;
     final text = (launch['text'] as String?)?.trim() ?? '';
-    final capture = QuickCapture.fromKey(launch['capture'] as String?);
+    final capture = QuickCaptureRequest.parse(launch['capture'] as String?);
     if (capture != null) {
       // From the floating button's pie: take it straight away
-      WidgetsBinding.instance
-          .addPostFrameCallback((_) => unawaited(_capture(capture)));
+      WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_capture(
+          capture.kind,
+          front: capture.front,
+          autoStart: capture.autoStart)));
     }
     setState(() {
       _locked = locked;
@@ -223,7 +227,10 @@ class _QuickEntryPageState extends State<QuickEntryPage> {
 
   // Attachments (Update 68)
 
-  Future<void> _capture(QuickCapture kind) async {
+  /// [front] picks the lens for photo and video; [autoStart] starts the
+  /// audio recorder straight away (the pie's second ring, 3.7.0.68).
+  Future<void> _capture(QuickCapture kind,
+      {bool? front, bool autoStart = false}) async {
     if (_capturing || !await _unlock() || !mounted) return;
     setState(() => _capturing = true);
     try {
@@ -231,16 +238,16 @@ class _QuickEntryPageState extends State<QuickEntryPage> {
       switch (kind) {
         case QuickCapture.photo:
           added = await EntryAttachmentActions.storeAll(
-              await EntryAttachmentActions.takePhoto());
+              await EntryAttachmentActions.takePhoto(front: front));
         case QuickCapture.video:
           added = await EntryAttachmentActions.storeAll(
-              await EntryAttachmentActions.takeVideo());
+              await EntryAttachmentActions.takeVideo(front: front));
         case QuickCapture.audio:
           final recorded = await Navigator.of(context).push<NewAttachment>(
             MaterialPageRoute(
               allowSnapshotting: false,
               fullscreenDialog: true,
-              builder: (context) => const AudioRecorderPage(),
+              builder: (context) => AudioRecorderPage(autoStart: autoStart),
             ),
           );
           added = recorded == null ? const [] : [recorded];
@@ -271,6 +278,17 @@ class _QuickEntryPageState extends State<QuickEntryPage> {
     await EntryAttachmentActions.deleteStoredAttachments(gone);
   }
 
+  /// The chip's icon: the one kind attached, or 📎 for a mix (3.7.0.68).
+  IconData _attachmentsIcon() {
+    final kinds = {for (final attachment in _attachments) attachment.type};
+    if (kinds.length != 1) return Icons.attach_file_rounded;
+    return switch (kinds.single) {
+      AttachmentType.image => Icons.photo_outlined,
+      AttachmentType.video => Icons.videocam_outlined,
+      AttachmentType.audio => Icons.mic_none_rounded,
+    };
+  }
+
   /// "2 photos · 1 audio".
   String _attachmentsLabel() {
     int count(AttachmentType type) =>
@@ -293,6 +311,9 @@ class _QuickEntryPageState extends State<QuickEntryPage> {
     final topLeft = box.localToGlobal(Offset.zero, ancestor: overlay);
     final picked = await showMenu<QuickCapture>(
       context: buttonContext,
+      // Leave the text box focused: taking focus closed the keyboard and
+      // flipped the sheet's layout under the menu (3.7.0.68)
+      requestFocus: false,
       position: RelativeRect.fromLTRB(topLeft.dx, topLeft.dy - 8,
           overlay.size.width - topLeft.dx, overlay.size.height - topLeft.dy),
       items: [
@@ -312,56 +333,109 @@ class _QuickEntryPageState extends State<QuickEntryPage> {
     if (picked != null) await _capture(picked);
   }
 
-  /// Each attachment with its own ✕.
+  /// The attachments as the editor's tiles (3.7.0.68): a preview each,
+  /// ✕ to remove one, sideways to see more, tap to view full screen.
   Future<void> _showAttachmentList() async {
+    final now = DateTime.now();
+    List<EntryAttachment> asTiles() => [
+          for (final (index, attachment) in _attachments.indexed)
+            EntryAttachment(
+                entryId: null,
+                type: attachment.type,
+                filePath: attachment.filePath,
+                rank: _attachments.length - index,
+                timeCreate: now),
+        ];
     await showAppDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setLocal) => AlertDialog(
-          title: const Text('Attached'),
-          content: SizedBox(
-            width: 320,
-            child: _attachments.isEmpty
-                ? const Text('Nothing attached')
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (final (index, attachment) in _attachments.indexed)
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Icon(switch (attachment.type) {
-                            AttachmentType.image => Icons.photo_outlined,
-                            AttachmentType.video => Icons.videocam_outlined,
-                            AttachmentType.audio => Icons.mic_none_rounded,
-                          }),
-                          title: Text('${switch (attachment.type) {
-                            AttachmentType.image => 'Photo',
-                            AttachmentType.video => 'Video',
-                            AttachmentType.audio => 'Audio',
-                          }} ${index + 1}'),
-                          trailing: IconButton(
-                            tooltip: 'Remove',
-                            icon: const Icon(Icons.close_rounded),
-                            onPressed: () async {
-                              await _removeAttachments([attachment]);
-                              setLocal(() {});
-                              if (_attachments.isEmpty &&
-                                  dialogContext.mounted) {
-                                Navigator.pop(dialogContext);
-                              }
-                            },
+        builder: (dialogContext, setLocal) {
+          final tiles = asTiles();
+          return AlertDialog(
+            title: const Text('Attached'),
+            contentPadding: const EdgeInsets.fromLTRB(0, 16, 0, 0),
+            content: SizedBox(
+              width: 340,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      _attachments.isEmpty
+                          ? 'Nothing attached'
+                          : _attachmentsLabel(),
+                      style: Theme.of(dialogContext).textTheme.bodySmall,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  if (tiles.isNotEmpty)
+                    SizedBox(
+                      key: const ValueKey('quick-entry-attachment-carousel'),
+                      height: 124,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        itemCount: tiles.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 4),
+                        itemBuilder: (_, index) => SizedBox(
+                          width: 124,
+                          child: Card.filled(
+                            margin: EdgeInsets.zero,
+                            clipBehavior: Clip.antiAlias,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                GestureDetector(
+                                  onTap: () => Navigator.of(dialogContext).push(
+                                      AttachmentViewPage.route(
+                                          attachments: tiles, index: index)),
+                                  child: AttachmentTileBackground(
+                                      attachment: tiles[index]),
+                                ),
+                                Align(
+                                  alignment: Alignment.topRight,
+                                  child: IconButton(
+                                    tooltip: 'Remove',
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    icon: Icon(Icons.close_rounded,
+                                        color: Colors.white,
+                                        shadows: [
+                                          Shadow(
+                                              color: Colors.black
+                                                  .withValues(alpha: 0.8),
+                                              blurRadius: 6),
+                                        ]),
+                                    onPressed: () async {
+                                      await _removeAttachments(
+                                          [_attachments[index]]);
+                                      setLocal(() {});
+                                      if (_attachments.isEmpty &&
+                                          dialogContext.mounted) {
+                                        Navigator.pop(dialogContext);
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                    ],
-                  ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Done'),
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ],
-        ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Done'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -380,8 +454,12 @@ class _QuickEntryPageState extends State<QuickEntryPage> {
               key: const ValueKey('quick-entry-attach'),
               padding: EdgeInsets.zero,
               tooltip: 'Attach',
+              // Tonal so it stands out from the text box (3.7.0.68)
               style: IconButton.styleFrom(
-                  backgroundColor: cs.surfaceContainerHigh),
+                  backgroundColor: cs.secondaryContainer,
+                  foregroundColor: cs.onSecondaryContainer,
+                  side: BorderSide(
+                      color: cs.onSecondaryContainer.withValues(alpha: 0.25))),
               iconSize: 19,
               onPressed:
                   _capturing ? null : () => _openAttachMenu(buttonContext),
@@ -400,13 +478,19 @@ class _QuickEntryPageState extends State<QuickEntryPage> {
             key: const ValueKey('quick-entry-attachments'),
             visualDensity: VisualDensity.compact,
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            backgroundColor: cs.surfaceContainerHigh,
+            backgroundColor: cs.primaryContainer,
             side: BorderSide.none,
             shape: const StadiumBorder(),
+            avatar: Icon(_attachmentsIcon(),
+                size: 16, color: cs.onPrimaryContainer),
             label: Text(_attachmentsLabel(),
-                style: TextStyle(fontSize: 12.5, color: cs.onSurface)),
+                style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: cs.onPrimaryContainer)),
             onPressed: _showAttachmentList,
-            deleteIcon: const Icon(Icons.close_rounded, size: 16),
+            deleteIcon: Icon(Icons.close_rounded,
+                size: 16, color: cs.onPrimaryContainer),
             deleteButtonTooltipMessage: 'Remove all',
             onDeleted: () => _removeAttachments([..._attachments]),
           ),
@@ -1068,4 +1152,31 @@ enum QuickCapture {
 
   static QuickCapture? fromKey(String? key) =>
       values.where((kind) => kind.key == key).firstOrNull;
+}
+
+/// What the floating button's pie asks for (3.7.0.68): "photo",
+/// "photo_front", "video_back", "audio_auto" and so on.
+class QuickCaptureRequest {
+  const QuickCaptureRequest(this.kind, {this.front, this.autoStart = false});
+
+  final QuickCapture kind;
+
+  /// The lens for photo and video, or null for the camera's own choice.
+  final bool? front;
+  final bool autoStart;
+
+  static QuickCaptureRequest? parse(String? key) {
+    if (key == null) return null;
+    final parts = key.split('_');
+    final kind = QuickCapture.fromKey(parts.first);
+    if (kind == null) return null;
+    final extra = parts.length > 1 ? parts[1] : null;
+    return QuickCaptureRequest(kind,
+        front: switch (extra) {
+          'front' => true,
+          'back' => false,
+          _ => null,
+        },
+        autoStart: extra == 'auto');
+  }
 }
