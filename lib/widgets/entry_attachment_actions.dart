@@ -126,6 +126,36 @@ class EntryAttachmentActions {
         keepNames: true, deleteAfterwards: _pickerReturnsCopies);
   }
 
+  /// Photos and videos from the gallery in one go (quick entry's 📎,
+  /// Update 68).
+  static Future<List<PendingAttachment>> pickMediaFromGallery() async {
+    final picked = await ImagePicker().pickMultipleMedia();
+    const videoExtensions = {
+      '.mp4',
+      '.mov',
+      '.m4v',
+      '.3gp',
+      '.webm',
+      '.mkv',
+      '.avi'
+    };
+    bool isVideo(XFile file) =>
+        (file.mimeType?.startsWith('video/') ?? false) ||
+        videoExtensions.contains(extension(file.path).toLowerCase());
+    return [
+      ...await _pendingFromPaths([
+        for (final file in picked)
+          if (!isVideo(file)) file.path
+      ], AttachmentType.image, _storeImagePath,
+          keepNames: true, deleteAfterwards: _pickerReturnsCopies),
+      ...await _pendingFromPaths([
+        for (final file in picked)
+          if (isVideo(file)) file.path
+      ], AttachmentType.video, _storeVideo,
+          keepNames: true, deleteAfterwards: _pickerReturnsCopies),
+    ];
+  }
+
   static Future<List<PendingAttachment>> pickAudioFile() =>
       _pickFile(AttachmentType.audio, FileType.audio, _storeAudio);
 

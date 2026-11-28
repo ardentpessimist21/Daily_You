@@ -5,6 +5,7 @@
 import 'dart:io';
 
 import 'package:daily_you/fork/links.dart';
+import 'package:daily_you/fork/locations.dart';
 import 'package:daily_you/fork/share_return.dart';
 import 'package:daily_you/l10n/generated/app_localizations.dart';
 import 'package:intl/intl.dart';
@@ -37,10 +38,17 @@ class _SharePageState extends State<SharePage> {
   final ScrollController _scrollController = ScrollController();
   bool _opening = false;
 
+  /// Search (Update 68): words and an optional day, as in Link to entry.
+  final TextEditingController _search = TextEditingController();
+  DateTime? _searchDay;
+
+  bool get _searching => _search.text.trim().isNotEmpty || _searchDay != null;
+
   @override
   void dispose() {
     widget.payload.deleteMedia();
     _scrollController.dispose();
+    _search.dispose();
     super.dispose();
   }
 
@@ -219,6 +227,115 @@ class _SharePageState extends State<SharePage> {
     return Center(child: AspectRatio(aspectRatio: 1, child: card));
   }
 
+  Future<void> _pickSearchDay() async {
+    final entries = EntriesProvider.instance.entries;
+    final picked = await TimeManager.pickDate(
+      context,
+      initialDate: _searchDay ?? DateTime.now(),
+      firstDate: DateTime(1950),
+      lastDate: entries.isEmpty
+          ? DateTime.now()
+          : entries
+              .map((entry) => entry.timeCreate)
+              .reduce((a, b) => a.isAfter(b) ? a : b),
+      selectableDayPredicate: (date) =>
+          EntriesProvider.instance.getEntriesForDate(date).isNotEmpty,
+    );
+    if (picked != null && mounted) setState(() => _searchDay = picked);
+  }
+
+  Widget _searchBar(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final day = _searchDay;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SearchBar(
+          key: const ValueKey('share-search'),
+          controller: _search,
+          elevation: const WidgetStatePropertyAll(0),
+          leading: const Padding(
+            padding: EdgeInsets.all(8),
+            child: Icon(Icons.search_rounded),
+          ),
+          trailing: [
+            if (_search.text.isNotEmpty)
+              IconButton(
+                tooltip: MaterialLocalizations.of(context).deleteButtonTooltip,
+                icon: const Icon(Icons.close_rounded),
+                onPressed: () => setState(_search.clear),
+              ),
+          ],
+          hintText: l10n.searchLogsHint,
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 6),
+        InputChip(
+          avatar: const Icon(Icons.calendar_month_rounded),
+          label: Text(day == null
+              ? l10n.linkAnyDate
+              : TimeManager.formatDateWithWeekday(day, context)),
+          onPressed: _pickSearchDay,
+          onDeleted:
+              day == null ? null : () => setState(() => _searchDay = null),
+        ),
+      ],
+    );
+  }
+
+  /// Logs matching the search; tapping one adds what's shared to it.
+  Widget _searchResults(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final query = _search.text.trim().toLowerCase();
+    final day = _searchDay;
+    final entries = EntriesProvider.instance.entries.where((entry) {
+      if (entry.id == null) return false;
+      if (day != null && !TimeManager.isSameDay(entry.timeCreate, day)) {
+        return false;
+      }
+      return query.isEmpty || entry.text.toLowerCase().contains(query);
+    }).toList();
+    if (entries.isEmpty) return Center(child: Text(l10n.noResults));
+    final timeFormat = TimeManager.localizedTimeFormat(
+        context, TimeManager.currentLocale(context));
+    return ListView.builder(
+      key: const ValueKey('share-search-results'),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      itemCount: entries.length,
+      itemBuilder: (context, index) {
+        final entry = entries[index];
+        final title = EntryLinks.titleOf(entry);
+        final when =
+            '${TimeManager.formatDateWithWeekday(entry.timeCreate, context)} · '
+            '${timeFormat.format(entry.timeCreate)}';
+        final snippet = matchSnippet(entry.body, query);
+        return ListTile(
+          title: Text(
+            title.isEmpty ? l10n.writeSomethingHint : title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          subtitle: snippet == null
+              ? Text(when)
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    EntrySnippetText(snippet: snippet, query: query),
+                    Text(when),
+                  ],
+                ),
+          isThreeLine: snippet != null,
+          onTap: _opening
+              ? null
+              : () {
+                  FocusScope.of(context).unfocus();
+                  _openEditor(entry.timeCreate, entry);
+                },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final calendar = VerticalCalendar(
@@ -238,9 +355,14 @@ class _SharePageState extends State<SharePage> {
               padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
               child: Column(
                 children: [
-                  SizedBox(height: 200, child: _buildPreview()),
+                  // Smaller while searching, to leave room for results
+                  SizedBox(
+                      height: _searching ? 96 : 200, child: _buildPreview()),
                   const SizedBox(height: 8),
-                  Expanded(child: calendar),
+                  _searchBar(context),
+                  const SizedBox(height: 4),
+                  Expanded(
+                      child: _searching ? _searchResults(context) : calendar),
                 ],
               ),
             ),

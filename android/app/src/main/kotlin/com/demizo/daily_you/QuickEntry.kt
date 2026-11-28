@@ -26,11 +26,17 @@ object QuickEntry {
     /** The daily reminder's notification id (see lib/main.dart). */
     const val REMINDER_NOTIFICATION_ID = 0
 
-    /** Opens the quick-entry sheet in its own window. */
-    fun sheetIntent(context: Context): Intent =
+    const val EXTRA_CAPTURE = "quickEntryCapture"
+
+    /**
+     * Opens the quick-entry sheet in its own window; [capture] ("photo",
+     * "video" or "audio", from the floating button's pie) starts that first.
+     */
+    fun sheetIntent(context: Context, capture: String? = null): Intent =
         Intent(context, QuickEntryActivity::class.java)
             .setAction(ACTION_SHEET)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            .apply { if (capture != null) putExtra(EXTRA_CAPTURE, capture) }
 
     /** "Quick note" in the app icon's long-press menu. */
     fun addShortcut(context: Context) {

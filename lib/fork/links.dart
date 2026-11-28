@@ -508,7 +508,8 @@ class _EntryPickerPageState extends State<EntryPickerPage> {
                             : Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _SnippetText(snippet: snippet, query: query),
+                                  EntrySnippetText(
+                                      snippet: snippet, query: query),
                                   Text(when),
                                 ],
                               ),
@@ -552,8 +553,9 @@ String? matchSnippet(String text, String query, {int around = 40}) {
 }
 
 /// A picker snippet with the search words highlighted, as in the Gallery.
-class _SnippetText extends StatelessWidget {
-  const _SnippetText({required this.snippet, required this.query});
+class EntrySnippetText extends StatelessWidget {
+  const EntrySnippetText(
+      {super.key, required this.snippet, required this.query});
 
   final String snippet;
   final String query;

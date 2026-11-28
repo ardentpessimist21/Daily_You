@@ -25,6 +25,7 @@ import io.flutter.plugin.common.MethodChannel
 class QuickEntryActivity : FlutterFragmentActivity() {
     private var channel: MethodChannel? = null
     private var launchText: String? = null
+    private var launchCapture: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
@@ -34,6 +35,7 @@ class QuickEntryActivity : FlutterFragmentActivity() {
             window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
         }
         launchText = textFrom(intent)
+        launchCapture = intent?.getStringExtra(QuickEntry.EXTRA_CAPTURE)
         super.onCreate(savedInstanceState)
     }
 
@@ -47,8 +49,13 @@ class QuickEntryActivity : FlutterFragmentActivity() {
             .also { it.setMethodCallHandler { call, result ->
                 when (call.method) {
                     "getLaunch" -> {
-                        result.success(mapOf("text" to launchText, "locked" to isLocked()))
+                        result.success(mapOf(
+                            "text" to launchText,
+                            "capture" to launchCapture,
+                            "locked" to isLocked()
+                        ))
                         launchText = null
+                        launchCapture = null
                     }
                     "requestUnlock" -> requestUnlock(result)
                     "saved" -> {
@@ -94,7 +101,11 @@ class QuickEntryActivity : FlutterFragmentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         channel?.invokeMethod(
-            "launch", mapOf("text" to textFrom(intent), "locked" to isLocked())
+            "launch", mapOf(
+                "text" to textFrom(intent),
+                "capture" to intent.getStringExtra(QuickEntry.EXTRA_CAPTURE),
+                "locked" to isLocked()
+            )
         )
     }
 

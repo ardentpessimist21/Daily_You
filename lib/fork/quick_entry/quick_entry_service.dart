@@ -8,6 +8,7 @@ import 'package:daily_you/database/app_database.dart';
 import 'package:daily_you/database/entry_store.dart';
 import 'package:daily_you/fork/locations.dart';
 import 'package:daily_you/fork/places.dart';
+import 'package:daily_you/models/attachment.dart';
 import 'package:daily_you/models/entry.dart';
 import 'package:daily_you/models/tag.dart';
 import 'package:daily_you/providers/entries_provider.dart';
@@ -89,6 +90,7 @@ class QuickEntryService {
     bool keepMood = false,
     List<EntryTag> tags = const [],
     List<Place> places = const [],
+    List<NewAttachment> attachments = const [],
     DateTime? at,
     String? timeText,
   }) async {
@@ -106,13 +108,20 @@ class QuickEntryService {
           timeModified: now,
         ),
         tags: tags,
+        attachments:
+            EntryAttachment.appendRanked(const [], attachments, entryId: null),
       );
     } else {
       final (body, oldPlaces) = EntryLocations.split(last.text);
       final stamp = timeText ?? timeLabel(now);
       final above = body.trimRight();
-      final added = '$stamp\n$writing';
-      final newBody = above.isEmpty ? added : '$above\n\n$added';
+      // Only attachments: they go on the entry, no time stamp line
+      final added = writing.isEmpty ? '' : '$stamp\n$writing';
+      final newBody = added.isEmpty
+          ? above
+          : above.isEmpty
+              ? added
+              : '$above\n\n$added';
 
       final knownPlaces =
           oldPlaces.map((place) => place.name.trim().toLowerCase()).toSet();
@@ -137,11 +146,9 @@ class QuickEntryService {
             if (knownTags.add(entryTag.tagId)) entryTag.copy(entryId: last.id!),
         ],
         // The draft replaces the entry's attachments, so keep them all.
-        attachments: [
-          for (final attachment
-              in EntryAttachmentsProvider.instance.getForEntry(last))
-            attachment.copy()
-        ],
+        attachments: EntryAttachment.appendRanked(
+            EntryAttachmentsProvider.instance.getForEntry(last), attachments,
+            entryId: last.id),
       );
     }
 

@@ -91,6 +91,9 @@ class FloatingButtonService : Service() {
     private var targetAttached = false
 
     private var dndOn = false
+
+    /** The pie while the button is held (Update 68). */
+    private var pie: FloatingPie? = null
     private var snapAnimator: ValueAnimator? = null
 
     private val nudgeCheck = Runnable { checkNudges() }
@@ -290,6 +293,7 @@ class FloatingButtonService : Service() {
 
     private fun removeButton() {
         snapAnimator?.cancel()
+        removePie()
         if (attached) {
             try {
                 windowManager.removeView(root)
@@ -396,6 +400,7 @@ class FloatingButtonService : Service() {
         private var startX = 0
         private var startY = 0
         private var dragging = false
+        private val openPie = Runnable { showPie() }
 
         @SuppressLint("ClickableViewAccessibility")
         override fun onTouch(view: View, event: MotionEvent): Boolean {
@@ -409,12 +414,19 @@ class FloatingButtonService : Service() {
                     startY = layout.y
                     dragging = false
                     root?.alpha = 1f
+                    // Held still: the pie (Update 68)
+                    handler.postDelayed(openPie, ViewConfiguration.getLongPressTimeout().toLong())
                     return true
                 }
                 MotionEvent.ACTION_MOVE -> {
+                    pie?.let {
+                        it.pointAt(event.rawX, event.rawY)
+                        return true
+                    }
                     val dx = event.rawX - downRawX
                     val dy = event.rawY - downRawY
                     if (!dragging && hypot(dx, dy) > slop) {
+                        handler.removeCallbacks(openPie)
                         dragging = true
                         showTarget()
                     }
@@ -429,6 +441,14 @@ class FloatingButtonService : Service() {
                     return true
                 }
                 MotionEvent.ACTION_UP -> {
+                    handler.removeCallbacks(openPie)
+                    pie?.let {
+                        val picked = it.selected
+                        removePie()
+                        root?.alpha = FloatingButton.opacity(this@FloatingButtonService)
+                        picked?.let { slice -> onPieSlice(slice) }
+                        return true
+                    }
                     if (!dragging) {
                         root?.alpha = FloatingButton.opacity(this@FloatingButtonService)
                         onTap()
@@ -445,6 +465,8 @@ class FloatingButtonService : Service() {
                     return true
                 }
                 MotionEvent.ACTION_CANCEL -> {
+                    handler.removeCallbacks(openPie)
+                    removePie()
                     removeTarget()
                     if (dragging) snapToEdge() else placeAtSavedPosition()
                     root?.alpha = FloatingButton.opacity(this@FloatingButtonService)
@@ -452,6 +474,66 @@ class FloatingButtonService : Service() {
                 }
             }
             return false
+        }
+    }
+
+    private fun showPie() {
+        if (pie != null || !attached) return
+        val layout = params ?: return
+        val size = dp(BUTTON_DP)
+        val centerX = layout.x + size / 2f
+        val centerY = layout.y + size / 2f
+        val view = FloatingPie(this, centerX, centerY, centerX > screenWidth() / 2)
+        val pieLayout = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            overlayType(),
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+        }
+        try {
+            windowManager.addView(view, pieLayout)
+        } catch (_: Exception) {
+            return
+        }
+        pie = view
+        view.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+    }
+
+    private fun removePie() {
+        val view = pie ?: return
+        pie = null
+        try {
+            windowManager.removeView(view)
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun onPieSlice(slice: FloatingPie.Slice) {
+        FloatingButton.setDot(this, false)
+        updateDot()
+        try {
+            when (slice) {
+                FloatingPie.Slice.PHOTO -> startActivity(QuickEntry.sheetIntent(this, "photo"))
+                FloatingPie.Slice.VIDEO -> startActivity(QuickEntry.sheetIntent(this, "video"))
+                FloatingPie.Slice.AUDIO -> startActivity(QuickEntry.sheetIntent(this, "audio"))
+                FloatingPie.Slice.APP -> startActivity(
+                    Intent(this, MainActivity::class.java)
+                        .setAction(Intent.ACTION_MAIN)
+                        .addCategory(Intent.CATEGORY_LAUNCHER)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+                )
+            }
+        } catch (_: Exception) {
         }
     }
 

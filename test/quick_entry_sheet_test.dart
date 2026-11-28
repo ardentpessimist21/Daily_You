@@ -89,4 +89,45 @@ void main() {
     await tester.pump();
     expect(find.text('Night market'), findsOneWidget);
   });
+
+  // Update 68: 📎 in the text box opens Take photo, Record video, Record
+  // audio and From gallery; the pie's keys map to them
+  testWidgets('📎 opens the attach menu', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    tester.view.physicalSize = const Size(1080, 2340);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MultiProvider(
+      providers: [
+        ChangeNotifierProvider<ConfigProvider>.value(
+            value: ConfigProvider.instance),
+        ChangeNotifierProvider<EntriesProvider>.value(
+            value: EntriesProvider.instance),
+        ChangeNotifierProvider<TagsProvider>.value(
+            value: TagsProvider.instance),
+      ],
+      child: const MaterialApp(home: QuickEntryPage(ready: true)),
+    ));
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 300)));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byKey(const ValueKey('quick-entry-attachments')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('quick-entry-attach')));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    for (final label in [
+      'Take photo',
+      'Record video',
+      'Record audio',
+      'From gallery'
+    ]) {
+      expect(find.text(label), findsOneWidget, reason: label);
+    }
+    expect(QuickCapture.fromKey('photo'), QuickCapture.photo);
+    expect(QuickCapture.fromKey('audio'), QuickCapture.audio);
+    expect(QuickCapture.fromKey(null), isNull);
+  });
 }
