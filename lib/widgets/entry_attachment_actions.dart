@@ -115,6 +115,14 @@ class EntryAttachmentActions {
       storeAll(await _pendingFromPaths(paths, type, store,
           keepNames: true, deleteAfterwards: false));
 
+  /// A photo or video the camera saved to [path] for the quick entry's
+  /// Front / Back (3.7.0.69); the file is a copy and goes once stored.
+  static Future<List<PendingAttachment>> fromCapturedFile(
+          String path, AttachmentType type) =>
+      _pendingFromPaths([path], type,
+          type == AttachmentType.video ? _storeVideo : _storeImagePath,
+          keepNames: false, deleteAfterwards: true);
+
   static Future<List<PendingAttachment>> takeVideo({bool? front}) async {
     final pickedFile = await ImagePicker().pickVideo(
         source: ImageSource.camera, preferredCameraDevice: _lens(front));

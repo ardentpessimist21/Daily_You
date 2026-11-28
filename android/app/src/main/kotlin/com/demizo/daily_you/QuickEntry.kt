@@ -41,6 +41,24 @@ object QuickEntry {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             .apply { if (capture != null) putExtra(EXTRA_CAPTURE, capture) }
 
+    /**
+     * Asks the camera app to start on the front or back lens (3.7.0.69).
+     * There's no standard way, so this sends every request camera apps are
+     * known to read, Samsung's included; the camera may still ignore them.
+     */
+    fun putLens(intent: Intent, front: Boolean) {
+        val legacy = if (front) 1 else 0 // Camera.CameraInfo numbering
+        intent.putExtra("android.intent.extras.CAMERA_FACING", legacy)
+        intent.putExtra("android.intent.extras.LENS_FACING_FRONT", if (front) 1 else 0)
+        intent.putExtra("android.intent.extras.LENS_FACING_BACK", if (front) 0 else 1)
+        intent.putExtra("android.intent.extra.USE_FRONT_CAMERA", front)
+        intent.putExtra("com.google.assistant.extra.USE_FRONT_CAMERA", front)
+        intent.putExtra("camerafacing", if (front) "front" else "rear")
+        intent.putExtra("previous_mode", if (front) "front" else "rear")
+        intent.putExtra("default_camera", if (front) "1" else "0")
+        intent.putExtra("android.intent.extras.CAMERA_ID", legacy)
+    }
+
     /** "Quick note" in the app icon's long-press menu. */
     fun addShortcut(context: Context) {
         val shortcut = ShortcutInfoCompat.Builder(context, "quick_note")

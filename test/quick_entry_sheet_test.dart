@@ -186,5 +186,11 @@ void main() {
     expect(find.text('Take photo'), findsOneWidget);
     expect(focus.hasFocus, isTrue);
     expect(tester.testTextInput.hasAnyClients, isTrue);
+    // 3.7.0.69: the menu sits above 📎, clear of the keyboard
+    final clip =
+        tester.getRect(find.byKey(const ValueKey('quick-entry-attach')));
+    final last = tester.getRect(find.text('From gallery'));
+    expect(last.bottom, lessThan(clip.top));
+    expect(last.bottom, lessThan(2340 / 3 - 800 / 3));
   });
 }

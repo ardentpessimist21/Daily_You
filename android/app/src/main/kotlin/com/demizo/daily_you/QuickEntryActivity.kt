@@ -5,7 +5,11 @@
 package com.demizo.daily_you
 
 import android.app.KeyguardManager
+import android.content.ClipData
 import android.content.Intent
+import android.provider.MediaStore
+import androidx.core.content.FileProvider
+import java.io.File
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -26,6 +30,11 @@ class QuickEntryActivity : FlutterFragmentActivity() {
     private var channel: MethodChannel? = null
     private var launchText: String? = null
     private var launchCapture: String? = null
+
+    // The pie's Front / Back (3.7.0.69): Daily You asks the camera app
+    // itself, so it can send every known "start on this lens" request
+    private var captureResult: MethodChannel.Result? = null
+    private var captureFile: File? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
@@ -58,6 +67,11 @@ class QuickEntryActivity : FlutterFragmentActivity() {
                         launchCapture = null
                     }
                     "requestUnlock" -> requestUnlock(result)
+                    "captureWithLens" -> captureWithLens(
+                        call.argument<String>("kind") == "video",
+                        call.argument<Boolean>("front") == true,
+                        result
+                    )
                     "saved" -> {
                         NotificationManagerCompat.from(this)
                             .cancel(QuickEntry.REMINDER_NOTIFICATION_ID)
@@ -118,6 +132,47 @@ class QuickEntryActivity : FlutterFragmentActivity() {
         }
     }
 
+    private fun captureWithLens(video: Boolean, front: Boolean, result: MethodChannel.Result) {
+        if (captureResult != null) {
+            result.success(null)
+            return
+        }
+        try {
+            val dir = File(cacheDir, "quick_capture").apply { mkdirs() }
+            val file = File(dir, "capture_${System.currentTimeMillis()}.${if (video) "mp4" else "jpg"}")
+            val uri = FileProvider.getUriForFile(this, "$packageName.quickcapture", file)
+            val intent = Intent(if (video) MediaStore.ACTION_VIDEO_CAPTURE else MediaStore.ACTION_IMAGE_CAPTURE)
+                .putExtra(MediaStore.EXTRA_OUTPUT, uri)
+                .addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            intent.clipData = ClipData.newRawUri("", uri)
+            QuickEntry.putLens(intent, front)
+            captureFile = file
+            captureResult = result
+            @Suppress("DEPRECATION")
+            startActivityForResult(intent, CAPTURE_REQUEST)
+        } catch (_: Exception) {
+            captureFile?.delete()
+            captureFile = null
+            captureResult = null
+            result.success(null)
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != CAPTURE_REQUEST) return
+        val file = captureFile
+        val result = captureResult
+        captureFile = null
+        captureResult = null
+        if (resultCode == RESULT_OK && file != null && file.exists() && file.length() > 0) {
+            result?.success(file.absolutePath)
+        } else {
+            file?.delete()
+            result?.success(null)
+        }
+    }
+
     private fun isLocked(): Boolean =
         getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true
 
@@ -152,5 +207,9 @@ class QuickEntryActivity : FlutterFragmentActivity() {
         finish()
         @Suppress("DEPRECATION")
         overridePendingTransition(0, android.R.anim.fade_out)
+    }
+
+    companion object {
+        private const val CAPTURE_REQUEST = 6801
     }
 }

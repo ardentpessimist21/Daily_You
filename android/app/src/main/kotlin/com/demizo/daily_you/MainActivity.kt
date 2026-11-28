@@ -41,8 +41,14 @@ class MainActivity: FlutterFragmentActivity() {
             pendingOpenId = null
           }
           "consumeSearchRequest" -> {
-            result.success(pendingSearch)
-            pendingSearch = false
+            // The keyboard only comes up once the window is in front, so
+            // hold the request until then (3.7.0.69)
+            if (pendingSearch && hasWindowFocus()) {
+              pendingSearch = false
+              result.success(true)
+            } else {
+              result.success(false)
+            }
           }
           "addShortcut" -> {
             QuickEntry.addShortcut(this)
@@ -81,7 +87,9 @@ class MainActivity: FlutterFragmentActivity() {
   override fun onNewIntent(intent: Intent) {
     super.onNewIntent(intent)
     if (takeOpenRequest(intent)) quickEntryChannel?.invokeMethod("openRequest", null)
-    if (takeSearchRequest(intent)) quickEntryChannel?.invokeMethod("searchRequest", null)
+    if (takeSearchRequest(intent) && hasWindowFocus()) {
+      quickEntryChannel?.invokeMethod("searchRequest", null)
+    }
   }
 
   private fun takeOpenRequest(intent: Intent?): Boolean {
@@ -91,6 +99,11 @@ class MainActivity: FlutterFragmentActivity() {
     pendingOpenId = intent.getIntExtra(QuickEntry.EXTRA_OPEN_ID, -1)
     intent.action = Intent.ACTION_MAIN
     return true
+  }
+
+  override fun onWindowFocusChanged(hasFocus: Boolean) {
+    super.onWindowFocusChanged(hasFocus)
+    if (hasFocus && pendingSearch) quickEntryChannel?.invokeMethod("searchRequest", null)
   }
 
   private fun takeSearchRequest(intent: Intent?): Boolean {

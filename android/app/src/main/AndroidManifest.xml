@@ -135,6 +135,16 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/quick_entry_widget_info"/>
         </receiver>
+        <!-- 3.7.0.69: where the camera saves the pie's Front / Back captures -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.quickcapture"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/quick_capture_paths"/>
+        </provider>
         <!-- Update F: the floating button -->
         <service
             android:name=".FloatingButtonService"
